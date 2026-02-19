@@ -11,6 +11,7 @@ import RevokeModal from './components/RevokeModal'
 import BulkUploadScreen from './components/BulkUploadScreen'
 import AuditLogPage from './components/AuditLogPage'
 import TwoFASetup from './components/TwoFASetup'
+import Timeline from './components/Timeline'
 import './issuerApp.css'
 
 // Local storage key for credentials
@@ -324,12 +325,15 @@ export default function IssuerApp() {
     switch (activeView) {
       case 'students':
         return (
-          <StudentTable
-            students={getStudentsFromCredentials()}
-            onView={handleViewStudent}
-            onVerify={handleVerifyStudent}
-            onIssue={handleIssueCredential}
-          />
+          <div className="two-column">
+            <StudentTable
+              students={getStudentsFromCredentials()}
+              onView={handleViewStudent}
+              onVerify={handleVerifyStudent}
+              onIssue={handleIssueCredential}
+            />
+            <Timeline />
+          </div>
         )
       case 'issue':
         return (
