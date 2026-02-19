@@ -5,7 +5,7 @@ import { readdirSync } from 'fs'
 
 // Vite plugin to handle URL rewrites for local development (matches vercel.json)
 const urlRewritesPlugin = () => {
-  const rewrites = {
+  const rewrites: Record<string, string> = {
     '/holder': '/holder-wallet.html',
     '/issuer': '/issuer.html',
     '/organizer': '/issuer.html',
@@ -16,8 +16,8 @@ const urlRewritesPlugin = () => {
 
   return {
     name: 'url-rewrites',
-    configureServer(server) {
-      server.middlewares.use((req, res, next) => {
+    configureServer(server: any) {
+      server.middlewares.use((req: any, res: any, next: () => void) => {
         const rewrite = rewrites[req.url]
         if (rewrite) {
           req.url = rewrite
@@ -33,7 +33,7 @@ function getHtmlInputs() {
   const rootDir = __dirname
   const htmlFiles = readdirSync(rootDir)
     .filter(file => file.endsWith('.html'))
-    .reduce((acc, file) => {
+    .reduce((acc: Record<string, string>, file: string) => {
       const name = file.replace('.html', '')
       acc[name === 'index' ? 'main' : name] = resolve(rootDir, file)
       return acc
@@ -46,19 +46,6 @@ export default defineConfig({
   plugins: [react(), urlRewritesPlugin()],
   publicDir: 'public',
   root: '.', // Root directory for the project
-  define: {
-    // Defly Connect / WalletConnect and deps (algosdk, etc.) expect Node "global"
-    'global': 'globalThis',
-  },
-  resolve: {
-    alias: {
-      // Browser polyfill for buffer so Defly/crypto deps work
-      buffer: 'buffer/',
-    },
-  },
-  optimizeDeps: {
-    include: ['buffer'],
-  },
   build: {
     rollupOptions: {
       input: getHtmlInputs(),
@@ -110,4 +97,3 @@ export default defineConfig({
     }
   }
 })
-

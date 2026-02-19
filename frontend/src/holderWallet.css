@@ -765,6 +765,159 @@ textarea {
   font-size: 0.75rem;
 }
 
+/* Defly wallet connect section */
+.defly-login-section {
+  margin: 32px 0 48px;
+}
+
+.defly-login-section .defly-login-container {
+  background: rgba(14, 17, 33, 0.75);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: clamp(24px, 5vw, 40px);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 24px 60px rgba(5, 6, 12, 0.6);
+}
+
+.defly-login-section h2 {
+  margin: 0 0 8px;
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+}
+
+.defly-login-section p {
+  margin: 0 0 20px;
+  color: rgba(243, 245, 255, 0.8);
+}
+
+.defly-not-found p {
+  margin-bottom: 16px;
+}
+
+.defly-install-link {
+  display: inline-block;
+  margin-bottom: 20px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.defly-try-anyway {
+  margin-top: 8px;
+  margin-bottom: 12px !important;
+  font-size: 0.9rem;
+  color: rgba(243, 245, 255, 0.7);
+}
+
+.defly-install-hint {
+  margin-top: 20px;
+  font-size: 0.9rem;
+  color: rgba(243, 245, 255, 0.7);
+}
+
+.defly-install-hint .defly-install-link {
+  color: #7a8cff;
+  text-decoration: underline;
+}
+
+.defly-install-hint .defly-install-link:hover {
+  color: #9dadff;
+}
+
+.defly-connect-btn,
+.defly-disconnect-btn {
+  margin-right: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+/* Profile form (step before connect) */
+.profile-form .field {
+  margin-bottom: 16px;
+}
+.profile-form .role-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin-top: 8px;
+}
+.profile-form .radio-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: rgba(243, 245, 255, 0.9);
+}
+.profile-form .radio-label input {
+  width: 18px;
+  height: 18px;
+}
+.profile-form .button-row {
+  margin-top: 20px;
+}
+
+/* Connected state: wallet bar and dashboard nav */
+.wallet-info-bar {
+  margin-bottom: 24px;
+}
+
+.wallet-info-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.wallet-address {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.wallet-address strong,
+.user-role strong {
+  margin-right: 6px;
+}
+
+.user-role .badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.badge-sponsor { background: rgba(89, 100, 255, 0.25); color: #9dadff; }
+.badge-participant { background: rgba(109, 233, 186, 0.2); color: #9df4ce; }
+.badge-organizer { background: rgba(255, 213, 128, 0.2); color: #ffe2a0; }
+
+.dashboard-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.dashboard-nav .nav-tab {
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(243, 245, 255, 0.85);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.dashboard-nav .nav-tab:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.dashboard-nav .nav-tab.active {
+  background: rgba(89, 100, 255, 0.3);
+  border-color: rgba(89, 100, 255, 0.5);
+  color: #fff;
+}
+
 @media (max-width: 620px) {
   .holder-wallet {
     padding: 20px 18px 64px;

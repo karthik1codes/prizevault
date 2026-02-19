@@ -1,0 +1,49 @@
+// Hackathon-related TypeScript types
+
+export interface PrizePool {
+  total: number
+  currency: string
+  locked: boolean
+}
+
+export interface Participant {
+  id: string
+  name: string
+  team?: string
+  project?: string
+  track?: string
+  registeredAt: string
+  status: 'registered' | 'shortlisted' | 'winner'
+  payoutAddress?: string
+}
+
+export interface Winner {
+  id: string
+  name: string
+  team?: string
+  prizeTier: '1st' | '2nd' | '3rd' | 'special'
+  payoutAddress: string
+  prizeAmount: number
+}
+
+export interface Hackathon {
+  id: string
+  name: string
+  startDate: string
+  endDate: string
+  prizePool: PrizePool
+  organizerAddress: string
+  sponsorAddress: string
+  escrowAddress: string
+  status: 'upcoming' | 'live' | 'completed'
+  participantCount: number
+  participants?: Participant[]
+  winners?: Winner[]
+  winnersSelected: boolean
+  payoutProposed: boolean
+  description?: string
+}
+
+export type HackathonStatus = 'upcoming' | 'live' | 'completed'
+export type ParticipantStatus = 'registered' | 'shortlisted' | 'winner'
+export type PrizeTier = '1st' | '2nd' | '3rd' | 'special'
