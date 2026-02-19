@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import SharedHeader from './components/SharedHeader'
 import '../styles.css'
@@ -22,7 +22,11 @@ function EscrowOverviewPanel({ escrows, selectedEscrowId, onSelectEscrow }) {
             className={`status-tile${
               selectedEscrowId === escrow.id ? ' status-tile--active' : ''
             }`}
-            onClick={() => onSelectEscrow(escrow.id)}
+            onClick={() => {
+              onSelectEscrow(escrow.id)
+              const url = 'https://lora.algokit.io/testnet/transaction-wizard'
+              window.open(url, '_blank', 'noopener,noreferrer')
+            }}
           >
             <div className="label">{escrow.status}</div>
             <div style={{ fontWeight: 600 }}>{escrow.name}</div>
@@ -36,7 +40,7 @@ function EscrowOverviewPanel({ escrows, selectedEscrowId, onSelectEscrow }) {
   )
 }
 
-function FundingPanel({ selectedEscrow, onFund }) {
+function FundingPanel({ selectedEscrow, onFund, asaHoldings, senderAddress, onSyncOnChain }) {
   const [amount, setAmount] = useState('')
   const [assetId, setAssetId] = useState('')
 
@@ -72,12 +76,78 @@ function FundingPanel({ selectedEscrow, onFund }) {
         </strong>
       </p>
       <p className="muted" style={{ marginTop: 8, fontSize: '0.85rem' }}>
-        Escrow address:{' '}
+        On-chain ASA balances for this escrow:
+      </p>
+      {asaHoldings && asaHoldings.length > 0 ? (
+        <ul className="candidate-list" style={{ marginTop: 8 }}>
+          {asaHoldings.map((asset) => (
+            <li key={asset.assetId}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span className="muted">ASA #{asset.assetId}</span>
+                <strong>{asset.amount}</strong>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="muted" style={{ marginTop: 4, fontSize: '0.8rem' }}>
+          No ASA tokens detected yet for this escrow on chain.
+        </p>
+      )}
+      <div
+        className="muted"
+        style={{ marginTop: 8, fontSize: '0.85rem', display: 'flex', gap: 8, alignItems: 'center' }}
+      >
+        <span>
+          Escrow address:{' '}
+          <code>
+            {selectedEscrow.escrowAddress.slice(0, 8)}…
+            {selectedEscrow.escrowAddress.slice(-6)}
+          </code>
+        </span>
+        <button
+          type="button"
+          className="button ghost small"
+          style={{ paddingInline: 10 }}
+          onClick={async () => {
+            try {
+              if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(selectedEscrow.escrowAddress)
+              } else {
+                const textarea = document.createElement('textarea')
+                textarea.value = selectedEscrow.escrowAddress
+                textarea.style.position = 'fixed'
+                textarea.style.opacity = '0'
+                document.body.appendChild(textarea)
+                textarea.focus()
+                textarea.select()
+                document.execCommand('copy')
+                document.body.removeChild(textarea)
+              }
+            } catch {
+              // eslint-disable-next-line no-alert
+              alert('Unable to copy address, please copy it manually.')
+            }
+          }}
+        >
+          Copy
+        </button>
+      </div>
+      <p className="muted" style={{ marginTop: 4, fontSize: '0.8rem' }}>
+        Sender address to use in Lora Transaction Wizard:{' '}
         <code>
-          {selectedEscrow.escrowAddress.slice(0, 8)}…
-          {selectedEscrow.escrowAddress.slice(-6)}
+          {senderAddress.slice(0, 8)}…
+          {senderAddress.slice(-6)}
         </code>
       </p>
+      <button
+        type="button"
+        className="button ghost small"
+        style={{ marginTop: 10 }}
+        onClick={onSyncOnChain}
+      >
+        Sync balances from chain
+      </button>
       <form
         className="issuer-form"
         style={{ marginTop: 16 }}
@@ -111,10 +181,6 @@ function FundingPanel({ selectedEscrow, onFund }) {
           Fund escrow
         </button>
       </form>
-      <p className="muted" style={{ marginTop: 8, fontSize: '0.8rem' }}>
-        In production this form would prepare an unsigned Algorand transaction that your wallet
-        signs. Here it is wired to mock data only.
-      </p>
     </section>
   )
 }
@@ -262,11 +328,14 @@ function SponsorProfilePanel({ sponsorName, defaultWallet }) {
 }
 
 function SponsorDashboard() {
+  const escrowAccountAddress = 'VG57RMQO2W2FQUNWVSA7F55SNH5R2MKMSEZAGXT2NVDSTI4CCKPSOPZRDM'
+  const senderAddress =
+    'FEWFG5J6JQHZW5Q2R3BEDQRRSQKQYLUVMY7ETZOBFYXM4V2DR5LNA4I2AA'
   const [escrows, setEscrows] = useState([
     {
       id: 'escrow_1',
       name: 'RIFT Bengaluru · Main Prize',
-      escrowAddress: 'RIFTALGOTESTNETADDRESS000000000000000000001',
+      escrowAddress: escrowAccountAddress,
       status: 'Funded',
       balanceAlgo: 10,
       assetId: null,
@@ -298,6 +367,8 @@ function SponsorDashboard() {
     },
   ])
 
+  const [escrowAsaHoldings, setEscrowAsaHoldings] = useState({})
+
   const sponsorName = 'Hackathon Sponsor Inc.'
   const defaultWallet = 'SPONSORALGOTESTNETADDR0000000000000000003'
 
@@ -313,6 +384,49 @@ function SponsorDashboard() {
   }, [escrows])
 
   const selectedEscrow = escrows.find((e) => e.id === selectedEscrowId) ?? null
+
+  const syncEscrowOnChainState = async (escrow) => {
+    if (!escrow) return
+    try {
+      const response = await fetch(
+        `https://testnet-api.algonode.cloud/v2/accounts/${escrow.escrowAddress}`,
+      )
+      if (!response.ok) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to load account info from indexer')
+        return
+      }
+      const data = await response.json()
+      const account = data.account || {}
+      const assets = (account.assets || []).map((a) => ({
+        assetId: a['asset-id'],
+        amount: a.amount,
+      }))
+      setEscrowAsaHoldings((prev) => ({
+        ...prev,
+        [escrow.id]: assets,
+      }))
+      if (typeof account.amount === 'number') {
+        const algoBalance = account.amount / 1_000_000
+        setEscrows((prev) =>
+          prev.map((e) =>
+            e.id === escrow.id ? { ...e, balanceAlgo: algoBalance, status: e.status || 'Funded' } : e,
+          ),
+        )
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Error syncing escrow state from chain', error)
+    }
+  }
+
+  useEffect(() => {
+    // Load initial on-chain state for the currently selected escrow
+    if (selectedEscrow) {
+      syncEscrowOnChainState(selectedEscrow)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedEscrow?.escrowAddress])
 
   const handleFund = ({ escrowId, amount }) => {
     const numericAmount = Number(amount)
@@ -409,7 +523,13 @@ function SponsorDashboard() {
               selectedEscrowId={selectedEscrowId}
               onSelectEscrow={setSelectedEscrowId}
             />
-            <FundingPanel selectedEscrow={selectedEscrow} onFund={handleFund} />
+            <FundingPanel
+              selectedEscrow={selectedEscrow}
+              onFund={handleFund}
+              asaHoldings={escrowAsaHoldings[selectedEscrowId] || []}
+              senderAddress={senderAddress}
+              onSyncOnChain={() => syncEscrowOnChainState(selectedEscrow)}
+            />
           </section>
 
           <section className="recruiter-smart-grid" id="approvals">
