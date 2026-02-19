@@ -36,19 +36,22 @@ export default function HolderApp() {
   const handleDeflyConnect = (address: string) => {
     setUserWallet(address)
     setDeflyConnected(true)
-    const saved = getProfileForWallet(address)
+    // Prefer the profile just submitted this session so sponsor choice redirects correctly
     let role: UserRole
-    if (saved) {
-      role = saved.role
-      setUserRole(role)
-    } else if (pendingProfile) {
+    if (pendingProfile) {
       setProfileForWallet(address, pendingProfile)
       role = pendingProfile.role
       setUserRole(role)
       setPendingProfile(null)
     } else {
-      role = detectUserRole(address)
-      setUserRole(role)
+      const saved = getProfileForWallet(address)
+      if (saved) {
+        role = saved.role
+        setUserRole(role)
+      } else {
+        role = detectUserRole(address)
+        setUserRole(role)
+      }
     }
     if (role === 'sponsor') setActiveView('sponsor')
   }

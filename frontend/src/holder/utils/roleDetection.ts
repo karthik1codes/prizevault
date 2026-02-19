@@ -57,13 +57,37 @@ export function detectUserRole(
   return 'participant'
 }
 
+const DEFAULT_HACKATHONS: Hackathon[] = [
+  {
+    id: 'hack_001',
+    name: "RIFT '26",
+    startDate: '2026-02-19',
+    endDate: '2026-02-20',
+    prizePool: { total: 10000, currency: 'ALGO', locked: true },
+    organizerAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+    sponsorAddress: '',
+    escrowAddress: '',
+    status: 'live',
+    participantCount: 150,
+    winnersSelected: false,
+    payoutProposed: false,
+    description: '24-hour hackathon across Bengaluru, Pune, Noida and Lucknow',
+  },
+]
+
 /**
- * Gets hackathons from localStorage
+ * Gets hackathons from localStorage. Seeds default hackathons if storage is empty
+ * so sponsor/participant views always have something to show.
  */
 export function getHackathonsFromStorage(): Hackathon[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) return JSON.parse(stored)
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_HACKATHONS))
+    return DEFAULT_HACKATHONS
   } catch (_) {
     // Ignore parse errors
   }

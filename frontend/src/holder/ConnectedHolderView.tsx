@@ -25,7 +25,7 @@ export default function ConnectedHolderView({
   onDisconnect,
   onNavigate,
 }: ConnectedHolderViewProps) {
-  // Ensure sponsor users land on sponsor view (hackathons to contribute to)
+  // Ensure sponsor users land on sponsor view (list of hackathons to contribute to)
   useEffect(() => {
     if (userRole === 'sponsor' && activeView !== 'sponsor') {
       setActiveView('sponsor')
