@@ -1,0 +1,5 @@
+node_modules/
+.env
+escrow-state.json
+dist/
+*.log
