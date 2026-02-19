@@ -79,14 +79,15 @@ That’s what this project does, but the “box” is on the Algorand blockchain
 
 ## Quick start
 
-1. Install dependencies: `npm install`
-2. Copy `.env.example` to `.env` and set Algorand config (algod URL, tokens, sponsor/organizer/winner addresses).
-3. Create escrow: `npm run create-escrow`
-4. Sponsor deposits: send ALGO/ASA to the printed escrow address.
-5. Release (after both approve): `npm run release -- --winner <ADDRESS>`
-6. Optional: run the simple agent that waits for approvals and submits release: `npm run agent`
-
-(Exact commands may match the scripts we add below.)
+1. **Install dependencies:** `npm install`
+2. **Configure:** Copy `.env.example` to `.env` and set:
+   - `ALGOD_URL` (e.g. `http://localhost:8080` for AlgoKit LocalNet)
+   - `SPONSOR_MNEMONIC`, `ORGANIZER_MNEMONIC` (25-word Algorand mnemonics)
+3. **Create escrow:** `npm run create-escrow` — prints escrow address and saves `escrow-state.json`.
+4. **Deposit:** `npm run deposit` (default 1 ALGO) or `npm run deposit -- --amount=5000000` or `--asset-id=<ASA_ID>`.
+5. **Release** (when both parties approve):  
+   `npm run release -- --winner=<WINNER_ALGORAND_ADDRESS>`
+6. **Agent flow:** Set `WINNER_ADDRESS`, `APPROVE_SPONSOR=1`, `APPROVE_ORGANIZER=1`, then `npm run agent` to build and submit the release in one step.
 
 ---
 
