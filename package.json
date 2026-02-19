@@ -1,0 +1,22 @@
+{
+  "name": "hackathon-prize-escrow",
+  "version": "1.0.0",
+  "description": "AI-Agent-Managed Hackathon Prize Escrow on Algorand (AlgoKit only)",
+  "type": "module",
+  "scripts": {
+    "create-escrow": "tsx scripts/create-escrow.ts",
+    "deposit": "tsx scripts/deposit.ts",
+    "release": "tsx scripts/release.ts",
+    "agent": "tsx scripts/agent.ts",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "algosdk": "^3.0.0",
+    "@algorandfoundation/algokit-utils": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.0.0"
+  }
+}
