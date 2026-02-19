@@ -11,7 +11,6 @@ const urlRewritesPlugin = () => {
     '/organizer': '/issuer.html',
     '/verifier': '/recruiter.html',
     '/dashboard': '/index.html',
-    '/metamask': '/metamask.html',
   }
 
   return {

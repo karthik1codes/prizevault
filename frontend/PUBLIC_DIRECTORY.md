@@ -10,7 +10,6 @@ issuer/did/frontend/
 │   ├── index.html          (Landing page)
 │   ├── issuer.html         (Issuer dashboard)
 │   ├── holder-wallet.html  (Holder wallet)
-│   ├── metamask.html       (MetaMask login)
 │   └── recruiter.html      (Recruiter console)
 ├── src/                    (React components)
 ├── vite.config.js          (Updated to use public HTML files)
@@ -32,13 +31,12 @@ After running `npm run dev`, access pages at:
 - **Landing:** `http://localhost:5173/index.html` or `http://localhost:5173/`
 - **Issuer:** `http://localhost:5173/issuer.html`
 - **Holder Wallet:** `http://localhost:5173/holder-wallet.html`
-- **MetaMask Login:** `http://localhost:5173/metamask.html`
 - **Recruiter:** `http://localhost:5173/recruiter.html`
 
 ## ✅ What Changed
 
 1. ✅ Created `public/` directory
-2. ✅ Moved all 5 HTML files to `public/`
+2. ✅ Moved HTML entry files to `public/`
 3. ✅ Updated `vite.config.js` to reference HTML files from public
 4. ✅ Configured build inputs for all HTML pages
 

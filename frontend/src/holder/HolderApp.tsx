@@ -1,4 +1,4 @@
-import React, { useState, Suspense, lazy } from 'react'
+import React, { useState, useEffect, Suspense, lazy } from 'react'
 import SharedHeader from '../components/SharedHeader'
 import { detectUserRole } from './utils/roleDetection'
 import { getProfileForWallet, setProfileForWallet } from './utils/userProfileStorage'
@@ -37,16 +37,28 @@ export default function HolderApp() {
     setUserWallet(address)
     setDeflyConnected(true)
     const saved = getProfileForWallet(address)
+    let role: UserRole
     if (saved) {
-      setUserRole(saved.role)
+      role = saved.role
+      setUserRole(role)
     } else if (pendingProfile) {
       setProfileForWallet(address, pendingProfile)
-      setUserRole(pendingProfile.role)
+      role = pendingProfile.role
+      setUserRole(role)
       setPendingProfile(null)
     } else {
-      setUserRole(detectUserRole(address))
+      role = detectUserRole(address)
+      setUserRole(role)
     }
+    if (role === 'sponsor') setActiveView('sponsor')
   }
+
+  // Keep sponsor users on the sponsor view (list of hackathons to contribute to)
+  useEffect(() => {
+    if (deflyConnected && userRole === 'sponsor') {
+      setActiveView('sponsor')
+    }
+  }, [deflyConnected, userRole])
 
   const handleDeflyError = (error: string) => {
     console.error('Defly connection error:', error)

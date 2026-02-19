@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { HolderProvider } from './context/HolderContext'
 import SponsorDashboard from './components/SponsorDashboard'
 import ParticipantDashboard from './components/ParticipantDashboard'
@@ -25,6 +25,13 @@ export default function ConnectedHolderView({
   onDisconnect,
   onNavigate,
 }: ConnectedHolderViewProps) {
+  // Ensure sponsor users land on sponsor view (hackathons to contribute to)
+  useEffect(() => {
+    if (userRole === 'sponsor' && activeView !== 'sponsor') {
+      setActiveView('sponsor')
+    }
+  }, [userRole, activeView, setActiveView])
+
   return (
     <HolderProvider>
       <section className="wallet-info-bar">

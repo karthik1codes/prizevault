@@ -97,50 +97,11 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
 
       {userWallet && (
         <>
-          <section className="my-hackathons-section">
-            <h2>My Sponsored Hackathons</h2>
-            {myHackathons.length === 0 ? (
-              <p className="muted">You have not sponsored any hackathons yet.</p>
-            ) : (
-              <div className="hackathon-cards">
-                {myHackathons.map((hackathon) => (
-                  <div key={hackathon.id} className="hackathon-card">
-                    <div className="card-header">
-                      <h3>{hackathon.name}</h3>
-                      <span className={`badge badge-${hackathon.status}`}>{hackathon.status}</span>
-                    </div>
-                    <div className="card-body">
-                      <p>
-                        <strong>Prize Pool:</strong> {hackathon.prizePool.total}{' '}
-                        {hackathon.prizePool.currency}
-                      </p>
-                      <p>
-                        <strong>Participants:</strong> {hackathon.participantCount}
-                      </p>
-                      <p>
-                        <strong>Dates:</strong> {hackathon.startDate} to {hackathon.endDate}
-                      </p>
-                      {hackathon.payoutProposed && (
-                        <div className="pending-actions">
-                          <button
-                            type="button"
-                            className="btn btn-primary"
-                            onClick={() => handleApprovePayout(hackathon.id)}
-                            disabled={loading}
-                          >
-                            Approve Payout
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
           <section className="available-hackathons-section">
-            <h2>Available Hackathons</h2>
+            <h2>Hackathons you can contribute to</h2>
+            <p className="muted" style={{ marginBottom: '1rem' }}>
+              Contribute to prize pools only from this page. Select a hackathon below and enter the amount to fund.
+            </p>
             {availableHackathons.length === 0 ? (
               <p className="muted">No upcoming hackathons available for sponsorship.</p>
             ) : (
@@ -179,6 +140,48 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
                           Contribute
                         </button>
                       </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="my-hackathons-section">
+            <h2>My Sponsored Hackathons</h2>
+            {myHackathons.length === 0 ? (
+              <p className="muted">You have not sponsored any hackathons yet.</p>
+            ) : (
+              <div className="hackathon-cards">
+                {myHackathons.map((hackathon) => (
+                  <div key={hackathon.id} className="hackathon-card">
+                    <div className="card-header">
+                      <h3>{hackathon.name}</h3>
+                      <span className={`badge badge-${hackathon.status}`}>{hackathon.status}</span>
+                    </div>
+                    <div className="card-body">
+                      <p>
+                        <strong>Prize Pool:</strong> {hackathon.prizePool.total}{' '}
+                        {hackathon.prizePool.currency}
+                      </p>
+                      <p>
+                        <strong>Participants:</strong> {hackathon.participantCount}
+                      </p>
+                      <p>
+                        <strong>Dates:</strong> {hackathon.startDate} to {hackathon.endDate}
+                      </p>
+                      {hackathon.payoutProposed && (
+                        <div className="pending-actions">
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={() => handleApprovePayout(hackathon.id)}
+                            disabled={loading}
+                          >
+                            Approve Payout
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
