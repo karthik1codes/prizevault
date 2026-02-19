@@ -58,6 +58,10 @@ export default function AuditLogPage({ logs }) {
       verify: '✓',
       update: '✏️',
       delete: '🗑️',
+      create: '📅',
+      select_winners: '🏆',
+      create_payout: '💰',
+      execute: '✅',
     }
     return icons[action] || '📋'
   }
@@ -79,6 +83,10 @@ export default function AuditLogPage({ logs }) {
             <option value="verify">Verify</option>
             <option value="update">Update</option>
             <option value="delete">Delete</option>
+            <option value="create">Create</option>
+            <option value="select_winners">Select Winners</option>
+            <option value="create_payout">Create Payout</option>
+            <option value="execute">Execute</option>
           </select>
           <input
             type="text"

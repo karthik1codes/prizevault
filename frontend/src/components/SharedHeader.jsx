@@ -4,7 +4,7 @@ export default function SharedHeader({ activeTab = 'landing' }) {
   const tabs = [
     { id: 'holder', label: 'Holder Wallet', href: '/holder' },
     { id: 'recruiter', label: 'Sponsor', href: '/verifier' },
-    { id: 'issuer', label: 'Issuer', href: '/issuer' },
+    { id: 'issuer', label: 'Organizer', href: '/issuer' },
     { id: 'metamask', label: 'Login', href: '/metamask' },
   ]
 

@@ -10,7 +10,8 @@ body {
   color: #f4f5ff;
 }
 
-.issuer-app {
+.issuer-app,
+.organizer-app {
   position: relative;
   min-height: 100vh;
   padding: 24px clamp(24px, 6vw, 72px) 80px;
@@ -937,8 +938,9 @@ textarea {
 /* Main Header with Navigation */
 /* Main Header styles are in global styles.css - do not duplicate here */
 
-/* Issuer Sub-Header - inherits from global styles.css */
-.issuer-sub-header-content {
+/* Issuer / Organizer Sub-Header - inherits from global styles.css */
+.issuer-sub-header-content,
+.organizer-sub-header-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -946,13 +948,15 @@ textarea {
   gap: 24px;
 }
 
-.issuer-info {
+.issuer-info,
+.organizer-info {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.issuer-name {
+.issuer-name,
+.organizer-name {
   margin: 0;
   font-size: 1.8rem;
   font-weight: 700;
@@ -1033,13 +1037,15 @@ textarea {
 }
 
 /* Sidebar Component */
-.issuer-layout {
+.issuer-layout,
+.organizer-layout {
   display: flex;
   gap: 32px;
   min-height: calc(100vh - 200px);
 }
 
-.issuer-sidebar {
+.issuer-sidebar,
+.organizer-sidebar {
   width: 240px;
   flex-shrink: 0;
 }
@@ -1081,7 +1087,8 @@ textarea {
   font-size: 1.2rem;
 }
 
-.issuer-content {
+.issuer-content,
+.organizer-content {
   flex: 1;
   padding: 0;
 }
@@ -1218,6 +1225,256 @@ textarea {
 .badge-revoked {
   background: rgba(239, 68, 68, 0.2);
   color: #ef4444;
+}
+
+.badge-live {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.badge-upcoming {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+/* Organizer Dashboard */
+.organizer-dashboard,
+.participant-manager,
+.winner-selection,
+.payout-proposal,
+.organizer-hackathon-list {
+  background: rgba(28, 32, 42, 0.6);
+  border: 1px solid rgba(113, 127, 161, 0.35);
+  border-radius: 16px;
+  padding: 24px;
+  backdrop-filter: blur(10px);
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.dashboard-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.pending-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.action-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: rgba(15, 18, 25, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+}
+
+.action-icon {
+  font-size: 1.5rem;
+}
+
+.btn-link {
+  display: block;
+  margin-top: 4px;
+  background: none;
+  border: none;
+  color: #2d9cdb;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
+
+.my-hackathons-section h3,
+.organizer-hackathon-list h2,
+.create-proposal-section h3,
+.proposals-list h3 {
+  margin: 0 0 16px;
+  font-size: 1.2rem;
+}
+
+.hackathon-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.hackathon-card {
+  background: rgba(15, 18, 25, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.hackathon-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.hackathon-card-header h4 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.hackathon-card-body p {
+  margin: 4px 0;
+  font-size: 0.9rem;
+}
+
+.hackathon-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.btn-small {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: rgba(244, 245, 255, 0.9);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-small:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.table-header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.filter-select {
+  padding: 8px 12px;
+  background: rgba(15, 18, 25, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: white;
+  font-size: 0.9rem;
+}
+
+.muted {
+  color: rgba(244, 245, 255, 0.6);
+  font-size: 0.9rem;
+}
+
+.winner-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.success-message {
+  color: #10b981;
+  font-size: 0.9rem;
+}
+
+.input-inline {
+  padding: 6px 10px;
+  background: rgba(15, 18, 25, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: white;
+  font-size: 0.85rem;
+  min-width: 200px;
+}
+
+.input-inline.input-number {
+  min-width: 80px;
+}
+
+.proposal-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: rgba(15, 18, 25, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.proposal-card.full {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.proposal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.proposal-body {
+  margin-bottom: 12px;
+}
+
+.proposal-body p {
+  margin: 4px 0;
+}
+
+.proposals-list {
+  margin-top: 24px;
+}
+
+.create-proposal-section {
+  margin-bottom: 24px;
+}
+
+.timeline-full {
+  width: 100%;
+}
+
+/* Expanded timeline section */
+.issuer-section.timeline-expanded {
+  padding: 48px clamp(32px, 5vw, 64px);
+  max-width: 100%;
+}
+
+.issuer-section.timeline-expanded .timeline {
+  padding-left: 32px;
+  gap: 24px;
+}
+
+.issuer-section.timeline-expanded .timeline-item {
+  padding: clamp(24px, 4vw, 36px);
+}
+
+.issuer-section.timeline-expanded .section-heading {
+  margin-bottom: 40px;
+}
+
+.issuer-section.timeline-expanded .section-heading h2 {
+  font-size: clamp(2rem, 4vw, 2.8rem);
+}
+
+.issuer-section.timeline-expanded .section-heading p {
+  font-size: clamp(1rem, 2vw, 1.2rem);
+  max-width: 900px;
 }
 
 .action-buttons {
@@ -2096,11 +2353,13 @@ textarea {
 @media (max-width: 768px) {
   /* Header responsive styles are in global styles.css */
 
-  .issuer-sub-header {
+  .issuer-sub-header,
+  .organizer-sub-header {
     padding: 20px clamp(20px, 4vw, 32px);
   }
 
-  .issuer-sub-header-content {
+  .issuer-sub-header-content,
+  .organizer-sub-header-content {
     flex-direction: column;
     align-items: flex-start;
   }
@@ -2110,11 +2369,13 @@ textarea {
     justify-content: space-between;
   }
 
-  .issuer-layout {
+  .issuer-layout,
+  .organizer-layout {
     flex-direction: column;
   }
 
-  .issuer-sidebar {
+  .issuer-sidebar,
+  .organizer-sidebar {
     width: 100%;
   }
 

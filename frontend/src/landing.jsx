@@ -128,7 +128,7 @@ function Landing() {
           <article className="role-card highlight" id="wallet">
             <h3>Organizer console</h3>
             <p>Configure hackathons, register winners, and co-approve payouts from shared escrow.</p>
-            <a href="/issuer" className="button tertiary">
+            <a href="/organizer" className="button tertiary">
               For organizers
             </a>
           </article>
@@ -219,7 +219,7 @@ function Landing() {
             <p>
               Let sponsors and reviewers share control of bounty pools so no single signer can unilaterally move funds.
             </p>
-            <a href="/issuer" className="button tertiary">
+            <a href="/organizer" className="button tertiary">
               Talk about bounty flows
             </a>
           </article>

@@ -2,17 +2,18 @@ import React from 'react'
 
 export default function Sidebar({ activeView, onViewChange }) {
   const menuItems = [
-    { id: 'students', label: 'Students', icon: '👥' },
-    { id: 'issue', label: 'Issue Credential', icon: '📜' },
-    { id: 'issued', label: 'Issued Credentials', icon: '✅' },
-    { id: 'revoke', label: 'Revoke', icon: '🚫' },
-    { id: 'did', label: 'DID Management', icon: '🔑' },
+    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'participants', label: 'Participants', icon: '👥' },
+    { id: 'winners', label: 'Select Winners', icon: '🏆' },
+    { id: 'payouts', label: 'Payout Proposals', icon: '💰' },
+    { id: 'hackathons', label: 'My Hackathons', icon: '📅' },
+    { id: 'timeline', label: 'Event Timeline', icon: '📆' },
     { id: 'audit', label: 'Audit Logs', icon: '📋' },
     { id: 'settings', label: 'Settings', icon: '⚙️' },
   ]
 
   return (
-    <aside className="issuer-sidebar">
+    <aside className="organizer-sidebar">
       <nav className="sidebar-nav">
         {menuItems.map((item) => (
           <button

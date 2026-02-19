@@ -179,6 +179,7 @@ a {
 
 /* Sub-headers for specific pages */
 .issuer-sub-header,
+.organizer-sub-header,
 .recruiter-sub-header,
 .holder-sub-header,
 .metamask-sub-header {
@@ -195,7 +196,7 @@ a {
 }
 
 .issuer-sub-header-content,
-.recruiter-sub-header-content,
+.organizer-sub-header-content,
 .holder-sub-header-content,
 .metamask-sub-header-content {
   display: flex;

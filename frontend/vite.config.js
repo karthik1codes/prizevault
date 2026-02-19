@@ -8,6 +8,7 @@ const urlRewritesPlugin = () => {
   const rewrites = {
     '/holder': '/holder-wallet.html',
     '/issuer': '/issuer.html',
+    '/organizer': '/issuer.html',
     '/verifier': '/recruiter.html',
     '/dashboard': '/index.html',
     '/metamask': '/metamask.html',

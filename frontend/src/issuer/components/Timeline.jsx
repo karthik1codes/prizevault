@@ -156,7 +156,7 @@ const eventTimeline = [
 
 export default function Timeline() {
   return (
-    <section className="issuer-section">
+    <section className="issuer-section timeline-expanded">
       <div className="section-heading">
         <h2>RIFT &apos;26 Event Timeline</h2>
         <p>

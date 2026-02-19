@@ -1,20 +1,20 @@
 import React from 'react'
 import SharedHeader from '../../components/SharedHeader'
 
-export default function Header({ issuerName, issuerDID, stats }) {
+export default function Header({ organizerName, walletAddress, stats }) {
   return (
     <>
       <SharedHeader activeTab="issuer" />
-      <div className="issuer-sub-header">
-        <div className="issuer-sub-header-content">
-          <div className="issuer-info">
-            <h1 className="issuer-name">{issuerName || 'Issuer Admin'}</h1>
+      <div className="organizer-sub-header">
+        <div className="organizer-sub-header-content">
+          <div className="organizer-info">
+            <h1 className="organizer-name">{organizerName || 'Organizer'}</h1>
             <div className="did-card">
-              <span className="did-label">Issuer DID</span>
-              <code className="did-value">{issuerDID || 'did:ethr:0x...'}</code>
+              <span className="did-label">Wallet Address</span>
+              <code className="did-value">{walletAddress || '0x...'}</code>
               <button 
                 className="copy-btn"
-                onClick={() => navigator.clipboard.writeText(issuerDID)}
+                onClick={() => navigator.clipboard.writeText(walletAddress)}
                 title="Copy DID"
               >
                 📋
@@ -23,16 +23,16 @@ export default function Header({ issuerName, issuerDID, stats }) {
           </div>
           <div className="quick-stats">
             <div className="stat-card">
-              <span className="stat-label">Issued</span>
-              <span className="stat-value">{stats?.issued || 0}</span>
+              <span className="stat-label">Hackathons</span>
+              <span className="stat-value">{stats?.hackathons || 0}</span>
             </div>
             <div className="stat-card">
-              <span className="stat-label">Active</span>
-              <span className="stat-value stat-active">{stats?.active || 0}</span>
+              <span className="stat-label">Participants</span>
+              <span className="stat-value stat-active">{stats?.participants || 0}</span>
             </div>
             <div className="stat-card">
-              <span className="stat-label">Revoked</span>
-              <span className="stat-value stat-revoked">{stats?.revoked || 0}</span>
+              <span className="stat-label">Pending Payouts</span>
+              <span className="stat-value stat-revoked">{stats?.pendingPayouts || 0}</span>
             </div>
           </div>
         </div>
