@@ -19,11 +19,9 @@ function EscrowOverviewPanel({ escrows, selectedEscrowId, onSelectEscrow }) {
           <button
             key={escrow.id}
             type="button"
-            className="status-tile"
-            style={{
-              borderColor:
-                selectedEscrowId === escrow.id ? 'rgba(102, 240, 176, 0.7)' : undefined,
-            }}
+            className={`status-tile${
+              selectedEscrowId === escrow.id ? ' status-tile--active' : ''
+            }`}
             onClick={() => onSelectEscrow(escrow.id)}
           >
             <div className="label">{escrow.status}</div>

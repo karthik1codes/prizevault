@@ -477,11 +477,15 @@
 }
 
 .status-tile {
-  background: rgba(255, 255, 255, 0.04);
+  background: radial-gradient(circle at 0% 0%, rgba(102, 240, 176, 0.16), rgba(13, 16, 30, 0.98));
   border-radius: 14px;
   padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  text-align: left;
+  color: #f7f8ff;
+  box-shadow: 0 18px 40px rgba(3, 8, 26, 0.75);
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, background 0.18s ease;
 }
 
 .status-tile.ok {
@@ -498,6 +502,27 @@
   font-size: 0.75rem;
   display: block;
   margin-bottom: 6px;
+}
+
+.status-tile .muted {
+  color: rgba(243, 245, 255, 0.82);
+}
+
+.status-tile:hover,
+.status-tile:focus-visible {
+  border-color: rgba(102, 240, 176, 0.7);
+  box-shadow: 0 22px 52px rgba(5, 12, 40, 0.9);
+  transform: translateY(-1px);
+}
+
+.status-tile--active {
+  background: linear-gradient(
+    135deg,
+    rgba(102, 240, 176, 0.28),
+    rgba(13, 16, 30, 0.98)
+  );
+  border-color: rgba(102, 240, 176, 0.9);
+  box-shadow: 0 24px 60px rgba(102, 240, 176, 0.45);
 }
 
 .log-list {
