@@ -1,0 +1,446 @@
+* {
+  box-sizing: border-box;
+}
+
+/* Main Header styles are in global styles.css - do not duplicate here */
+
+:root {
+  --bg: #030712;
+  --bg-accent: radial-gradient(120% 90% at 0% 0%, rgba(33, 111, 255, 0.32), transparent 60%),
+              radial-gradient(100% 85% at 90% 10%, rgba(123, 67, 255, 0.28), transparent 65%),
+              radial-gradient(120% 120% at 50% 80%, rgba(15, 201, 255, 0.2), transparent 70%);
+  --card: rgba(28, 32, 42, 0.6);
+  --card-border: rgba(113, 127, 161, 0.35);
+  --card-highlight: rgba(32, 146, 255, 0.12);
+  --text-primary: #f5f7ff;
+  --text-secondary: rgba(225, 232, 255, 0.75);
+  --chip-bg: rgba(255, 255, 255, 0.12);
+  --chip-hover: rgba(255, 255, 255, 0.22);
+  --primary: #2d9cdb;
+  --primary-dark: #2079ac;
+  --secondary: transparent;
+  --secondary-border: rgba(255, 255, 255, 0.35);
+  --panel-bg: rgba(15, 18, 25, 0.65);
+  --panel-border: rgba(255, 255, 255, 0.1);
+  --shadow-soft: 0 20px 60px rgba(6, 11, 25, 0.45);
+}
+
+body {
+  margin: 0;
+  font-family: 'Montserrat', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+body::before,
+body::after,
+.global-noise {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+body::before {
+  background: var(--bg);
+  z-index: -2;
+}
+
+body::after {
+  background: var(--bg-accent), linear-gradient(160deg, rgba(3, 5, 15, 0.65), rgba(3, 5, 11, 0.9));
+  z-index: -1;
+}
+
+.global-noise {
+  mix-blend-mode: soft-light;
+  opacity: 0.18;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='a'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='2' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23a)' opacity='.38'/%3E%3C/svg%3E");
+  z-index: -1;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Issuer App Container */
+.issuer-app {
+  position: relative;
+  min-height: 100vh;
+  padding: 24px clamp(24px, 6vw, 72px) 96px;
+}
+
+.grid-backdrop {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 20% -10%, rgba(89, 100, 255, 0.22), transparent 60%),
+    radial-gradient(circle at 80% 10%, rgba(84, 214, 229, 0.2), transparent 55%),
+    linear-gradient(120deg, rgba(255, 255, 255, 0.05), transparent 70%);
+  z-index: -2;
+}
+
+/* Issuer Header */
+.issuer-header {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 40px;
+  padding: 20px 6vw;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  position: sticky;
+  top: 20px;
+  z-index: 10;
+  background: rgba(2, 6, 18, 0.6);
+  border: 1px solid rgba(90, 120, 200, 0.08);
+  border-radius: 999px;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 20px 60px rgba(4, 10, 24, 0.35);
+}
+
+.issuer-header-left {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.issuer-brand-mark {
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+}
+
+.issuer-header h1 {
+  margin: 0;
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+}
+
+.issuer-header p {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.issuer-nav {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.issuer-nav a {
+  text-decoration: none;
+  color: rgba(244, 245, 255, 0.72);
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.85rem;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.issuer-nav a:hover,
+.issuer-nav a:focus-visible {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.issuer-header-right {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  align-items: center;
+}
+
+.wallet-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(14, 16, 32, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.wallet-pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.wallet-pill-dot[data-status='connected'] {
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+}
+
+/* Main Content */
+.issuer-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 6vw 120px;
+}
+
+.issuer-hero {
+  text-align: center;
+  margin-bottom: 48px;
+  padding: 32px 0;
+}
+
+.issuer-hero h1 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  margin: 0 0 16px;
+  background: linear-gradient(135deg, #ffffff, rgba(255, 255, 255, 0.7));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.issuer-hero p {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+}
+
+/* Sections */
+.issuer-section {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 32px;
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-soft);
+}
+
+.issuer-section h2 {
+  margin: 0 0 24px;
+  font-size: 1.5rem;
+  color: var(--text-primary);
+}
+
+/* DID Registration */
+.did-registration {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.btn-primary {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  font-size: 1rem;
+  box-shadow: 0 10px 35px rgba(45, 156, 219, 0.35);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 38px rgba(45, 156, 219, 0.45);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.did-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--panel-bg);
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+}
+
+.did-display label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.did-display code {
+  flex: 1;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  color: var(--primary);
+  font-size: 0.9rem;
+  word-break: break-all;
+}
+
+.did-display button {
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.2s ease;
+}
+
+.did-display button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Issue Credential Form */
+.issue-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.issue-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.issue-form input {
+  padding: 12px 16px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  color: white;
+  font-size: 1rem;
+  transition: border-color 0.2s ease;
+  font-family: inherit;
+}
+
+.issue-form input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.issue-form input::placeholder {
+  color: var(--text-secondary);
+}
+
+/* Credential List */
+.credential-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.credential-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 20px;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.credential-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(45, 156, 219, 0.5);
+}
+
+.credential-card h3 {
+  margin: 0 0 12px;
+  color: var(--text-primary);
+  font-size: 1.2rem;
+}
+
+.credential-card p {
+  margin: 8px 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.credential-card button {
+  margin-top: 12px;
+  padding: 8px 16px;
+  background: rgba(45, 156, 219, 0.2);
+  border: 1px solid rgba(45, 156, 219, 0.4);
+  border-radius: 6px;
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s ease;
+}
+
+.credential-card button:hover {
+  background: rgba(45, 156, 219, 0.3);
+}
+
+/* Footer */
+.issuer-footer {
+  margin-top: 64px;
+  padding-top: 32px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.issuer-footer p {
+  margin: 8px 0;
+}
+
+.footer-meta {
+  font-size: 0.85rem;
+  color: rgba(244, 245, 255, 0.4);
+}
+
+/* Responsive */
+@media (max-width: 720px) {
+  .issuer-header {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 16px 24px;
+  }
+
+  .issuer-header-left {
+    justify-content: center;
+  }
+
+  .issuer-header-right {
+    justify-content: center;
+  }
+
+  .issuer-nav {
+    justify-content: center;
+  }
+
+  .issuer-main {
+    padding: 0 24px 80px;
+  }
+
+  .issuer-hero {
+    padding: 24px 0;
+  }
+
+  .issuer-section {
+    padding: 24px;
+  }
+
+  .credential-list {
+    grid-template-columns: 1fr;
+  }
+}
+

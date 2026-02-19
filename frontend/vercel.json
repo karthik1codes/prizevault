@@ -1,0 +1,11 @@
+{
+  "rewrites": [
+    { "source": "/holder", "destination": "/holder-wallet.html" },
+    { "source": "/issuer", "destination": "/issuer.html" },
+    { "source": "/verifier", "destination": "/recruiter.html" },
+    { "source": "/dashboard", "destination": "/index.html" },
+    { "source": "/metamask", "destination": "/metamask.html" },
+    { "source": "/", "destination": "/index.html" }
+  ]
+}
+
