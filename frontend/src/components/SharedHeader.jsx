@@ -12,7 +12,7 @@ export default function SharedHeader({ activeTab = 'landing' }) {
     <header className="main-header">
       <div className="header-brand">
         <a href="/" className="logo-link logo-tab">
-          <span className="logo">CIPHERS</span>
+          <span className="logo">Prize Vault</span>
         </a>
       </div>
       <nav className="header-nav">
