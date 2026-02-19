@@ -265,9 +265,9 @@ main {
 
 .hero {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 40px;
-  padding: 100px 0 80px;
+  grid-template-columns: minmax(320px, 1.2fr) minmax(380px, 1.1fr);
+  gap: 56px;
+  padding: 110px 0 90px;
   align-items: center;
 }
 
@@ -359,7 +359,8 @@ main {
   background: var(--card);
   border: 1px solid var(--card-border);
   border-radius: 20px;
-  padding: 28px;
+  padding: 36px;
+  max-width: 520px;
   backdrop-filter: blur(24px);
   box-shadow: var(--shadow-soft);
 }
@@ -640,6 +641,10 @@ main {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
+.cta-panels > .section-heading {
+  grid-column: 1 / -1;
+}
+
 .panel {
   background: var(--panel-bg);
   border: 1px solid var(--panel-border);
@@ -885,11 +890,12 @@ pre {
   }
 
   .hero {
-    padding-top: 30px;
+    padding-top: 40px;
   }
 
   .hero-card {
     order: -1;
+    padding: 30px 24px;
   }
 
   .sponsor-strip {

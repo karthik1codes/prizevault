@@ -121,14 +121,14 @@ function Landing() {
           <article className="role-card">
             <h3>Sponsor view</h3>
             <p>Fund the prize into escrow, see committed prize pools, and co-approve payouts when results are final.</p>
-            <a href="/issuer" className="button tertiary">
+            <a href="/verifier" className="button tertiary">
               For sponsors
             </a>
           </article>
           <article className="role-card highlight" id="wallet">
             <h3>Organizer console</h3>
             <p>Configure hackathons, register winners, and co-approve payouts from shared escrow.</p>
-            <a href="/holder" className="button tertiary">
+            <a href="/issuer" className="button tertiary">
               For organizers
             </a>
           </article>
