@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { Hackathon } from '../../types/hackathon'
 import { getHackathonsFromStorage, saveHackathonsToStorage } from '../utils/roleDetection'
+import { getPayoutProposals, savePayoutProposals } from '../../utils/payoutProposalsStorage'
 
 interface SponsorDashboardProps {
   userWallet: string | null
@@ -9,11 +10,16 @@ interface SponsorDashboardProps {
 
 export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDashboardProps) {
   const [hackathons, setHackathons] = useState<Hackathon[]>([])
+  const [proposals, setProposals] = useState<Record<string, unknown>[]>([])
   const [amount, setAmount] = useState('')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     setHackathons(getHackathonsFromStorage())
+  }, [])
+
+  useEffect(() => {
+    setProposals(getPayoutProposals())
   }, [])
 
   const myHackathons = useMemo(() => {
@@ -31,6 +37,20 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
         (h.status === 'upcoming' || h.status === 'live')
     )
   }, [hackathons, userWallet])
+
+  const proposalsAwaitingMyApproval = useMemo(() => {
+    if (!userWallet) return []
+    return proposals.filter(
+      (p) =>
+        p.organizerApproved &&
+        !p.sponsorApproved &&
+        hackathons.some(
+          (h) =>
+            h.id === p.hackathonId &&
+            h.sponsorAddress?.toLowerCase() === userWallet.toLowerCase()
+        )
+    )
+  }, [proposals, hackathons, userWallet])
 
   const handleContribute = async (hackathonId: string) => {
     if (!amount || parseFloat(amount) <= 0) {
@@ -65,15 +85,14 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
     }
   }
 
-  const handleApprovePayout = async (hackathonId: string) => {
+  const handleApprovePayout = (proposalId: string) => {
     setLoading(true)
     try {
-      alert('Payout approved! Waiting for organizer approval to execute.')
-      const updated = hackathons.map((h) =>
-        h.id === hackathonId ? { ...h, payoutProposed: true } : h
+      const updated = proposals.map((p) =>
+        p.id === proposalId ? { ...p, sponsorApproved: true } : p
       )
-      saveHackathonsToStorage(updated)
-      setHackathons(updated)
+      savePayoutProposals(updated)
+      setProposals(updated)
     } catch (error) {
       console.error('Approval failed:', error)
       alert('Approval failed. Please try again.')
@@ -147,6 +166,47 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
             )}
           </section>
 
+          <section className="payout-proposals-section">
+            <h2>Payout proposals awaiting your approval</h2>
+            <p className="muted" style={{ marginBottom: '1rem' }}>
+              Approve payout proposals for hackathons you sponsor. Organizer can execute after both approve.
+            </p>
+            {proposalsAwaitingMyApproval.length === 0 ? (
+              <p className="muted">No payout proposals awaiting your approval.</p>
+            ) : (
+              <div className="hackathon-cards">
+                {proposalsAwaitingMyApproval.map((p: Record<string, unknown>) => (
+                  <div key={String(p.id)} className="hackathon-card">
+                    <div className="card-header">
+                      <h3>{String(p.hackathonName)}</h3>
+                      <span className="badge badge-pending">Awaiting Sponsor</span>
+                    </div>
+                    <div className="card-body">
+                      <p><strong>Event end:</strong> {String(p.eventEndDate)}</p>
+                      <p><strong>Winners:</strong> {(p.winners as unknown[])?.length ?? 0}</p>
+                      <p>
+                        <strong>Total:</strong>{' '}
+                        {(p.winners as { prizeAmount?: number }[] || [])
+                          .reduce((s, w) => s + (w.prizeAmount || 0), 0)}{' '}
+                        ALGO
+                      </p>
+                      <div className="pending-actions">
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={() => handleApprovePayout(String(p.id))}
+                          disabled={loading}
+                        >
+                          Approve Payout
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
           <section className="my-hackathons-section">
             <h2>My Sponsored Hackathons</h2>
             {myHackathons.length === 0 ? (
@@ -170,18 +230,6 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
                       <p>
                         <strong>Dates:</strong> {hackathon.startDate} to {hackathon.endDate}
                       </p>
-                      {hackathon.payoutProposed && (
-                        <div className="pending-actions">
-                          <button
-                            type="button"
-                            className="btn btn-primary"
-                            onClick={() => handleApprovePayout(hackathon.id)}
-                            disabled={loading}
-                          >
-                            Approve Payout
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
                 ))}

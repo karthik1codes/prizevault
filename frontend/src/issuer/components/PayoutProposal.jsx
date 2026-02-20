@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
+import { getPayoutProposals, savePayoutProposals } from '../../utils/payoutProposalsStorage'
 
 const STORAGE_KEY = 'prize_vault_hackathons'
 
@@ -12,6 +13,10 @@ function getHackathons() {
 
 export default function PayoutProposal({ hackathonId, userWallet, onExecute }) {
   const [proposals, setProposals] = useState([])
+
+  useEffect(() => {
+    setProposals(getPayoutProposals())
+  }, [])
 
   const hackathons = useMemo(() => getHackathons(), [])
   const myHackathons = hackathons.filter(
@@ -38,41 +43,31 @@ export default function PayoutProposal({ hackathonId, userWallet, onExecute }) {
       winners: h.winners || [],
       eventEndDate: h.endDate,
     }
-    setProposals((prev) => [proposal, ...prev])
+    const updated = [proposal, ...proposals]
+    setProposals(updated)
+    savePayoutProposals(updated)
 
     try {
       const stored = getHackathons()
-      const updated = stored.map((x) =>
+      const updatedHackathons = stored.map((x) =>
         x.id === h.id ? { ...x, payoutProposed: true } : x
       )
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedHackathons))
     } catch (_) {}
   }
 
   const handleExecutePayout = (proposal) => {
-    // Simulate TEAL execution
-    setProposals((prev) =>
-      prev.map((p) =>
-        p.id === proposal.id ? { ...p, status: 'executed', txHash: '0xmock...' } : p
-      )
+    const updated = proposals.map((p) =>
+      p.id === proposal.id ? { ...p, status: 'executed', txHash: '0xmock...' } : p
     )
+    setProposals(updated)
+    savePayoutProposals(updated)
     onExecute?.(proposal)
   }
 
-  const displayProposals = proposals.length > 0
-    ? proposals
-    : myHackathons
-        .filter((h) => h.payoutProposed)
-        .map((h) => ({
-          id: `prop_${h.id}`,
-          hackathonId: h.id,
-          hackathonName: h.name,
-          status: 'awaiting_sponsor',
-          organizerApproved: true,
-          sponsorApproved: false,
-          winners: h.winners || [],
-          eventEndDate: h.endDate,
-        }))
+  const displayProposals = proposals.filter((p) =>
+    myHackathons.some((h) => h.id === p.hackathonId)
+  )
 
   const getStatusBadge = (p) => {
     if (p.status === 'executed') return <span className="status-badge badge-issued">Executed</span>
