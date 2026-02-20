@@ -1335,6 +1335,8 @@ textarea {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   padding: 20px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .hackathon-card-header {
@@ -1342,16 +1344,43 @@ textarea {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+  gap: 8px;
+  min-width: 0;
 }
 
 .hackathon-card-header h4 {
   margin: 0;
   font-size: 1.1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hackathon-card-body {
+  min-width: 0;
 }
 
 .hackathon-card-body p {
   margin: 4px 0;
   font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hackathon-card-body p.escrow-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.hackathon-card-body .escrow-address {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
 }
 
 .hackathon-card-actions {

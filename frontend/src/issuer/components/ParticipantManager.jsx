@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 
 const STORAGE_KEY = 'prize_vault_hackathons'
 
@@ -10,41 +10,70 @@ function getHackathons() {
   return []
 }
 
-const MOCK_PARTICIPANTS = [
-  { id: 'p1', name: 'Aria Fernandez', team: 'Team Alpha', project: 'AI Dashboard', track: 'AI/ML', registeredAt: '2026-02-15', status: 'registered' },
-  { id: 'p2', name: 'Malik Osei', team: 'DevNinjas', project: 'Blockchain Explorer', track: 'Web3', registeredAt: '2026-02-16', status: 'shortlisted' },
-  { id: 'p3', name: 'Jia Li', team: 'CodeCraft', project: 'Health App', track: 'Health Tech', registeredAt: '2026-02-17', status: 'winner' },
-  { id: 'p4', name: 'Emma Watson', team: 'Innovators', project: 'EdTech Platform', track: 'Education', registeredAt: '2026-02-18', status: 'registered' },
-]
+function saveHackathons(hackathons) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(hackathons))
+  } catch (_) {}
+}
 
 export default function ParticipantManager({ hackathonId, userWallet, onNavigate }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedHackathon, setSelectedHackathon] = useState(hackathonId || null)
+  const [hackathons, setHackathons] = useState([])
 
-  const hackathons = useMemo(() => getHackathons(), [])
-  const myHackathons = hackathons.filter(
-    (h) => h.organizerAddress?.toLowerCase() === userWallet?.toLowerCase()
-  )
-  const currentHack = hackathonId || selectedHackathon || myHackathons[0]?.id
+  const refreshData = useCallback(() => {
+    setHackathons(getHackathons())
+  }, [])
+
+  useEffect(() => {
+    refreshData()
+    const interval = setInterval(refreshData, 2000)
+    return () => clearInterval(interval)
+  }, [refreshData])
 
   useEffect(() => {
     if (hackathonId) setSelectedHackathon(hackathonId)
   }, [hackathonId])
 
+  const myHackathons = useMemo(
+    () => hackathons.filter((h) => h.organizerAddress?.toLowerCase() === userWallet?.toLowerCase()),
+    [hackathons, userWallet]
+  )
+
+  const currentHack = hackathonId || selectedHackathon || myHackathons[0]?.id
+
+  const currentHackathon = useMemo(
+    () => hackathons.find((x) => x.id === currentHack),
+    [hackathons, currentHack]
+  )
+
   const participants = useMemo(() => {
-    if (!currentHack) return []
-    const h = hackathons.find((x) => x.id === currentHack)
-    return (h?.participants || MOCK_PARTICIPANTS).filter((p) => {
-      const s = searchTerm.toLowerCase()
-      return (
-        !s ||
+    const list = currentHackathon?.participants || []
+    if (!searchTerm) return list
+    const s = searchTerm.toLowerCase()
+    return list.filter(
+      (p) =>
         p.name?.toLowerCase().includes(s) ||
         p.team?.toLowerCase().includes(s) ||
         p.track?.toLowerCase().includes(s) ||
-        p.project?.toLowerCase().includes(s)
-      )
+        p.project?.toLowerCase().includes(s) ||
+        p.payoutAddress?.toLowerCase().includes(s)
+    )
+  }, [currentHackathon, searchTerm])
+
+  const handleStatusChange = (participantId, newStatus) => {
+    const updated = hackathons.map((h) => {
+      if (h.id !== currentHack) return h
+      return {
+        ...h,
+        participants: (h.participants || []).map((p) =>
+          p.id === participantId ? { ...p, status: newStatus } : p
+        ),
+      }
     })
-  }, [currentHack, hackathons, searchTerm])
+    saveHackathons(updated)
+    setHackathons(updated)
+  }
 
   const getStatusBadge = (status) => {
     const map = {
@@ -77,13 +106,30 @@ export default function ParticipantManager({ hackathonId, userWallet, onNavigate
           )}
           <input
             type="text"
-            placeholder="Search by name, team, or track..."
+            placeholder="Search by name, team, track, or wallet..."
             className="search-input"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
       </div>
+
+      {currentHackathon && (
+        <div className="participant-summary" style={{ marginBottom: '1rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+          <span className="muted">
+            Total: <strong style={{ color: '#f1f5f9' }}>{currentHackathon.participants?.length || 0}</strong>
+          </span>
+          <span className="muted">
+            Registered: <strong style={{ color: '#f59e0b' }}>{(currentHackathon.participants || []).filter((p) => p.status === 'registered').length}</strong>
+          </span>
+          <span className="muted">
+            Shortlisted: <strong style={{ color: '#10b981' }}>{(currentHackathon.participants || []).filter((p) => p.status === 'shortlisted').length}</strong>
+          </span>
+          <span className="muted">
+            Winners: <strong style={{ color: '#3b82f6' }}>{(currentHackathon.participants || []).filter((p) => p.status === 'winner').length}</strong>
+          </span>
+        </div>
+      )}
 
       <div className="table-wrapper">
         <table className="student-table">
@@ -92,6 +138,7 @@ export default function ParticipantManager({ hackathonId, userWallet, onNavigate
               <th>Name / Team</th>
               <th>Project</th>
               <th>Track</th>
+              <th>Wallet Address</th>
               <th>Registration Date</th>
               <th>Status</th>
               <th>Actions</th>
@@ -100,8 +147,10 @@ export default function ParticipantManager({ hackathonId, userWallet, onNavigate
           <tbody>
             {participants.length === 0 ? (
               <tr>
-                <td colSpan="6" className="empty-row">
-                  No participants found
+                <td colSpan="7" className="empty-row">
+                  {currentHackathon
+                    ? 'No participants registered yet. They will appear here once they register from the Holder Wallet.'
+                    : 'Select a hackathon to view its participants.'}
                 </td>
               </tr>
             ) : (
@@ -113,6 +162,11 @@ export default function ParticipantManager({ hackathonId, userWallet, onNavigate
                   </td>
                   <td>{p.project || '-'}</td>
                   <td>{p.track || '-'}</td>
+                  <td className="wallet-cell">
+                    {p.payoutAddress && p.payoutAddress.length >= 10
+                      ? <code title={p.payoutAddress} style={{ fontSize: '0.8rem', cursor: 'pointer' }} onClick={() => { navigator.clipboard?.writeText(p.payoutAddress); }}>{p.payoutAddress.slice(0, 8)}…{p.payoutAddress.slice(-6)}</code>
+                      : <span className="muted">-</span>}
+                  </td>
                   <td>
                     {p.registeredAt
                       ? new Date(p.registeredAt).toLocaleDateString()
@@ -124,7 +178,7 @@ export default function ParticipantManager({ hackathonId, userWallet, onNavigate
                       <button
                         type="button"
                         className="btn-small"
-                        onClick={() => {}}
+                        onClick={() => handleStatusChange(p.id, 'shortlisted')}
                       >
                         Shortlist
                       </button>

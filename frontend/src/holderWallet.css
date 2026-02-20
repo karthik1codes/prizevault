@@ -918,6 +918,423 @@ textarea {
   color: #fff;
 }
 
+/* Hackathon list & filter tabs (All / Upcoming / Live / Completed) */
+.hackathon-list {
+  margin-bottom: 32px;
+}
+
+.hackathon-list .dashboard-header {
+  margin-bottom: 20px;
+}
+
+.filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.filter-tabs .filter-tab {
+  padding: 10px 20px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(243, 245, 255, 0.85);
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.filter-tabs .filter-tab:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.filter-tabs .filter-tab:focus-visible {
+  outline: 2px solid rgba(89, 100, 255, 0.6);
+  outline-offset: 2px;
+}
+
+.filter-tabs .filter-tab.active {
+  background: rgba(89, 100, 255, 0.35);
+  border-color: rgba(89, 100, 255, 0.55);
+  color: #fff;
+}
+
+.filter-tabs .filter-tab:active {
+  transform: scale(0.98);
+}
+
+.hackathon-cards {
+  display: grid;
+  gap: 20px;
+}
+
+.hackathon-list .hackathon-card {
+  background: rgba(14, 17, 33, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 20px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hackathon-list .hackathon-card:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+}
+
+.hackathon-list .card-actions .btn-small {
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.hackathon-list .card-actions .btn-small:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.hackathon-list .card-actions .btn-small.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 8px 24px rgba(89, 100, 255, 0.4);
+}
+
+.hackathon-list .card-actions .btn-small:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.hackathon-list .card-actions .btn-small:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Participant: hoverable highlighted green card actions (HackathonList + Participant Dashboard) */
+.hackathon-list .card-actions--participant .btn-register,
+.participant-dashboard .card-actions .btn-register {
+  background: linear-gradient(135deg, rgba(109, 233, 186, 0.9) 0%, #5dd4a8 100%);
+  color: #0a1410;
+  border: 1px solid rgba(109, 233, 186, 0.5);
+  box-shadow: 0 4px 16px rgba(109, 233, 186, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.hackathon-list .card-actions--participant .btn-register:hover:not(:disabled),
+.participant-dashboard .card-actions .btn-register:hover:not(:disabled) {
+  background: linear-gradient(135deg, #6de9ba 0%, #4fd19a 100%);
+  box-shadow: 0 8px 24px rgba(109, 233, 186, 0.45);
+  transform: translateY(-2px);
+}
+
+.hackathon-list .card-actions--participant .btn-register:active:not(:disabled),
+.participant-dashboard .card-actions .btn-register:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.hackathon-list .card-actions--participant .btn-register:disabled,
+.participant-dashboard .card-actions .btn-register:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.hackathon-list .card-actions--participant .btn-view-status,
+.participant-dashboard .card-actions .btn-view-status {
+  background: rgba(109, 233, 186, 0.16);
+  color: #9df4ce;
+  border: 1px solid rgba(109, 233, 186, 0.4);
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.hackathon-list .card-actions--participant .btn-view-status:hover,
+.participant-dashboard .card-actions .btn-view-status:hover {
+  background: rgba(109, 233, 186, 0.28);
+  border-color: rgba(109, 233, 186, 0.6);
+  transform: translateY(-1px);
+}
+
+/* My Hackathons: hoverable green-tinted cards + View Status button */
+.participant-dashboard .my-participations-section .hackathon-card {
+  background: rgba(14, 17, 33, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 20px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.participant-dashboard .my-participations-section .hackathon-card:hover {
+  border-color: rgba(109, 233, 186, 0.25);
+  box-shadow: 0 12px 32px rgba(109, 233, 186, 0.12);
+}
+
+.participant-dashboard .my-participations-section .card-actions {
+  margin-top: 12px;
+}
+
+.participant-dashboard .available-hackathons-section .hackathon-card {
+  background: rgba(14, 17, 33, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 20px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.participant-dashboard .available-hackathons-section .hackathon-card:hover {
+  border-color: rgba(109, 233, 186, 0.25);
+  box-shadow: 0 12px 32px rgba(109, 233, 186, 0.12);
+}
+
+.participant-dashboard .available-hackathons-section .card-actions {
+  margin-top: 12px;
+}
+
+/* Sponsor Dashboard: hoverable hackathon cards */
+.sponsor-dashboard .hackathon-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 20px;
+}
+
+.sponsor-dashboard .hackathon-card {
+  background: rgba(14, 17, 33, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 24px;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+}
+
+.sponsor-dashboard .hackathon-card:hover {
+  border-color: rgba(89, 100, 255, 0.35);
+  box-shadow: 0 12px 36px rgba(89, 100, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.sponsor-dashboard .hackathon-card .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.sponsor-dashboard .hackathon-card .card-header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.sponsor-dashboard .hackathon-card .card-body p {
+  margin: 6px 0;
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+
+.sponsor-dashboard .hackathon-card .card-body p strong {
+  color: #cbd5e1;
+}
+
+.sponsor-dashboard .hackathon-card .card-body code {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #a5b4fc;
+}
+
+.sponsor-dashboard .contribute-section {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sponsor-dashboard .contribute-section .input-inline {
+  flex: 1;
+  max-width: 180px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sponsor-dashboard .contribute-section .input-inline:focus {
+  border-color: rgba(89, 100, 255, 0.5);
+  box-shadow: 0 0 0 3px rgba(89, 100, 255, 0.15);
+}
+
+.sponsor-dashboard .contribute-section .input-inline::placeholder {
+  color: #64748b;
+}
+
+.sponsor-dashboard .contribute-section .btn-primary {
+  padding: 8px 18px;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(89, 100, 255, 0.9) 0%, #5964ff 100%);
+  color: #fff;
+  border: 1px solid rgba(89, 100, 255, 0.5);
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.sponsor-dashboard .contribute-section .btn-primary:hover:not(:disabled) {
+  box-shadow: 0 6px 20px rgba(89, 100, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.sponsor-dashboard .contribute-section .btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Sponsor: My Sponsored Hackathons section */
+.sponsor-dashboard .my-hackathons-section .hackathon-card:hover {
+  border-color: rgba(89, 100, 255, 0.35);
+  box-shadow: 0 12px 36px rgba(89, 100, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Sponsor: proposal cards hover */
+.sponsor-dashboard .proposal-card:hover {
+  border-color: rgba(245, 158, 11, 0.3);
+  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.1);
+}
+
+/* Pending prize releases – same card format as Payout Proposals (Organizer) */
+.sponsor-dashboard .pending-prize-releases-section {
+  margin-top: 32px;
+}
+
+.sponsor-dashboard .proposal-cards {
+  display: grid;
+  gap: 16px;
+}
+
+.sponsor-dashboard .proposal-card {
+  padding: 20px;
+  background: rgba(15, 18, 25, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.sponsor-dashboard .proposal-card.full {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.sponsor-dashboard .proposal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.sponsor-dashboard .proposal-header h4,
+.sponsor-dashboard .proposal-header strong {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.sponsor-dashboard .proposal-body {
+  margin-bottom: 12px;
+}
+
+.sponsor-dashboard .proposal-body p {
+  margin: 4px 0;
+  font-size: 0.9rem;
+}
+
+.sponsor-dashboard .proposal-actions {
+  margin-top: 8px;
+}
+
+.sponsor-dashboard .status-badge.badge-pending {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.sponsor-dashboard .status-badge.badge-verified {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.sponsor-dashboard .status-badge.badge-issued {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.sponsor-dashboard .card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.sponsor-dashboard .card-actions .btn {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.sponsor-dashboard .card-actions .btn-small {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.sponsor-dashboard .card-actions .btn-small:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateY(-1px);
+  color: #fff;
+}
+
+.sponsor-dashboard .card-actions .btn-view-status {
+  background: rgba(89, 100, 255, 0.16);
+  border: 1px solid rgba(89, 100, 255, 0.3);
+  color: #a5b4fc;
+}
+
+.sponsor-dashboard .card-actions .btn-view-status:hover {
+  background: rgba(89, 100, 255, 0.28);
+  box-shadow: 0 4px 16px rgba(89, 100, 255, 0.25);
+  color: #c7d2fe;
+}
+
+.sponsor-dashboard .card-actions .btn-primary {
+  background: linear-gradient(135deg, rgba(89, 100, 255, 0.9) 0%, #5964ff 100%);
+  color: #fff;
+  border: 1px solid rgba(89, 100, 255, 0.5);
+}
+
+.sponsor-dashboard .card-actions .btn-primary:hover {
+  box-shadow: 0 8px 24px rgba(89, 100, 255, 0.4);
+  transform: translateY(-1px);
+}
+
 @media (max-width: 620px) {
   .holder-wallet {
     padding: 20px 18px 64px;

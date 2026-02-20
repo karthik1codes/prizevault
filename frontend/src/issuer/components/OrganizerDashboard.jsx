@@ -21,7 +21,8 @@ function getMockHackathons() {
       sponsorAddress: '0x1234567890abcdef',
       escrowAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
       status: 'live',
-      participantCount: 150,
+      participantCount: 0,
+      participants: [],
       winnersSelected: false,
       payoutProposed: false,
       description: '24-hour hackathon across Bengaluru, Pune, Noida and Lucknow',
@@ -34,7 +35,7 @@ export default function OrganizerDashboard({ userWallet = DEFAULT_ORGANIZER_ESCR
     (h) => h.organizerAddress?.toLowerCase() === userWallet?.toLowerCase()
   )
 
-  const totalParticipants = hackathons.reduce((sum, h) => sum + (h.participantCount || 0), 0)
+  const totalParticipants = hackathons.reduce((sum, h) => sum + (h.participants?.length || 0), 0)
   const pendingPayouts = hackathons.filter((h) => h.winnersSelected && !h.payoutProposed).length
   const awaitingApproval = hackathons.filter((h) => h.payoutProposed).length
 
@@ -109,7 +110,7 @@ export default function OrganizerDashboard({ userWallet = DEFAULT_ORGANIZER_ESCR
                     <strong>Prize pool:</strong> {h.prizePool?.total || 0} {h.prizePool?.currency || 'ALGO'}
                   </p>
                   <p>
-                    <strong>Participants:</strong> {h.participantCount || 0}
+                    <strong>Participants:</strong> {h.participants?.length || 0}
                   </p>
                 </div>
                 <div className="hackathon-card-actions">

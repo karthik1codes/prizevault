@@ -13,6 +13,7 @@ interface ParticipantDashboardProps {
 export default function ParticipantDashboard({ userWallet, onNavigate }: ParticipantDashboardProps) {
   const [hackathons, setHackathons] = useState<Hackathon[]>([])
   const [registeredHackathons, setRegisteredHackathons] = useState<string[]>([])
+  const [registeringId, setRegisteringId] = useState<string | null>(null)
 
   useEffect(() => {
     setHackathons(getHackathonsFromStorage())
@@ -49,6 +50,7 @@ export default function ParticipantDashboard({ userWallet, onNavigate }: Partici
       alert('Please connect your wallet first')
       return
     }
+    setRegisteringId(hackathonId)
     try {
       const profileName = getProfileForWallet(userWallet)?.name ?? 'You'
       const newParticipant: Participant = {
@@ -78,6 +80,8 @@ export default function ParticipantDashboard({ userWallet, onNavigate }: Partici
     } catch (error) {
       console.error('Registration failed:', error)
       alert('Registration failed. Please try again.')
+    } finally {
+      setRegisteringId(null)
     }
   }
 
@@ -155,6 +159,15 @@ export default function ParticipantDashboard({ userWallet, onNavigate }: Partici
                             <strong>Team:</strong> {participant.team}
                           </p>
                         )}
+                        <div className="card-actions">
+                          <button
+                            type="button"
+                            className="btn btn-small btn-view-status"
+                            onClick={() => onNavigate?.('participant', { hackathonId: hackathon.id })}
+                          >
+                            View Status
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )
@@ -181,19 +194,22 @@ export default function ParticipantDashboard({ userWallet, onNavigate }: Partici
                         {hackathon.prizePool.currency}
                       </p>
                       <p>
-                        <strong>Participants:</strong> {hackathon.participantCount}
+                        <strong>Participants:</strong> {hackathon.participants?.length || 0}
                       </p>
                       <p>
                         <strong>Dates:</strong> {hackathon.startDate} to {hackathon.endDate}
                       </p>
                       {hackathon.description && <p>{hackathon.description}</p>}
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={() => handleRegister(hackathon.id)}
-                      >
-                        Register for Free
-                      </button>
+                      <div className="card-actions">
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-register"
+                          disabled={registeringId === hackathon.id}
+                          onClick={() => handleRegister(hackathon.id)}
+                        >
+                          {registeringId === hackathon.id ? 'Registering…' : 'Register for Free'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}

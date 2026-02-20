@@ -19,7 +19,8 @@ function getMockHackathons() {
       sponsorAddress: '0x1234567890abcdef',
       escrowAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
       status: 'live',
-      participantCount: 150,
+      participantCount: 0,
+      participants: [],
       description: '24-hour hackathon across Bengaluru, Pune, Noida and Lucknow',
     },
   ]
@@ -80,12 +81,16 @@ export default function OrganizerHackathonList({ userWallet, onNavigate }) {
                 <p>
                   <strong>Prize pool:</strong> {h.prizePool?.total || 0} {h.prizePool?.currency || 'ALGO'}
                 </p>
-                <p>
+                <p className="escrow-row">
                   <strong>Escrow:</strong>{' '}
-                  <code className="did-cell-small">{h.escrowAddress}</code>
+                  <code className="did-cell-small escrow-address" title={h.escrowAddress}>
+                    {h.escrowAddress && h.escrowAddress.length > 24
+                      ? `${h.escrowAddress.slice(0, 12)}…${h.escrowAddress.slice(-10)}`
+                      : h.escrowAddress}
+                  </code>
                 </p>
                 <p>
-                  <strong>Participants:</strong> {h.participantCount || 0}
+                  <strong>Participants:</strong> {h.participants?.length || 0}
                 </p>
               </div>
               <div className="hackathon-card-actions">

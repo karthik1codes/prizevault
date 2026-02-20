@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { Hackathon } from '../../types/hackathon'
 import { getHackathonsFromStorage, saveHackathonsToStorage } from '../utils/roleDetection'
 import { getPayoutProposals, savePayoutProposals } from '../../utils/payoutProposalsStorage'
+import { ESCROW_APP_ID } from '../../constants/escrow'
 
 interface SponsorDashboardProps {
   userWallet: string | null
@@ -20,6 +21,10 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
 
   useEffect(() => {
     setProposals(getPayoutProposals())
+    const interval = setInterval(() => {
+      setProposals(getPayoutProposals())
+    }, 2000)
+    return () => clearInterval(interval)
   }, [])
 
   const myHackathons = useMemo(() => {
@@ -44,13 +49,9 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
       (p) =>
         p.organizerApproved &&
         !p.sponsorApproved &&
-        hackathons.some(
-          (h) =>
-            h.id === p.hackathonId &&
-            h.sponsorAddress?.toLowerCase() === userWallet.toLowerCase()
-        )
+        p.status !== 'executed'
     )
-  }, [proposals, hackathons, userWallet])
+  }, [proposals, userWallet])
 
   const handleContribute = async (hackathonId: string) => {
     if (!amount || parseFloat(amount) <= 0) {
@@ -119,7 +120,7 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
           <section className="available-hackathons-section">
             <h2>Hackathons you can contribute to</h2>
             <p className="muted" style={{ marginBottom: '1rem' }}>
-              Contribute to prize pools only from this page. Select a hackathon below and enter the amount to fund.
+              Contribute to prize pools from this page. For on-chain lock (escrow app {ESCROW_APP_ID}), run from project root: <code>npm run deposit-app -- --amount=&lt;microAlgos&gt;</code> (env: SPONSOR_MNEMONIC, ALGOD_URL).
             </p>
             {availableHackathons.length === 0 ? (
               <p className="muted">No upcoming hackathons available for sponsorship.</p>
@@ -137,7 +138,7 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
                         {hackathon.prizePool.currency}
                       </p>
                       <p>
-                        <strong>Participants:</strong> {hackathon.participantCount}
+                        <strong>Participants:</strong> {hackathon.participants?.length || 0}
                       </p>
                       <p>
                         <strong>Dates:</strong> {hackathon.startDate} to {hackathon.endDate}
@@ -145,7 +146,7 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
                       <div className="contribute-section">
                         <input
                           type="number"
-                          placeholder="Amount"
+                          placeholder="Amount (ALGO)"
                           value={amount}
                           onChange={(e) => setAmount(e.target.value)}
                           className="input-inline"
@@ -159,6 +160,23 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
                           Contribute
                         </button>
                       </div>
+                      <div className="card-actions">
+                        <button
+                          type="button"
+                          className="btn btn-small btn-view-status"
+                          onClick={() => onNavigate?.('sponsor', { hackathonId: hackathon.id })}
+                        >
+                          View Details
+                        </button>
+                        <a
+                          href={`https://lora.algokit.io/testnet/application/${ESCROW_APP_ID}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn-small"
+                        >
+                          View on Lora
+                        </a>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -166,43 +184,42 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
             )}
           </section>
 
-          <section className="payout-proposals-section">
-            <h2>Payout proposals awaiting your approval</h2>
+          {/* Pending prize releases – mirrors Proposals cards from Organizer page */}
+          <section className="pending-prize-releases-section">
+            <h2>Pending prize releases</h2>
             <p className="muted" style={{ marginBottom: '1rem' }}>
-              Approve payout proposals for hackathons you sponsor. Organizer can execute after both approve.
+              Approve payouts once organizers have selected winners. Both organizer and sponsor must approve before execution.
             </p>
             {proposalsAwaitingMyApproval.length === 0 ? (
               <p className="muted">No payout proposals awaiting your approval.</p>
             ) : (
-              <div className="hackathon-cards">
-                {proposalsAwaitingMyApproval.map((p: Record<string, unknown>) => (
-                  <div key={String(p.id)} className="hackathon-card">
-                    <div className="card-header">
-                      <h3>{String(p.hackathonName)}</h3>
-                      <span className="badge badge-pending">Awaiting Sponsor</span>
-                    </div>
-                    <div className="card-body">
-                      <p><strong>Event end:</strong> {String(p.eventEndDate)}</p>
-                      <p><strong>Winners:</strong> {(p.winners as unknown[])?.length ?? 0}</p>
-                      <p>
-                        <strong>Total:</strong>{' '}
-                        {(p.winners as { prizeAmount?: number }[] || [])
-                          .reduce((s, w) => s + (w.prizeAmount || 0), 0)}{' '}
-                        ALGO
-                      </p>
-                      <div className="pending-actions">
+              <div className="proposal-cards">
+                {proposalsAwaitingMyApproval.map((p: Record<string, unknown>) => {
+                  const winners = (p.winners as { prizeAmount?: number; payoutAddress?: string; name?: string }[] | undefined) ?? []
+                  const totalAlgo = winners.reduce((s, w) => s + (w.prizeAmount || 0), 0)
+                  return (
+                    <div key={String(p.id)} className="proposal-card full">
+                      <div className="proposal-header">
+                        <strong>{String(p.hackathonName)}</strong>
+                      </div>
+                      <div className="proposal-body">
+                        <p>Event end date: {String(p.eventEndDate)}</p>
+                        <p>Winners: {winners.length}</p>
+                        <p>Total: {totalAlgo} ALGO</p>
+                      </div>
+                      <div className="proposal-actions">
                         <button
                           type="button"
                           className="btn btn-primary"
                           onClick={() => handleApprovePayout(String(p.id))}
                           disabled={loading}
                         >
-                          Approve Payout
+                          Approve release
                         </button>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </section>
@@ -225,11 +242,45 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
                         {hackathon.prizePool.currency}
                       </p>
                       <p>
-                        <strong>Participants:</strong> {hackathon.participantCount}
+                        <strong>Participants:</strong> {hackathon.participants?.length || 0}
                       </p>
                       <p>
                         <strong>Dates:</strong> {hackathon.startDate} to {hackathon.endDate}
                       </p>
+                      {hackathon.escrowAddress && (
+                        <p>
+                          <strong>Escrow:</strong>{' '}
+                          <code style={{ fontSize: '0.75rem' }}>
+                            {hackathon.escrowAddress.slice(0, 8)}...{hackathon.escrowAddress.slice(-6)}
+                          </code>
+                        </p>
+                      )}
+                      <div className="card-actions">
+                        <button
+                          type="button"
+                          className="btn btn-small btn-view-status"
+                          onClick={() => onNavigate?.('sponsor', { hackathonId: hackathon.id })}
+                        >
+                          View Details
+                        </button>
+                        <a
+                          href={`https://lora.algokit.io/testnet/application/${ESCROW_APP_ID}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn-small"
+                        >
+                          View on Lora
+                        </a>
+                        {hackathon.winnersSelected && !hackathon.payoutProposed && (
+                          <button
+                            type="button"
+                            className="btn btn-small btn-primary"
+                            onClick={() => onNavigate?.('payouts', { hackathonId: hackathon.id })}
+                          >
+                            Review Payout
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { getPayoutProposals, savePayoutProposals } from '../../utils/payoutProposalsStorage'
+import { ESCROW_APP_ID } from '../../constants/escrow'
 
 const STORAGE_KEY = 'prize_vault_hackathons'
 
@@ -65,6 +66,19 @@ export default function PayoutProposal({ hackathonId, userWallet, onExecute }) {
     onExecute?.(proposal)
   }
 
+  // Build winners JSON for Algorand app release (release-app script). Prize amounts in ALGO → microAlgos.
+  const getReleaseAppWinnersJson = (p) => {
+    const winners = (p.winners || []).filter((w) => w.payoutAddress && (w.prizeAmount || 0) > 0)
+    return JSON.stringify(
+      winners.map((w) => ({
+        address: w.payoutAddress.trim(),
+        amountMicroAlgos: Math.round(Number(w.prizeAmount || 0) * 1e6),
+      }))
+    )
+  }
+
+  const getReleaseAppWinnersForCopy = (p) => getReleaseAppWinnersJson(p)
+
   const displayProposals = proposals.filter((p) =>
     myHackathons.some((h) => h.id === p.hackathonId)
   )
@@ -128,13 +142,33 @@ export default function PayoutProposal({ hackathonId, userWallet, onExecute }) {
                   <p>Total: {p.winners?.reduce((s, w) => s + (w.prizeAmount || 0), 0)} ALGO</p>
                 </div>
                 {p.organizerApproved && p.sponsorApproved && p.status !== 'executed' && (
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={() => handleExecutePayout(p)}
-                  >
-                    Execute Payout (TEAL)
-                  </button>
+                  <div className="execute-payout-app">
+                    <p className="muted" style={{ marginBottom: '0.5rem' }}>
+                      Escrow app <strong>{ESCROW_APP_ID}</strong>: run from project root with SPONSOR_MNEMONIC, ORGANIZER_MNEMONIC, ALGOD_URL set.
+                    </p>
+                    <p className="muted" style={{ fontSize: '0.8rem', marginBottom: '0.25rem' }}>Winners (set WINNERS_JSON then run <code>npm run release-app</code>):</p>
+                    <pre className="release-command" style={{ fontSize: '0.7rem', overflow: 'auto', maxWidth: '100%', padding: '0.5rem', background: '#1a1a1a', borderRadius: 4 }}>
+                      {getReleaseAppWinnersForCopy(p)}
+                    </pre>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(getReleaseAppWinnersForCopy(p))
+                        alert('Winners JSON copied. Set WINNERS_JSON and run: npm run release-app')
+                      }}
+                    >
+                      Copy JSON &amp; run release-app
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ marginLeft: '0.5rem' }}
+                      onClick={() => handleExecutePayout(p)}
+                    >
+                      Mark as Executed
+                    </button>
+                  </div>
                 )}
                 {p.status === 'executed' && (
                   <a

@@ -10,12 +10,6 @@ function getHackathons() {
   return []
 }
 
-const MOCK_PARTICIPANTS = [
-  { id: 'p1', name: 'Aria Fernandez', team: 'Team Alpha', project: 'AI Dashboard', track: 'AI/ML', payoutAddress: '', prizeAmount: 0, prizeTier: '' },
-  { id: 'p2', name: 'Malik Osei', team: 'DevNinjas', project: 'Blockchain Explorer', track: 'Web3', payoutAddress: '', prizeAmount: 0, prizeTier: '' },
-  { id: 'p3', name: 'Jia Li', team: 'CodeCraft', project: 'Health App', track: 'Health Tech', payoutAddress: '', prizeAmount: 0, prizeTier: '' },
-]
-
 const PRIZE_TIERS = [
   { value: '1st', label: '1st Place' },
   { value: '2nd', label: '2nd Place' },
@@ -34,7 +28,7 @@ export default function WinnerSelection({ hackathonId, userWallet, onSave }) {
   const hackathon = hackathonId
     ? hackathons.find((h) => h.id === hackathonId)
     : myHackathons[0]
-  const participants = hackathon?.participants || MOCK_PARTICIPANTS
+  const participants = hackathon?.participants || []
 
   const handleToggleWinner = (id, checked) => {
     if (!checked) {
@@ -45,9 +39,15 @@ export default function WinnerSelection({ hackathonId, userWallet, onSave }) {
       })
       return
     }
+    const participant = participants.find((x) => x.id === id)
+    const existingPayoutAddress = participant?.payoutAddress || ''
     setWinners((prev) => ({
       ...prev,
-      [id]: prev[id] || { prizeTier: '', payoutAddress: '', prizeAmount: 0 },
+      [id]: prev[id] || {
+        prizeTier: '',
+        payoutAddress: existingPayoutAddress,
+        prizeAmount: 0,
+      },
     }))
   }
 

@@ -26,7 +26,8 @@ const DEFAULT_HACKATHONS = [
     sponsorAddress: '0x1234567890abcdef',
     escrowAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
     status: 'live',
-    participantCount: 150,
+    participantCount: 0,
+    participants: [],
     winnersSelected: false,
     payoutProposed: false,
     description: '24-hour hackathon across Bengaluru, Pune, Noida and Lucknow',
@@ -43,8 +44,17 @@ function getHackathons() {
 
 function initHackathonData() {
   try {
-    if (!localStorage.getItem(HACKATHON_STORAGE_KEY)) {
+    const existing = localStorage.getItem(HACKATHON_STORAGE_KEY)
+    if (!existing) {
       localStorage.setItem(HACKATHON_STORAGE_KEY, JSON.stringify(DEFAULT_HACKATHONS))
+    } else {
+      const parsed = JSON.parse(existing)
+      const fixed = parsed.map((h) => ({
+        ...h,
+        participants: h.participants || [],
+        participantCount: h.participants?.length || 0,
+      }))
+      localStorage.setItem(HACKATHON_STORAGE_KEY, JSON.stringify(fixed))
     }
   } catch (_) {}
 }
@@ -61,7 +71,7 @@ export default function IssuerApp() {
   const myHackathons = hackathons.filter(
     (h) => h.organizerAddress?.toLowerCase() === walletAddress?.toLowerCase()
   )
-  const totalParticipants = myHackathons.reduce((sum, h) => sum + (h.participantCount || 0), 0)
+  const totalParticipants = myHackathons.reduce((sum, h) => sum + (h.participants?.length || 0), 0)
   const pendingPayouts = myHackathons.filter((h) => h.winnersSelected && !h.payoutProposed).length
   const awaitingApproval = myHackathons.filter((h) => h.payoutProposed).length
 
@@ -80,7 +90,7 @@ export default function IssuerApp() {
     const myH = hackathonsData.filter(
       (h) => h.organizerAddress?.toLowerCase() === walletAddress?.toLowerCase()
     )
-    const parts = myH.reduce((sum, h) => sum + (h.participantCount || 0), 0)
+    const parts = myH.reduce((sum, h) => sum + (h.participants?.length || 0), 0)
     const pending = myH.filter((h) => h.winnersSelected && !h.payoutProposed).length
     const awaiting = myH.filter((h) => h.payoutProposed).length
     setStats({
