@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../../constants/escrow'
 
 const STORAGE_KEY = 'prize_vault_hackathons'
 
@@ -14,9 +15,9 @@ function getMockHackathons() {
       startDate: '2026-02-19',
       endDate: '2026-02-20',
       prizePool: { total: 10000, currency: 'ALGO', locked: true },
-      organizerAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+      organizerAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
       sponsorAddress: '0x1234567890abcdef',
-      escrowAddress: '0xescrow001...',
+      escrowAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
       status: 'live',
       participantCount: 150,
       description: '24-hour hackathon across Bengaluru, Pune, Noida and Lucknow',
@@ -46,7 +47,7 @@ export default function OrganizerHackathonList({ userWallet, onNavigate }) {
   }, [])
 
   const myHackathons = hackathons.filter(
-    (h) => h.organizerAddress?.toLowerCase() === (userWallet || '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb')?.toLowerCase()
+    (h) => h.organizerAddress?.toLowerCase() === (userWallet || DEFAULT_ORGANIZER_ESCROW_ADDRESS)?.toLowerCase()
   )
 
   return (
@@ -56,7 +57,7 @@ export default function OrganizerHackathonList({ userWallet, onNavigate }) {
         <button
           type="button"
           className="btn-primary"
-          onClick={() => {}}
+          onClick={() => onNavigate?.('create-hackathon')}
         >
           Create Hackathon
         </button>

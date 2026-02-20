@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../constants/escrow'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import OrganizerDashboard from './components/OrganizerDashboard'
@@ -6,6 +7,7 @@ import ParticipantManager from './components/ParticipantManager'
 import WinnerSelection from './components/WinnerSelection'
 import PayoutProposal from './components/PayoutProposal'
 import OrganizerHackathonList from './components/OrganizerHackathonList'
+import CreateHackathonForm from './components/CreateHackathonForm'
 import AuditLogPage from './components/AuditLogPage'
 import TwoFASetup from './components/TwoFASetup'
 import Timeline from './components/Timeline'
@@ -20,9 +22,9 @@ const DEFAULT_HACKATHONS = [
     startDate: '2026-02-19',
     endDate: '2026-02-20',
     prizePool: { total: 10000, currency: 'ALGO', locked: true },
-    organizerAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+    organizerAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
     sponsorAddress: '0x1234567890abcdef',
-    escrowAddress: '0xescrow001...',
+    escrowAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
     status: 'live',
     participantCount: 150,
     winnersSelected: false,
@@ -53,7 +55,7 @@ export default function IssuerApp() {
   const [navigateParam, setNavigateParam] = useState(null)
 
   const organizerName = 'Organizer'
-  const walletAddress = '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb'
+  const walletAddress = DEFAULT_ORGANIZER_ESCROW_ADDRESS
 
   const hackathons = getHackathons()
   const myHackathons = hackathons.filter(
@@ -130,6 +132,14 @@ export default function IssuerApp() {
           <OrganizerHackathonList
             userWallet={walletAddress}
             onNavigate={handleNavigate}
+          />
+        )
+      case 'create-hackathon':
+        return (
+          <CreateHackathonForm
+            userWallet={walletAddress}
+            onSave={() => handleNavigate('hackathons')}
+            onCancel={() => handleNavigate('hackathons')}
           />
         )
       case 'timeline':

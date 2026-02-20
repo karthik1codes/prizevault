@@ -52,12 +52,12 @@ export default function ProfileForm({ onSubmit }: ProfileFormProps) {
         />
       </div>
       <div className="field">
-        <span>College (optional)</span>
+        <span>College name / Organization name (optional)</span>
         <input
           type="text"
           value={college}
           onChange={(e) => setCollege(e.target.value)}
-          placeholder="College or institution name"
+          placeholder="College or organization name"
           autoComplete="organization"
           maxLength={120}
         />

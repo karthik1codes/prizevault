@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import ReactDOM from 'react-dom/client'
+import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from './constants/escrow'
 import SharedHeader from './components/SharedHeader'
 import '../styles.css'
 import './index.css'
@@ -328,7 +329,7 @@ function SponsorProfilePanel({ sponsorName, defaultWallet }) {
 }
 
 function SponsorDashboard() {
-  const escrowAccountAddress = 'VG57RMQO2W2FQUNWVSA7F55SNH5R2MKMSEZAGXT2NVDSTI4CCKPSOPZRDM'
+  const escrowAccountAddress = DEFAULT_ORGANIZER_ESCROW_ADDRESS
   const senderAddress =
     'FEWFG5J6JQHZW5Q2R3BEDQRRSQKQYLUVMY7ETZOBFYXM4V2DR5LNA4I2AA'
   const [escrows, setEscrows] = useState([

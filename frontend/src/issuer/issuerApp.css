@@ -413,11 +413,27 @@ body {
   margin-bottom: 16px;
 }
 
-.field span {
+.field span,
+.field label {
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: rgba(244, 245, 255, 0.6);
+}
+
+.field-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.field-row .field {
+  flex: 1;
+  min-width: 140px;
+}
+
+.create-hackathon-form .form-header {
+  margin-bottom: 1.5rem;
 }
 
 .field input,

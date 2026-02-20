@@ -1,5 +1,6 @@
 import { UserRole } from '../../types/holder'
 import { Hackathon } from '../../types/hackathon'
+import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../../constants/escrow'
 
 const STORAGE_KEY = 'prize_vault_hackathons'
 
@@ -64,9 +65,9 @@ const DEFAULT_HACKATHONS: Hackathon[] = [
     startDate: '2026-02-19',
     endDate: '2026-02-20',
     prizePool: { total: 10000, currency: 'ALGO', locked: true },
-    organizerAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+    organizerAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
     sponsorAddress: '',
-    escrowAddress: '',
+    escrowAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
     status: 'live',
     participantCount: 150,
     winnersSelected: false,
