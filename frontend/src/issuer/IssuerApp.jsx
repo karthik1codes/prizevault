@@ -18,28 +18,10 @@ import CreateHackathonForm from './components/CreateHackathonForm'
 import AuditLogPage from './components/AuditLogPage'
 import TwoFASetup from './components/TwoFASetup'
 import Timeline from './components/Timeline'
+import { getIssuerAuditLogs } from '../utils/issuerAuditLog'
 import './issuerApp.css'
 
 const HACKATHON_STORAGE_KEY = 'prize_vault_hackathons'
-
-const DEFAULT_HACKATHONS = [
-  {
-    id: 'hack_001',
-    name: 'RIFT \'26',
-    startDate: '2026-02-19',
-    endDate: '2026-02-20',
-    prizePool: { total: 10000, currency: 'XLM', locked: true },
-    organizerAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
-    sponsorAddress: '0x1234567890abcdef',
-    escrowAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
-    status: 'live',
-    participantCount: 0,
-    participants: [],
-    winnersSelected: false,
-    payoutProposed: false,
-    description: '24-hour hackathon across Bengaluru, Pune, Noida and Lucknow',
-  },
-]
 
 function getHackathons() {
   try {
@@ -53,14 +35,14 @@ function initHackathonData() {
   try {
     const existing = localStorage.getItem(HACKATHON_STORAGE_KEY)
     if (!existing) {
-      localStorage.setItem(HACKATHON_STORAGE_KEY, JSON.stringify(DEFAULT_HACKATHONS))
+      localStorage.setItem(HACKATHON_STORAGE_KEY, JSON.stringify([]))
     } else {
       const parsed = JSON.parse(existing)
       const fixed = parsed.map((h) => ({
         ...h,
         participants: h.participants || [],
         participantCount: h.participants?.length || 0,
-      }))
+      })).filter((h) => !(h.id === 'hack_001' && h.name === "RIFT '26"))
       localStorage.setItem(HACKATHON_STORAGE_KEY, JSON.stringify(fixed))
     }
   } catch (_) {}
@@ -105,9 +87,7 @@ export default function IssuerApp() {
     pendingPayouts,
   })
 
-  const [auditLogs, setAuditLogs] = useState([
-    { timestamp: new Date().toISOString(), action: 'create', user: 'Organizer', credentialId: null, details: 'Organizer console loaded', txHash: null },
-  ])
+  const [auditLogs, setAuditLogs] = useState([])
 
   useEffect(() => {
     const hackathonsData = getHackathons()
@@ -123,6 +103,13 @@ export default function IssuerApp() {
       pendingPayouts: pending,
     })
   }, [activeView])
+
+  useEffect(() => {
+    const refreshLogs = () => setAuditLogs(getIssuerAuditLogs())
+    refreshLogs()
+    window.addEventListener('prize_vault_audit_logs_updated', refreshLogs)
+    return () => window.removeEventListener('prize_vault_audit_logs_updated', refreshLogs)
+  }, [])
 
   const handleNavigate = (view, param) => {
     setActiveView(view)
@@ -177,7 +164,7 @@ export default function IssuerApp() {
           />
         )
       case 'timeline':
-        return <Timeline />
+        return <Timeline userWallet={walletAddress} />
       case 'audit':
         return <AuditLogPage logs={auditLogs} />
       case 'settings':

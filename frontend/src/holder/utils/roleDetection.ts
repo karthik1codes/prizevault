@@ -1,6 +1,5 @@
 import { UserRole } from '../../types/holder'
 import { Hackathon } from '../../types/hackathon'
-import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../../constants/escrow'
 
 const STORAGE_KEY = 'prize_vault_hackathons'
 
@@ -58,38 +57,18 @@ export function detectUserRole(
   return 'participant'
 }
 
-const DEFAULT_HACKATHONS: Hackathon[] = [
-  {
-    id: 'hack_001',
-    name: "RIFT '26",
-    startDate: '2026-02-19',
-    endDate: '2026-02-20',
-    prizePool: { total: 10000, currency: 'XLM', locked: true },
-    organizerAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
-    sponsorAddress: '',
-    escrowAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
-    status: 'live',
-    participantCount: 0,
-    participants: [],
-    winnersSelected: false,
-    payoutProposed: false,
-    description: '24-hour hackathon across Bengaluru, Pune, Noida and Lucknow',
-  },
-]
-
 /**
- * Gets hackathons from localStorage. Seeds default hackathons if storage is empty
- * so sponsor/participant views always have something to show.
+ * Gets hackathons from localStorage.
  */
 export function getHackathonsFromStorage(): Hackathon[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
       const parsed = JSON.parse(stored)
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      if (Array.isArray(parsed)) {
+        return parsed.filter((h) => !(h.id === 'hack_001' && h.name === "RIFT '26"))
+      }
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_HACKATHONS))
-    return DEFAULT_HACKATHONS
   } catch (_) {
     // Ignore parse errors
   }

@@ -3,35 +3,19 @@ import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../../constants/escrow'
 
 const STORAGE_KEY = 'prize_vault_hackathons'
 
-function getMockHackathons() {
+function getHackathons() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
-      return JSON.parse(stored)
+      const parsed = JSON.parse(stored)
+      return parsed.filter((h) => !(h.id === 'hack_001' && h.name === "RIFT '26"))
     }
   } catch (_) {}
-  return [
-    {
-      id: 'hack_001',
-      name: 'RIFT \'26',
-      startDate: '2026-02-19',
-      endDate: '2026-02-20',
-      prizePool: { total: 10000, currency: 'XLM', locked: true },
-      organizerAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
-      sponsorAddress: '0x1234567890abcdef',
-      escrowAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
-      status: 'live',
-      participantCount: 0,
-      participants: [],
-      winnersSelected: false,
-      payoutProposed: false,
-      description: '24-hour hackathon across Bengaluru, Pune, Noida and Lucknow',
-    },
-  ]
+  return []
 }
 
 export default function OrganizerDashboard({ userWallet = DEFAULT_ORGANIZER_ESCROW_ADDRESS, onNavigate }) {
-  const hackathons = getMockHackathons().filter(
+  const hackathons = getHackathons().filter(
     (h) => h.organizerAddress?.toLowerCase() === userWallet?.toLowerCase()
   )
 

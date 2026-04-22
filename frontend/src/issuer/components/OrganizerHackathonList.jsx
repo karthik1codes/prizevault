@@ -3,47 +3,16 @@ import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../../constants/escrow'
 
 const STORAGE_KEY = 'prize_vault_hackathons'
 
-function getMockHackathons() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) return JSON.parse(stored)
-  } catch (_) {}
-  return [
-    {
-      id: 'hack_001',
-      name: 'RIFT \'26',
-      startDate: '2026-02-19',
-      endDate: '2026-02-20',
-      prizePool: { total: 10000, currency: 'XLM', locked: true },
-      organizerAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
-      sponsorAddress: '0x1234567890abcdef',
-      escrowAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
-      status: 'live',
-      participantCount: 0,
-      participants: [],
-      description: '24-hour hackathon across Bengaluru, Pune, Noida and Lucknow',
-    },
-  ]
-}
-
-function initMockData() {
-  try {
-    if (!localStorage.getItem(STORAGE_KEY)) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(getMockHackathons()))
-    }
-  } catch (_) {}
-}
-
 export default function OrganizerHackathonList({ userWallet, onNavigate }) {
   const [hackathons, setHackathons] = useState([])
 
   useEffect(() => {
-    initMockData()
     try {
       const stored = localStorage.getItem(STORAGE_KEY)
-      setHackathons(stored ? JSON.parse(stored) : getMockHackathons())
+      const parsed = stored ? JSON.parse(stored) : []
+      setHackathons(parsed.filter((h) => !(h.id === 'hack_001' && h.name === "RIFT '26")))
     } catch (_) {
-      setHackathons(getMockHackathons())
+      setHackathons([])
     }
   }, [])
 

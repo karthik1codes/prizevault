@@ -9,9 +9,27 @@ import {
   requireManualConnect,
 } from './utils/authSession'
 import { resolveSessionWithQrBootstrap } from './utils/qrSession'
+import { getPayoutProposals, savePayoutProposals } from './utils/payoutProposalsStorage'
 import '../styles.css'
 import './index.css'
 import './recruiter.css'
+
+const HACKATHON_STORAGE_KEY = 'prize_vault_hackathons'
+
+function getHackathonsFromStorage() {
+  try {
+    const stored = localStorage.getItem(HACKATHON_STORAGE_KEY)
+    return stored ? JSON.parse(stored) : []
+  } catch (_) {
+    return []
+  }
+}
+
+function saveHackathonsToStorage(hackathons) {
+  try {
+    localStorage.setItem(HACKATHON_STORAGE_KEY, JSON.stringify(hackathons))
+  } catch (_) {}
+}
 
 function EscrowOverviewPanel({ escrows, selectedEscrowId, onSelectEscrow }) {
   return (
@@ -30,11 +48,7 @@ function EscrowOverviewPanel({ escrows, selectedEscrowId, onSelectEscrow }) {
             className={`status-tile${
               selectedEscrowId === escrow.id ? ' status-tile--active' : ''
             }`}
-            onClick={() => {
-              onSelectEscrow(escrow.id)
-              const url = 'https://laboratory.stellar.org/'
-              window.open(url, '_blank', 'noopener,noreferrer')
-            }}
+            onClick={() => onSelectEscrow(escrow.id)}
           >
             <div className="label">{escrow.status}</div>
             <div style={{ fontWeight: 600 }}>{escrow.name}</div>
@@ -50,7 +64,6 @@ function EscrowOverviewPanel({ escrows, selectedEscrowId, onSelectEscrow }) {
 
 function FundingPanel({ selectedEscrow, onFund, asaHoldings, senderAddress, onSyncOnChain }) {
   const [amount, setAmount] = useState('')
-  const [assetId, setAssetId] = useState('')
 
   if (!selectedEscrow) {
     return (
@@ -165,10 +178,8 @@ function FundingPanel({ selectedEscrow, onFund, asaHoldings, senderAddress, onSy
           onFund({
             escrowId: selectedEscrow.id,
             amount,
-            assetId: assetId || null,
           })
           setAmount('')
-          setAssetId('')
         }}
       >
         <input
@@ -178,12 +189,6 @@ function FundingPanel({ selectedEscrow, onFund, asaHoldings, senderAddress, onSy
           placeholder="Amount in XLM"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-        />
-        <input
-          type="text"
-          placeholder="Optional ASA ID"
-          value={assetId}
-          onChange={(e) => setAssetId(e.target.value)}
         />
         <button type="submit" className="button primary small">
           Fund escrow
@@ -212,24 +217,32 @@ function ReleaseApprovalsPanel({ pendingReleases, onApprove }) {
                 <div>
                   <strong>{item.hackathon}</strong>
                   <div className="muted" style={{ fontSize: '0.85rem' }}>
-                    Winner: {item.winnerAddress.slice(0, 10)}…
-                    {item.winnerAddress.slice(-6)}
+                    Winner:{' '}
+                    {item.winnerAddress && item.winnerAddress !== 'N/A'
+                      ? `${item.winnerAddress.slice(0, 10)}…${item.winnerAddress.slice(-6)}`
+                      : 'Not specified'}
                   </div>
                 </div>
                 <span className="pill pending">{item.amountLabel}</span>
               </div>
               <div className="chip-row">
-                <span className="chip">Organizer approved</span>
-                <span className="chip">Waiting on sponsor</span>
+                <span className="chip">{item.organizerState || 'Organizer selected winners'}</span>
+                <span className="chip">{item.sponsorState || 'Waiting on sponsor'}</span>
               </div>
               <div style={{ marginTop: 10 }}>
-                <button
-                  type="button"
-                  className="button primary small"
-                  onClick={() => onApprove(item.id)}
-                >
-                  Approve release
-                </button>
+                {item.canApprove ? (
+                  <button
+                    type="button"
+                    className="button primary small"
+                    onClick={() => onApprove(item.id)}
+                  >
+                    Approve release
+                  </button>
+                ) : (
+                  <p className="muted" style={{ fontSize: '0.85rem' }}>
+                    Organizer has selected winners. Waiting for organizer to create payout proposal.
+                  </p>
+                )}
               </div>
             </li>
           ))}
@@ -347,125 +360,129 @@ function SponsorDashboard() {
   }, [])
 
   const activeSession = getActiveSession()
-  const escrowAccountAddress = DEFAULT_ORGANIZER_ESCROW_ADDRESS
   const senderAddress = activeSession?.wallet || 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF'
   const handleDisconnect = () => {
     clearActiveSession()
     requireManualConnect()
     window.location.href = '/holder'
   }
-  const [escrows, setEscrows] = useState([
-    {
-      id: 'escrow_1',
-      name: 'RIFT Bengaluru · Main Prize',
-      escrowAddress: escrowAccountAddress,
-      status: 'Funded',
-      balanceAlgo: 10,
-      assetId: null,
-    },
-    {
-      id: 'escrow_2',
-      name: 'RIFT Pune · Track Prize',
-      escrowAddress: 'GBRPYHIL2CI3BB2E5UX6VQJ3YVFB6Y7XQ5Q26CL5I2I2W5WJ5X5W2C5B',
-      status: 'Awaiting top-up',
-      balanceAlgo: 3,
-      assetId: null,
-    },
-  ])
-  const [selectedEscrowId, setSelectedEscrowId] = useState(escrows[0]?.id ?? null)
-  const [pendingReleases, setPendingReleases] = useState([
-    {
-      id: 'rel_1',
-      hackathon: 'RIFT Bengaluru',
-      winnerAddress: 'GBRPYHIL2CI3BB2E5UX6VQJ3YVFB6Y7XQ5Q26CL5I2I2W5WJ5X5W2C5B',
-      amountLabel: '8 XLM',
-    },
-  ])
-  const [activities, setActivities] = useState([
-    {
-      id: 'act_1',
-      timestamp: 'Just now',
-      title: 'Escrow created for RIFT Bengaluru',
-      description: 'LogicSig compiled and escrow address derived for main prize pool.',
-    },
-  ])
-
-  const [escrowAsaHoldings, setEscrowAsaHoldings] = useState({})
+  const [hackathons, setHackathons] = useState([])
+  const [proposals, setProposals] = useState([])
+  const [selectedEscrowId, setSelectedEscrowId] = useState(null)
+  const [activities, setActivities] = useState([])
 
   const sponsorName = 'Hackathon Sponsor Inc.'
-  const defaultWallet = 'GBRPYHIL2CI3BB2E5UX6VQJ3YVFB6Y7XQ5Q26CL5I2I2W5WJ5X5W2C5B'
+  const defaultWallet = senderAddress
+
+  useEffect(() => {
+    const refresh = () => {
+      setHackathons(getHackathonsFromStorage())
+      setProposals(getPayoutProposals())
+    }
+    refresh()
+    const interval = setInterval(refresh, 2000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const escrows = useMemo(
+    () =>
+      hackathons.map((h) => {
+        const balance = Number(h.sponsorFundingXlm || 0)
+        return {
+          id: h.id,
+          name: h.name,
+          escrowAddress: h.escrowAddress || h.organizerAddress || DEFAULT_ORGANIZER_ESCROW_ADDRESS,
+          status: balance > 0 ? 'Funded' : 'Awaiting top-up',
+          balanceAlgo: balance,
+          assetId: null,
+        }
+      }),
+    [hackathons]
+  )
+
+  useEffect(() => {
+    if (!escrows.length) {
+      setSelectedEscrowId(null)
+      return
+    }
+    if (!selectedEscrowId || !escrows.some((e) => e.id === selectedEscrowId)) {
+      setSelectedEscrowId(escrows[0].id)
+    }
+  }, [escrows, selectedEscrowId])
+
+  const pendingReleases = useMemo(
+    () => {
+      const approvals = proposals
+        .filter((p) => p.organizerApproved && !p.sponsorApproved && p.status !== 'executed')
+        .map((p) => ({
+          id: p.id,
+          hackathon: p.hackathonName,
+          winnerAddress: p.winners?.[0]?.payoutAddress || 'N/A',
+          amountLabel: `${(p.winners || []).reduce((sum, w) => sum + Number(w.prizeAmount || 0), 0)} XLM`,
+          organizerState: 'Organizer approved',
+          sponsorState: 'Waiting on sponsor',
+          canApprove: true,
+        }))
+
+      const proposalsByHackathon = new Set(approvals.map((x) => x.hackathon))
+      const selectedWinnersOnly = hackathons
+        .filter((h) => h.winnersSelected && Array.isArray(h.winners) && h.winners.length > 0)
+        .filter((h) => !proposalsByHackathon.has(h.name))
+        .map((h) => ({
+          id: `winner_only_${h.id}`,
+          hackathon: h.name,
+          winnerAddress: h.winners?.[0]?.payoutAddress || 'N/A',
+          amountLabel: `${(h.winners || []).reduce((sum, w) => sum + Number(w.prizeAmount || 0), 0)} XLM`,
+          organizerState: 'Winners selected',
+          sponsorState: 'Proposal pending',
+          canApprove: false,
+        }))
+
+      return [...approvals, ...selectedWinnersOnly]
+    },
+    [proposals, hackathons]
+  )
 
   const budgetStats = useMemo(() => {
     const committed = escrows.reduce((sum, e) => sum + e.balanceAlgo, 0)
     const locked = escrows.filter((e) => e.status !== 'Released').reduce((sum, e) => sum + e.balanceAlgo, 0)
-    const released = 0
+    const released = proposals
+      .filter((p) => p.status === 'executed')
+      .reduce(
+        (sum, p) =>
+          sum + (p.winners || []).reduce((inner, w) => inner + Number(w.prizeAmount || 0), 0),
+        0
+      )
     return {
       committed,
       locked,
       released,
     }
-  }, [escrows])
+  }, [escrows, proposals])
 
   const selectedEscrow = escrows.find((e) => e.id === selectedEscrowId) ?? null
-
-  const syncEscrowOnChainState = async (escrow) => {
-    if (!escrow) return
-    try {
-      const response = await fetch(
-        `https://testnet-api.algonode.cloud/v2/accounts/${escrow.escrowAddress}`,
-      )
-      if (!response.ok) {
-        // eslint-disable-next-line no-console
-        console.error('Failed to load account info from indexer')
-        return
-      }
-      const data = await response.json()
-      const account = data.account || {}
-      const assets = (account.assets || []).map((a) => ({
-        assetId: a['asset-id'],
-        amount: a.amount,
-      }))
-      setEscrowAsaHoldings((prev) => ({
-        ...prev,
-        [escrow.id]: assets,
-      }))
-      if (typeof account.amount === 'number') {
-        const algoBalance = account.amount / 1_000_000
-        setEscrows((prev) =>
-          prev.map((e) =>
-            e.id === escrow.id ? { ...e, balanceAlgo: algoBalance, status: e.status || 'Funded' } : e,
-          ),
-        )
-      }
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Error syncing escrow state from chain', error)
-    }
-  }
-
-  useEffect(() => {
-    // Load initial on-chain state for the currently selected escrow
-    if (selectedEscrow) {
-      syncEscrowOnChainState(selectedEscrow)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedEscrow?.escrowAddress])
 
   const handleFund = ({ escrowId, amount }) => {
     const numericAmount = Number(amount)
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
       return
     }
-    setEscrows((prev) =>
-      prev.map((e) =>
-        e.id === escrowId ? { ...e, balanceAlgo: e.balanceAlgo + numericAmount, status: 'Funded' } : e,
-      ),
+    const updatedHackathons = hackathons.map((h) =>
+      h.id === escrowId
+        ? {
+            ...h,
+            sponsorFundingXlm: Number(h.sponsorFundingXlm || 0) + numericAmount,
+            sponsorAddress: senderAddress,
+          }
+        : h
     )
+    saveHackathonsToStorage(updatedHackathons)
+    setHackathons(updatedHackathons)
     setActivities((prev) => [
       {
-        id: `act_${prev.length + 1}`,
+        id: `act_fund_${Date.now()}`,
         timestamp: 'Just now',
-        title: 'Funding simulated',
+        title: 'Escrow funded',
         description: `Added ${numericAmount} XLM to ${selectedEscrow?.name || 'escrow'}.`,
       },
       ...prev,
@@ -473,22 +490,21 @@ function SponsorDashboard() {
   }
 
   const handleApproveRelease = (releaseId) => {
+    const updatedProposals = proposals.map((p) =>
+      p.id === releaseId ? { ...p, sponsorApproved: true, status: 'approved' } : p
+    )
+    savePayoutProposals(updatedProposals)
+    setProposals(updatedProposals)
     const release = pendingReleases.find((r) => r.id === releaseId)
-    setPendingReleases((prev) => prev.filter((r) => r.id !== releaseId))
-    if (release) {
-      setActivities((prev) => [
-        {
-          id: `act_${prev.length + 1}`,
-          timestamp: 'Just now',
-          title: 'Release approved',
-          description: `Approved prize release for ${release.hackathon} to ${release.winnerAddress.slice(
-            0,
-            10,
-          )}….`,
-        },
-        ...prev,
-      ])
-    }
+    setActivities((prev) => [
+      {
+        id: `act_approve_${Date.now()}`,
+        timestamp: 'Just now',
+        title: 'Release approved',
+        description: `Approved payout proposal for ${release?.hackathon || 'hackathon'}.`,
+      },
+      ...prev,
+    ])
   }
 
   return (
@@ -554,9 +570,12 @@ function SponsorDashboard() {
             <FundingPanel
               selectedEscrow={selectedEscrow}
               onFund={handleFund}
-              asaHoldings={escrowAsaHoldings[selectedEscrowId] || []}
+              asaHoldings={[]}
               senderAddress={senderAddress}
-              onSyncOnChain={() => syncEscrowOnChainState(selectedEscrow)}
+              onSyncOnChain={() => {
+                setHackathons(getHackathonsFromStorage())
+                setProposals(getPayoutProposals())
+              }}
             />
           </section>
 

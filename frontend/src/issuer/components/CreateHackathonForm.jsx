@@ -91,7 +91,7 @@ export default function CreateHackathonForm({ userWallet, onSave, onCancel }) {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. RIFT '26"
+            placeholder="e.g. Cepheus 2026"
             maxLength={120}
           />
         </div>
