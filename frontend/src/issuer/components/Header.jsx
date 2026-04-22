@@ -1,7 +1,7 @@
 import React from 'react'
 import SharedHeader from '../../components/SharedHeader'
 
-export default function Header({ organizerName, walletAddress, stats }) {
+export default function Header({ organizerName, walletAddress, stats, onDisconnect }) {
   return (
     <>
       <SharedHeader activeTab="issuer" />
@@ -34,6 +34,11 @@ export default function Header({ organizerName, walletAddress, stats }) {
               <span className="stat-label">Pending Payouts</span>
               <span className="stat-value stat-revoked">{stats?.pendingPayouts || 0}</span>
             </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+            <button type="button" className="button danger small" onClick={onDisconnect}>
+              Disconnect Wallet
+            </button>
           </div>
         </div>
       </div>

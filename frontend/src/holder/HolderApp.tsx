@@ -4,6 +4,7 @@ import { detectUserRole } from './utils/roleDetection'
 import { getProfileForWallet, setProfileForWallet } from './utils/userProfileStorage'
 import { UserRole, UserProfile } from '../types/holder'
 import { clearActiveSession, getActiveSession, setActiveSession } from '../utils/authSession'
+import { resolveSessionWithQrBootstrap } from '../utils/qrSession'
 import ProfileForm from './components/ProfileForm'
 
 // Stellar wallet SDK loads only after user clicks connect.
@@ -35,8 +36,17 @@ export default function HolderApp() {
   const [showConnectUI, setShowConnectUI] = useState(false)
 
   useEffect(() => {
-    const session = getActiveSession()
+    const session = resolveSessionWithQrBootstrap() || getActiveSession()
     if (!session) return
+
+    setUserWallet(session.wallet)
+    setUserRole(session.role)
+    setWalletConnected(true)
+
+    if (session.role === 'participant') {
+      setActiveView('participant')
+      return
+    }
     if (session.role === 'sponsor') {
       window.location.href = '/verifier'
       return

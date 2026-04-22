@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../constants/escrow'
-import { getActiveSession, hasRequiredRole } from '../utils/authSession'
+import { clearActiveSession, getActiveSession, hasRequiredRole } from '../utils/authSession'
+import { resolveSessionWithQrBootstrap } from '../utils/qrSession'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import OrganizerDashboard from './components/OrganizerDashboard'
@@ -62,6 +63,10 @@ function initHackathonData() {
 
 export default function IssuerApp() {
   useEffect(() => {
+    resolveSessionWithQrBootstrap()
+  }, [])
+
+  useEffect(() => {
     if (!hasRequiredRole('organizer')) {
       window.location.href = '/holder'
     }
@@ -74,6 +79,11 @@ export default function IssuerApp() {
   const organizerName = 'Organizer'
   const session = getActiveSession()
   const walletAddress = session?.wallet || DEFAULT_ORGANIZER_ESCROW_ADDRESS
+
+  const handleDisconnect = () => {
+    clearActiveSession()
+    window.location.href = '/holder'
+  }
 
   const hackathons = getHackathons()
   const myHackathons = hackathons.filter(
@@ -182,6 +192,7 @@ export default function IssuerApp() {
         organizerName={organizerName}
         walletAddress={walletAddress}
         stats={stats}
+        onDisconnect={handleDisconnect}
       />
       <div className="organizer-layout issuer-layout">
         <Sidebar activeView={activeView} onViewChange={(v) => { setActiveView(v); setNavigateParam(null) }} />

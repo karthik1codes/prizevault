@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from './constants/escrow'
 import SharedHeader from './components/SharedHeader'
-import { getActiveSession, hasRequiredRole } from './utils/authSession'
+import { clearActiveSession, getActiveSession, hasRequiredRole } from './utils/authSession'
+import { resolveSessionWithQrBootstrap } from './utils/qrSession'
 import '../styles.css'
 import './index.css'
 import './recruiter.css'
@@ -331,6 +332,10 @@ function SponsorProfilePanel({ sponsorName, defaultWallet }) {
 
 function SponsorDashboard() {
   useEffect(() => {
+    resolveSessionWithQrBootstrap()
+  }, [])
+
+  useEffect(() => {
     if (!hasRequiredRole('sponsor')) {
       window.location.href = '/holder'
     }
@@ -339,6 +344,10 @@ function SponsorDashboard() {
   const activeSession = getActiveSession()
   const escrowAccountAddress = DEFAULT_ORGANIZER_ESCROW_ADDRESS
   const senderAddress = activeSession?.wallet || 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF'
+  const handleDisconnect = () => {
+    clearActiveSession()
+    window.location.href = '/holder'
+  }
   const [escrows, setEscrows] = useState([
     {
       id: 'escrow_1',
@@ -488,6 +497,11 @@ function SponsorDashboard() {
               Lock hackathon prizes in Stellar escrows and release them only when both organizer and sponsor agree on
               the winner.
             </p>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <button type="button" className="button ghost" onClick={handleDisconnect}>
+              Disconnect Wallet
+            </button>
           </div>
         </div>
       </div>
