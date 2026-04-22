@@ -64,3 +64,6 @@ impl StellarEscrow {
         }
     }
 }
+
+#[cfg(test)]
+mod test;
