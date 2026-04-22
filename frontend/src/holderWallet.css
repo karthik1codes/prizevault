@@ -879,10 +879,29 @@ textarea {
   margin-right: 6px;
 }
 
+.user-role {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .user-role .badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  box-sizing: border-box;
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 0.85rem;
+  line-height: 1;
+}
+
+.user-role-label {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  font-weight: 700;
 }
 
 .badge-sponsor { background: rgba(89, 100, 255, 0.25); color: #9dadff; }

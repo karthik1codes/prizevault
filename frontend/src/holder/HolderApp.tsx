@@ -3,7 +3,12 @@ import SharedHeader from '../components/SharedHeader'
 import { detectUserRole } from './utils/roleDetection'
 import { getProfileForWallet, setProfileForWallet } from './utils/userProfileStorage'
 import { UserRole, UserProfile } from '../types/holder'
-import { clearActiveSession, getActiveSession, setActiveSession } from '../utils/authSession'
+import {
+  clearActiveSession,
+  getActiveSession,
+  requireManualConnect,
+  setActiveSession,
+} from '../utils/authSession'
 import { resolveSessionWithQrBootstrap } from '../utils/qrSession'
 import ProfileForm from './components/ProfileForm'
 
@@ -115,6 +120,7 @@ export default function HolderApp() {
 
   const handleDisconnect = () => {
     clearActiveSession()
+    requireManualConnect()
     setWalletConnected(false)
     setUserWallet(null)
     setUserRole(null)
@@ -193,7 +199,11 @@ export default function HolderApp() {
                     </>
                   ) : (
                     <Suspense fallback={<p className="muted">Loading connection…</p>}>
-                      <StellarConnectBlock onConnect={handleWalletConnect} onError={handleWalletError} />
+                      <StellarConnectBlock
+                        onConnect={handleWalletConnect}
+                        onError={handleWalletError}
+                        desiredRole={pendingProfile?.role || null}
+                      />
                     </Suspense>
                   )}
                 </>

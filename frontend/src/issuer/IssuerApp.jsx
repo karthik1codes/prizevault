@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../constants/escrow'
-import { clearActiveSession, getActiveSession, hasRequiredRole } from '../utils/authSession'
+import {
+  clearActiveSession,
+  getActiveSession,
+  hasRequiredRole,
+  requireManualConnect,
+} from '../utils/authSession'
 import { resolveSessionWithQrBootstrap } from '../utils/qrSession'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
@@ -82,6 +87,7 @@ export default function IssuerApp() {
 
   const handleDisconnect = () => {
     clearActiveSession()
+    requireManualConnect()
     window.location.href = '/holder'
   }
 

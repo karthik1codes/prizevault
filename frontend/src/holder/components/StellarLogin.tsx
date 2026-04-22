@@ -1,33 +1,53 @@
 import React, { useState, useEffect } from 'react'
 import QRCode from 'qrcode'
 import stellarWallet from '../stellarWallet'
+import organizerWalletQr from '../../assets/organizer-wallet-qr.png'
+import sponsorWalletQr from '../../assets/sponsor-wallet-qr.png'
+import participantWalletQr from '../../assets/participant-wallet-qr.png'
+import {
+  clearManualConnectRequirement,
+  AppRole,
+  isManualConnectRequired,
+} from '../../utils/authSession'
+import { ROLE_WALLET_MAP } from '../../constants/qrWallets'
 
 interface StellarLoginProps {
   onConnect: (address: string) => void
   onError?: (error: string) => void
+  desiredRole?: AppRole | null
 }
 
-export default function StellarLogin({ onConnect, onError }: StellarLoginProps) {
+export default function StellarLogin({ onConnect, onError, desiredRole = null }: StellarLoginProps) {
   const [isConnecting, setIsConnecting] = useState(false)
   const [isConnected, setIsConnected] = useState(false)
   const [appQr, setAppQr] = useState('')
   const [connectError, setConnectError] = useState('')
+  const isOrganizer = desiredRole === 'organizer'
+  const isSponsor = desiredRole === 'sponsor'
+  const isParticipant = !desiredRole || desiredRole === 'participant'
+  const walletForRole = (desiredRole ? ROLE_WALLET_MAP[desiredRole] : '') || ROLE_WALLET_MAP.participant || ''
+  const walletExplorerUrl = walletForRole
+    ? `https://stellar.expert/explorer/public/account/${walletForRole}`
+    : ''
 
   useEffect(() => {
-    stellarWallet
-      .reconnectSession()
-      .then((accounts) => {
-        if (accounts.length > 0) {
-          setIsConnected(true)
-          onConnect(accounts[0])
-        }
-      })
-      .catch(() => {})
+    if (!isManualConnectRequired()) {
+      stellarWallet
+        .reconnectSession()
+        .then((accounts) => {
+          if (accounts.length > 0) {
+            setIsConnected(true)
+            onConnect(accounts[0])
+          }
+        })
+        .catch(() => {})
+    }
 
     const buildQr = async () => {
       try {
-        const currentUrl = window.location.href
-        const qr = await QRCode.toDataURL(currentUrl, {
+        // Encode a browser URL so Google Lens opens directly to the Stellar account page.
+        const qrPayload = walletExplorerUrl
+        const qr = await QRCode.toDataURL(qrPayload, {
           width: 200,
           margin: 1,
         })
@@ -38,12 +58,13 @@ export default function StellarLogin({ onConnect, onError }: StellarLoginProps) 
     }
 
     buildQr()
-  }, [onConnect])
+  }, [onConnect, desiredRole, walletExplorerUrl])
 
   const handleConnect = async () => {
     setConnectError('')
     setIsConnecting(true)
     try {
+      clearManualConnectRequirement()
       const accounts = await Promise.race([
         stellarWallet.connect(),
         new Promise<never>((_, reject) =>
@@ -105,11 +126,11 @@ export default function StellarLogin({ onConnect, onError }: StellarLoginProps) 
       {appQr && (
         <div style={{ marginTop: 16 }}>
           <p className="wallet-install-hint" style={{ marginBottom: 10 }}>
-            Mobile connect: scan this QR on your phone, open this page, then connect with your Stellar wallet there.
+            Mobile wallet address QR ({desiredRole || 'participant'}): scan with Google Lens to open the wallet address page.
           </p>
           <img
-            src={appQr}
-            alt="QR code to open this app on mobile"
+            src={isOrganizer ? organizerWalletQr : isSponsor ? sponsorWalletQr : isParticipant ? participantWalletQr : appQr}
+            alt="QR code for Stellar wallet address"
             style={{ width: 180, height: 180, borderRadius: 12, background: '#fff', padding: 8 }}
           />
         </div>

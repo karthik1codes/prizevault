@@ -2,7 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from './constants/escrow'
 import SharedHeader from './components/SharedHeader'
-import { clearActiveSession, getActiveSession, hasRequiredRole } from './utils/authSession'
+import {
+  clearActiveSession,
+  getActiveSession,
+  hasRequiredRole,
+  requireManualConnect,
+} from './utils/authSession'
 import { resolveSessionWithQrBootstrap } from './utils/qrSession'
 import '../styles.css'
 import './index.css'
@@ -346,6 +351,7 @@ function SponsorDashboard() {
   const senderAddress = activeSession?.wallet || 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF'
   const handleDisconnect = () => {
     clearActiveSession()
+    requireManualConnect()
     window.location.href = '/holder'
   }
   const [escrows, setEscrows] = useState([

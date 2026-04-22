@@ -55,7 +55,8 @@ export default function ConnectedHolderView({
           </div>
           {userRole && (
             <div className="user-role">
-              <strong>Role:</strong> <span className={`badge badge-${userRole}`}>{userRole}</span>
+              <span className="user-role-label">Role:</span>
+              <span className={`badge badge-${userRole}`}>{userRole}</span>
             </div>
           )}
         </div>

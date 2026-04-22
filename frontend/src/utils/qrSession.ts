@@ -1,4 +1,9 @@
-import { AppRole, getActiveSession, setActiveSession } from './authSession'
+import {
+  AppRole,
+  clearManualConnectRequirement,
+  getActiveSession,
+  setActiveSession,
+} from './authSession'
 import { ROLE_WALLET_MAP } from '../constants/qrWallets'
 
 function isValidStellarAddress(value: string): boolean {
@@ -32,6 +37,7 @@ export function bootstrapSessionFromQrParams(): { role: AppRole; wallet: string 
   if (!role || !wallet || !isValidStellarAddress(wallet)) return null
 
   setActiveSession(wallet, role)
+  clearManualConnectRequirement()
 
   // Keep URL clean after bootstrap.
   const cleanUrl = `${window.location.pathname}${window.location.hash || ''}`

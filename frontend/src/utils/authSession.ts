@@ -1,6 +1,7 @@
 export type AppRole = 'participant' | 'sponsor' | 'organizer'
 
 const SESSION_KEY = 'prize_vault_active_session'
+const MANUAL_CONNECT_KEY = 'prize_vault_manual_connect_required'
 
 interface ActiveSession {
   wallet: string
@@ -38,6 +39,30 @@ export function clearActiveSession(): void {
     localStorage.removeItem(SESSION_KEY)
   } catch (_) {
     // ignore
+  }
+}
+
+export function requireManualConnect(): void {
+  try {
+    localStorage.setItem(MANUAL_CONNECT_KEY, '1')
+  } catch (_) {
+    // ignore
+  }
+}
+
+export function clearManualConnectRequirement(): void {
+  try {
+    localStorage.removeItem(MANUAL_CONNECT_KEY)
+  } catch (_) {
+    // ignore
+  }
+}
+
+export function isManualConnectRequired(): boolean {
+  try {
+    return localStorage.getItem(MANUAL_CONNECT_KEY) === '1'
+  } catch (_) {
+    return false
   }
 }
 
