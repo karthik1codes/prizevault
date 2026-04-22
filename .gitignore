@@ -3,3 +3,10 @@ node_modules/
 escrow-state.json
 dist/
 *.log
+# Rust
+target/
+**/target/
+Cargo.lock
+
+# Soroban
+.soroban/
