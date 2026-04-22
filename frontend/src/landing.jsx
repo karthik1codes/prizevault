@@ -42,7 +42,7 @@ function Landing() {
       <main>
         <section className="hero">
           <div className="hero-copy">
-            <span className="eyebrow">Hackathon prize escrow on Algorand.</span>
+            <span className="eyebrow">Hackathon prize escrow on Stellar.</span>
             <h1>Lock hackathon prize money in escrow so nobody has to blindly trust anyone.</h1>
             <p>
               Sponsors don&apos;t want prize money misused or delayed. Organizers don&apos;t want to front cash or be
@@ -65,7 +65,7 @@ function Landing() {
           <div className="hero-card">
             <h2>Escrow in three moves</h2>
             <ul>
-              <li>Sponsor locks prize funds into a shared escrow account on Algorand.</li>
+              <li>Sponsor locks prize funds into a shared escrow account on Stellar.</li>
               <li>Organizer configures the hackathon, picks winners, and proposes payout.</li>
               <li>Both co-sign one atomic transaction that releases all prizes at once.</li>
             </ul>
@@ -112,7 +112,7 @@ function Landing() {
             </div>
             <div>
               <span className="metric">Transparent</span>
-              <p>Every deposit and payout is visible on Algorand for anyone to audit.</p>
+              <p>Every deposit and payout is visible on Stellar for anyone to audit.</p>
             </div>
           </div>
         </section>
@@ -143,14 +143,14 @@ function Landing() {
 
         <section className="workflow" id="workflow">
           <div className="section-heading">
-            <h2>Escrow lifecycle on Algorand</h2>
+            <h2>Escrow lifecycle on Stellar</h2>
             <p>From funding the prize pool to on-chain payout, every step is coordinated through a shared escrow.</p>
           </div>
           <div className="workflow-grid">
             <article className="node" id="issuer">
               <h3>1. Lock the prize pool</h3>
               <p>
-                The sponsor locks prize funds into an Algorand escrow account controlled by a LogicSig. Neither party
+                The sponsor locks prize funds into a Stellar escrow account controlled by a smart contract. Neither party
                 can move the money alone.
               </p>
             </article>
@@ -229,7 +229,7 @@ function Landing() {
               If either sponsor or organizer refuses to sign, funds can remain stuck in escrow—there is no timeout or
               automatic refund rule yet.
             </p>
-            <p>We also focus on on-chain ALGO/ASA prizes only; off-chain rewards like gift cards are out of scope.</p>
+            <p>We focus on on-chain XLM/token prizes only; off-chain rewards like gift cards are out of scope.</p>
             <a href="#workflow" className="button tertiary">
               See current escrow design
             </a>
@@ -238,10 +238,10 @@ function Landing() {
       </main>
 
       <footer className="site-footer">
-        <p>Hackathon prize escrow powered by Algorand smart signatures.</p>
+        <p>Hackathon prize escrow powered by Stellar smart contracts.</p>
         <p className="credit">
-          <a href="https://www.algorand.foundation/" target="_blank" rel="noreferrer">
-            Learn more about Algorand
+          <a href="https://stellar.org/" target="_blank" rel="noreferrer">
+            Learn more about Stellar
           </a>
         </p>
       </footer>

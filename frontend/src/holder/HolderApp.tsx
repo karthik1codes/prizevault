@@ -3,10 +3,11 @@ import SharedHeader from '../components/SharedHeader'
 import { detectUserRole } from './utils/roleDetection'
 import { getProfileForWallet, setProfileForWallet } from './utils/userProfileStorage'
 import { UserRole, UserProfile } from '../types/holder'
+import { clearActiveSession, getActiveSession, setActiveSession } from '../utils/authSession'
 import ProfileForm from './components/ProfileForm'
 
-// Defly SDK loads only after user clicks "Connect Defly Wallet" – keeps first paint safe
-const DeflyConnectBlock = lazy(() => import('./DeflyConnectBlock'))
+// Stellar wallet SDK loads only after user clicks connect.
+const StellarConnectBlock = lazy(() => import('./StellarConnectBlock'))
 const ConnectedHolderView = lazy(() => import('./ConnectedHolderView'))
 
 export type HolderView = 'list' | 'sponsor' | 'participant' | 'organizer'
@@ -25,7 +26,7 @@ function HolderHeader() {
 }
 
 export default function HolderApp() {
-  const [deflyConnected, setDeflyConnected] = useState(false)
+  const [walletConnected, setWalletConnected] = useState(false)
   const [userWallet, setUserWallet] = useState<string | null>(null)
   const [userRole, setUserRole] = useState<UserRole>(null)
   const [activeView, setActiveView] = useState<HolderView>('list')
@@ -33,9 +34,21 @@ export default function HolderApp() {
   const [pendingProfile, setPendingProfile] = useState<UserProfile | null>(null)
   const [showConnectUI, setShowConnectUI] = useState(false)
 
-  const handleDeflyConnect = (address: string) => {
+  useEffect(() => {
+    const session = getActiveSession()
+    if (!session) return
+    if (session.role === 'sponsor') {
+      window.location.href = '/verifier'
+      return
+    }
+    if (session.role === 'organizer') {
+      window.location.href = '/issuer'
+    }
+  }, [])
+
+  const handleWalletConnect = (address: string) => {
     setUserWallet(address)
-    setDeflyConnected(true)
+    setWalletConnected(true)
     // Prefer the profile just submitted this session so sponsor choice redirects correctly
     let role: UserRole
     if (pendingProfile) {
@@ -53,18 +66,33 @@ export default function HolderApp() {
         setUserRole(role)
       }
     }
-    if (role === 'sponsor') setActiveView('sponsor')
+    if (role) {
+      setActiveSession(address, role)
+    }
+    if (role === 'sponsor') {
+      window.location.href = '/verifier'
+      return
+    }
+    if (role === 'organizer') {
+      window.location.href = '/issuer'
+      return
+    }
   }
 
-  // Keep sponsor users on the sponsor view (list of hackathons to contribute to)
+  // Route users to their role-specific windows.
   useEffect(() => {
-    if (deflyConnected && userRole === 'sponsor') {
-      setActiveView('sponsor')
+    if (!walletConnected || !userRole) return
+    if (userRole === 'sponsor') {
+      window.location.href = '/verifier'
+      return
     }
-  }, [deflyConnected, userRole])
+    if (userRole === 'organizer') {
+      window.location.href = '/issuer'
+    }
+  }, [walletConnected, userRole])
 
-  const handleDeflyError = (error: string) => {
-    console.error('Defly connection error:', error)
+  const handleWalletError = (error: string) => {
+    console.error('Stellar wallet connection error:', error)
     alert(error)
   }
 
@@ -76,7 +104,8 @@ export default function HolderApp() {
   }
 
   const handleDisconnect = () => {
-    setDeflyConnected(false)
+    clearActiveSession()
+    setWalletConnected(false)
     setUserWallet(null)
     setUserRole(null)
     setActiveView('list')
@@ -84,7 +113,7 @@ export default function HolderApp() {
     setPendingProfile(null)
   }
 
-  const connectedContent = deflyConnected && userWallet && (
+  const connectedContent = walletConnected && userWallet && (
     <Suspense fallback={<p className="muted">Loading dashboard…</p>}>
       <ConnectedHolderView
         userWallet={userWallet}
@@ -103,14 +132,14 @@ export default function HolderApp() {
       <SharedHeader activeTab="holder" />
       <HolderHeader />
       <main>
-        {/* Step 1: Profile – then Step 2: Connect Defly */}
-        {!deflyConnected && (
-          <section className="defly-login-section">
-            <div className="defly-login-container">
+        {/* Step 1: Profile – then Step 2: Connect Stellar wallet */}
+        {!walletConnected && (
+          <section className="wallet-login-section">
+            <div className="wallet-login-container">
               {loginStep === 'profile' ? (
                 <>
                   <h2>Enter your details</h2>
-                  <p>Tell us who you are and how you’re participating. Then connect your Defly wallet.</p>
+                  <p>Tell us who you are and how you’re participating. Then connect your Stellar wallet.</p>
                   <ProfileForm
                     onSubmit={(profile) => {
                       setPendingProfile(profile)
@@ -120,16 +149,16 @@ export default function HolderApp() {
                 </>
               ) : (
                 <>
-                  <h2>Connect Your Defly Wallet</h2>
-                  <p>Use your Defly app on your phone to scan the QR code and connect. You can also use the Defly Web extension if installed.</p>
+                  <h2>Connect Your Stellar Wallet</h2>
+                  <p>Use Freighter browser wallet to connect and manage Stellar payouts.</p>
                   {!showConnectUI ? (
                     <>
                       <button
                         type="button"
-                        className="button primary defly-connect-btn"
+                        className="button primary wallet-connect-btn"
                         onClick={() => setShowConnectUI(true)}
                       >
-                        Connect Defly Wallet
+                        Connect Stellar Wallet
                       </button>
                       <button
                         type="button"
@@ -139,22 +168,22 @@ export default function HolderApp() {
                       >
                         Back
                       </button>
-                      <p className="defly-install-hint">
-                        Don’t have Defly?{' '}
+                      <p className="wallet-install-hint">
+                        Don’t have Freighter?{' '}
                         <a
-                          href="https://defly.app/"
+                          href="https://www.freighter.app/"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="defly-install-link"
+                          className="wallet-install-link"
                         >
-                          Get the Defly app
+                          Get Freighter
                         </a>
-                        {' '}for iOS or Android, or install the Defly Web Beta extension for Chrome.
+                        {' '}for Chrome and compatible browsers.
                       </p>
                     </>
                   ) : (
                     <Suspense fallback={<p className="muted">Loading connection…</p>}>
-                      <DeflyConnectBlock onConnect={handleDeflyConnect} onError={handleDeflyError} />
+                      <StellarConnectBlock onConnect={handleWalletConnect} onError={handleWalletError} />
                     </Suspense>
                   )}
                 </>
@@ -167,7 +196,7 @@ export default function HolderApp() {
         {connectedContent}
       </main>
       <footer className="hw-footer">
-        <p>Hackathon prize escrow powered by Algorand smart signatures.</p>
+        <p>Hackathon prize escrow powered by Stellar smart contracts.</p>
         <p className="footer-meta">2-of-2 approvals · Atomic payouts · Transparent audit trail</p>
       </footer>
     </div>

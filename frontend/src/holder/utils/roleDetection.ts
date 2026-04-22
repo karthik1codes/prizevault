@@ -64,7 +64,7 @@ const DEFAULT_HACKATHONS: Hackathon[] = [
     name: "RIFT '26",
     startDate: '2026-02-19',
     endDate: '2026-02-20',
-    prizePool: { total: 10000, currency: 'ALGO', locked: true },
+    prizePool: { total: 10000, currency: 'XLM', locked: true },
     organizerAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
     sponsorAddress: '',
     escrowAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,

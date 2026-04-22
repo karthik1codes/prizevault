@@ -101,7 +101,7 @@ export default function ParticipantDashboard({ userWallet, onNavigate }: Partici
 
       {!userWallet && (
         <div className="alert alert-warning">
-          Please connect your Defly wallet to view participant features.
+          Please connect your Stellar wallet to view participant features.
         </div>
       )}
 

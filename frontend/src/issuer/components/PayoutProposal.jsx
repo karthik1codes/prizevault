@@ -66,13 +66,13 @@ export default function PayoutProposal({ hackathonId, userWallet, onExecute }) {
     onExecute?.(proposal)
   }
 
-  // Build winners JSON for Algorand app release (release-app script). Prize amounts in ALGO → microAlgos.
+  // Build winners JSON for Stellar release script. Prize amounts in XLM.
   const getReleaseAppWinnersJson = (p) => {
     const winners = (p.winners || []).filter((w) => w.payoutAddress && (w.prizeAmount || 0) > 0)
     return JSON.stringify(
       winners.map((w) => ({
         address: w.payoutAddress.trim(),
-        amountMicroAlgos: Math.round(Number(w.prizeAmount || 0) * 1e6),
+        amountXlm: Number(w.prizeAmount || 0),
       }))
     )
   }
@@ -139,14 +139,14 @@ export default function PayoutProposal({ hackathonId, userWallet, onExecute }) {
                 <div className="proposal-body">
                   <p>Event end date: {p.eventEndDate}</p>
                   <p>Winners: {p.winners?.length || 0}</p>
-                  <p>Total: {p.winners?.reduce((s, w) => s + (w.prizeAmount || 0), 0)} ALGO</p>
+                  <p>Total: {p.winners?.reduce((s, w) => s + (w.prizeAmount || 0), 0)} XLM</p>
                 </div>
                 {p.organizerApproved && p.sponsorApproved && p.status !== 'executed' && (
                   <div className="execute-payout-app">
                     <p className="muted" style={{ marginBottom: '0.5rem' }}>
-                      Escrow app <strong>{ESCROW_APP_ID}</strong>: run from project root with SPONSOR_MNEMONIC, ORGANIZER_MNEMONIC, ALGOD_URL set.
+                      Escrow contract <strong>{ESCROW_APP_ID}</strong>: run from project root with SPONSOR_SECRET_KEY, ORGANIZER_SECRET_KEY and STELLAR_HORIZON_URL set.
                     </p>
-                    <p className="muted" style={{ fontSize: '0.8rem', marginBottom: '0.25rem' }}>Winners (set WINNERS_JSON then run <code>npm run release-app</code>):</p>
+                    <p className="muted" style={{ fontSize: '0.8rem', marginBottom: '0.25rem' }}>Winners (set WINNERS_JSON then run release flow script):</p>
                     <pre className="release-command" style={{ fontSize: '0.7rem', overflow: 'auto', maxWidth: '100%', padding: '0.5rem', background: '#1a1a1a', borderRadius: 4 }}>
                       {getReleaseAppWinnersForCopy(p)}
                     </pre>
@@ -155,7 +155,7 @@ export default function PayoutProposal({ hackathonId, userWallet, onExecute }) {
                       className="btn-primary"
                       onClick={() => {
                         navigator.clipboard?.writeText(getReleaseAppWinnersForCopy(p))
-                        alert('Winners JSON copied. Set WINNERS_JSON and run: npm run release-app')
+                        alert('Winners JSON copied. Use it with the Stellar release flow.')
                       }}
                     >
                       Copy JSON &amp; run release-app
@@ -177,7 +177,7 @@ export default function PayoutProposal({ hackathonId, userWallet, onExecute }) {
                     rel="noreferrer"
                     className="btn-secondary"
                   >
-                    View on AlgoExplorer
+                    View on Stellar Explorer
                   </a>
                 )}
               </div>

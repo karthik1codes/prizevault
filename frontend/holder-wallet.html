@@ -19,7 +19,7 @@
   <body>
     <div id="root">Loading Prize Vault…</div>
     <script>
-      // Defly Connect / WalletConnect deps expect Node-style "global" in the browser
+      // Some wallet/browser libs expect Node-style "global" in browser runtime
       if (typeof global === 'undefined') window.global = window;
     </script>
     <script type="module" src="/src/holderWallet.tsx"></script>

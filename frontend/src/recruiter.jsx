@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from './constants/escrow'
 import SharedHeader from './components/SharedHeader'
+import { getActiveSession, hasRequiredRole } from './utils/authSession'
 import '../styles.css'
 import './index.css'
 import './recruiter.css'
@@ -12,7 +13,7 @@ function EscrowOverviewPanel({ escrows, selectedEscrowId, onSelectEscrow }) {
       <div className="card-header">
         <div>
           <h3>Prize escrows</h3>
-          <p className="muted">All hackathon prize pools this sponsor is funding on Algorand.</p>
+          <p className="muted">All hackathon prize pools this sponsor is funding on Stellar.</p>
         </div>
       </div>
       <div className="status-grid">
@@ -25,7 +26,7 @@ function EscrowOverviewPanel({ escrows, selectedEscrowId, onSelectEscrow }) {
             }`}
             onClick={() => {
               onSelectEscrow(escrow.id)
-              const url = 'https://lora.algokit.io/testnet/transaction-wizard'
+              const url = 'https://laboratory.stellar.org/'
               window.open(url, '_blank', 'noopener,noreferrer')
             }}
           >
@@ -64,7 +65,7 @@ function FundingPanel({ selectedEscrow, onFund, asaHoldings, senderAddress, onSy
         <div>
           <h3>Fund prize pool</h3>
           <p className="muted">
-            Deposit ALGO or an ASA into the LogicSig escrow for{' '}
+            Deposit XLM or Stellar assets into the escrow for{' '}
             <strong>{selectedEscrow.name}</strong>.
           </p>
         </div>
@@ -72,7 +73,7 @@ function FundingPanel({ selectedEscrow, onFund, asaHoldings, senderAddress, onSy
       <p className="muted">
         Current balance:{' '}
         <strong>
-          {selectedEscrow.balanceAlgo} ALGO
+          {selectedEscrow.balanceAlgo} XLM
           {selectedEscrow.assetId ? ` · ASA #${selectedEscrow.assetId}` : ''}
         </strong>
       </p>
@@ -135,7 +136,7 @@ function FundingPanel({ selectedEscrow, onFund, asaHoldings, senderAddress, onSy
         </button>
       </div>
       <p className="muted" style={{ marginTop: 4, fontSize: '0.8rem' }}>
-        Sender address to use in Lora Transaction Wizard:{' '}
+        Sender address to use in Stellar wallet:{' '}
         <code>
           {senderAddress.slice(0, 8)}…
           {senderAddress.slice(-6)}
@@ -168,7 +169,7 @@ function FundingPanel({ selectedEscrow, onFund, asaHoldings, senderAddress, onSy
           type="number"
           min="0"
           step="0.1"
-          placeholder="Amount in ALGO"
+          placeholder="Amount in XLM"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
         />
@@ -244,23 +245,23 @@ function BudgetSummaryPanel({ stats }) {
       <div className="status-grid">
         <div className="status-tile ok">
           <span className="label">Committed</span>
-          <div style={{ fontWeight: 700, fontSize: '1.25rem' }}>{stats.committed} ALGO</div>
+          <div style={{ fontWeight: 700, fontSize: '1.25rem' }}>{stats.committed} XLM</div>
           <p className="muted" style={{ marginTop: 4 }}>
             Across all active hackathons
           </p>
         </div>
         <div className="status-tile warn">
           <span className="label">Locked in escrow</span>
-          <div style={{ fontWeight: 700, fontSize: '1.25rem' }}>{stats.locked} ALGO</div>
+          <div style={{ fontWeight: 700, fontSize: '1.25rem' }}>{stats.locked} XLM</div>
           <p className="muted" style={{ marginTop: 4 }}>
             Awaiting winners / approvals
           </p>
         </div>
         <div className="status-tile">
           <span className="label">Released</span>
-          <div style={{ fontWeight: 700, fontSize: '1.25rem' }}>{stats.released} ALGO</div>
+          <div style={{ fontWeight: 700, fontSize: '1.25rem' }}>{stats.released} XLM</div>
           <p className="muted" style={{ marginTop: 4 }}>
-            Paid out to winners on Algorand
+            Paid out to winners on Stellar
           </p>
         </div>
       </div>
@@ -321,7 +322,7 @@ function SponsorProfilePanel({ sponsorName, defaultWallet }) {
         </li>
         <li>
           <strong>Network</strong>
-          <p className="muted">Algorand TestNet (configurable in backend)</p>
+          <p className="muted">Stellar Testnet (configurable in backend)</p>
         </li>
       </ul>
     </section>
@@ -329,9 +330,15 @@ function SponsorProfilePanel({ sponsorName, defaultWallet }) {
 }
 
 function SponsorDashboard() {
+  useEffect(() => {
+    if (!hasRequiredRole('sponsor')) {
+      window.location.href = '/holder'
+    }
+  }, [])
+
+  const activeSession = getActiveSession()
   const escrowAccountAddress = DEFAULT_ORGANIZER_ESCROW_ADDRESS
-  const senderAddress =
-    'FEWFG5J6JQHZW5Q2R3BEDQRRSQKQYLUVMY7ETZOBFYXM4V2DR5LNA4I2AA'
+  const senderAddress = activeSession?.wallet || 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF'
   const [escrows, setEscrows] = useState([
     {
       id: 'escrow_1',
@@ -344,7 +351,7 @@ function SponsorDashboard() {
     {
       id: 'escrow_2',
       name: 'RIFT Pune · Track Prize',
-      escrowAddress: 'RIFTALGOTESTNETADDRESS000000000000000000002',
+      escrowAddress: 'GBRPYHIL2CI3BB2E5UX6VQJ3YVFB6Y7XQ5Q26CL5I2I2W5WJ5X5W2C5B',
       status: 'Awaiting top-up',
       balanceAlgo: 3,
       assetId: null,
@@ -355,8 +362,8 @@ function SponsorDashboard() {
     {
       id: 'rel_1',
       hackathon: 'RIFT Bengaluru',
-      winnerAddress: 'WINNERALGOTESTNETADDR0000000000000000001',
-      amountLabel: '8 ALGO',
+      winnerAddress: 'GBRPYHIL2CI3BB2E5UX6VQJ3YVFB6Y7XQ5Q26CL5I2I2W5WJ5X5W2C5B',
+      amountLabel: '8 XLM',
     },
   ])
   const [activities, setActivities] = useState([
@@ -371,7 +378,7 @@ function SponsorDashboard() {
   const [escrowAsaHoldings, setEscrowAsaHoldings] = useState({})
 
   const sponsorName = 'Hackathon Sponsor Inc.'
-  const defaultWallet = 'SPONSORALGOTESTNETADDR0000000000000000003'
+  const defaultWallet = 'GBRPYHIL2CI3BB2E5UX6VQJ3YVFB6Y7XQ5Q26CL5I2I2W5WJ5X5W2C5B'
 
   const budgetStats = useMemo(() => {
     const committed = escrows.reduce((sum, e) => sum + e.balanceAlgo, 0)
@@ -444,7 +451,7 @@ function SponsorDashboard() {
         id: `act_${prev.length + 1}`,
         timestamp: 'Just now',
         title: 'Funding simulated',
-        description: `Added ${numericAmount} ALGO to ${selectedEscrow?.name || 'escrow'}.`,
+        description: `Added ${numericAmount} XLM to ${selectedEscrow?.name || 'escrow'}.`,
       },
       ...prev,
     ])
@@ -478,7 +485,7 @@ function SponsorDashboard() {
           <div>
             <h1>Sponsor Prize Console</h1>
             <p>
-              Lock hackathon prizes in Algorand escrows and release them only when both organizer and sponsor agree on
+              Lock hackathon prizes in Stellar escrows and release them only when both organizer and sponsor agree on
               the winner.
             </p>
           </div>
@@ -491,7 +498,7 @@ function SponsorDashboard() {
             <span className="hero-eyebrow">Prize funds, trust-first.</span>
             <h2>Fund once, release only with dual approval across every hackathon you sponsor.</h2>
             <p>
-              Create and monitor LogicSig escrows for each event, fund them in ALGO, and approve winner payouts in a
+              Create and monitor escrow accounts for each event, fund them in XLM, and approve winner payouts in a
               single atomic group—fully transparent on-chain.
             </p>
             <div className="hero-actions">
@@ -507,8 +514,8 @@ function SponsorDashboard() {
             <div className="hero-card">
               <h3>What this console manages</h3>
               <ul>
-                <li>LogicSig escrow creation per hackathon</li>
-                <li>Sponsor deposits into escrow (ALGO / ASA)</li>
+                <li>Smart-contract escrow creation per hackathon</li>
+                <li>Sponsor deposits into escrow (XLM / Stellar assets)</li>
                 <li>Organizer + sponsor approval tracking</li>
                 <li>Atomic prize releases to winners</li>
                 <li>Budget and activity history per sponsor</li>
@@ -547,7 +554,7 @@ function SponsorDashboard() {
         <section className="cta">
           <h2>Ready to sponsor hackathons with on-chain guarantees?</h2>
           <p>
-            Pair this sponsor console with the organizer portal and Algorand agent scripts to get end‑to‑end transparent
+            Pair this sponsor console with the organizer portal and Stellar agent scripts to get end‑to‑end transparent
             prize flows.
           </p>
           <div className="cta-actions">
@@ -562,7 +569,7 @@ function SponsorDashboard() {
       </main>
 
       <footer className="recruiter-footer">
-        <p>Sponsor console blueprint • Algorand hackathon prize escrows.</p>
+        <p>Sponsor console blueprint • Stellar hackathon prize escrows.</p>
       </footer>
     </div>
   )

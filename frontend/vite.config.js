@@ -46,12 +46,12 @@ export default defineConfig({
   publicDir: 'public',
   root: '.', // Root directory for the project
   define: {
-    // Defly Connect / WalletConnect and deps (algosdk, etc.) expect Node "global"
+    // Some wallet SDK dependencies expect Node "global"
     'global': 'globalThis',
   },
   resolve: {
     alias: {
-      // Browser polyfill for buffer so Defly/crypto deps work
+      // Browser polyfill for buffer for compatibility
       buffer: 'buffer/',
     },
   },

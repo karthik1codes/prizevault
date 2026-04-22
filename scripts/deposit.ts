@@ -1,47 +1,47 @@
 #!/usr/bin/env node
 /**
- * Sponsor deposits ALGO (and optionally ASA) to the escrow address.
- * Usage: npm run deposit [-- --amount=1000000] [-- --asset-id=123]
- * Default: deposit 1 ALGO for testing. Algorand only.
+ * Sponsor deposits lumens (XLM) into Stellar escrow.
+ * Usage: npm run deposit [-- --amount=25.0]
  */
-import algosdk from "algosdk";
-import { getAlgodClient, getSponsorAccount, loadEscrowState } from "../src/config.js";
+import { Asset, BASE_FEE, Operation, TransactionBuilder } from "@stellar/stellar-sdk";
+import {
+  getHorizonServer,
+  getNetworkPassphrase,
+  getSponsorKeypair,
+  loadEscrowState,
+} from "../src/config.js";
 
 async function main() {
   const amountArg = process.argv.find((a) => a.startsWith("--amount="))?.split("=")[1];
-  const assetIdArg = process.argv.find((a) => a.startsWith("--asset-id="))?.split("=")[1];
-  const amount = amountArg ? Number(amountArg) : 1_000_000; // 1 ALGO default
-  const assetId = assetIdArg ? Number(assetIdArg) : undefined;
-
-  const algod = getAlgodClient();
-  const sponsor = getSponsorAccount();
-  const state = loadEscrowState();
-
-  const params = await algod.getTransactionParams().do();
-  let tx: algosdk.Transaction;
-
-  if (assetId != null) {
-    tx = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-      sender: sponsor.addr,
-      receiver: state.escrowAddress,
-      amount,
-      assetIndex: assetId,
-      suggestedParams: params,
-    });
-  } else {
-    tx = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-      sender: sponsor.addr,
-      receiver: state.escrowAddress,
-      amount,
-      suggestedParams: params,
-    });
+  const amount = amountArg ? Number(amountArg) : 25;
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("Amount must be a positive number.");
   }
 
-  const signed = tx.signTxn(sponsor.sk);
-  const { txId } = await algod.sendRawTransaction(signed).do();
-  console.log("Deposit submitted. TxId:", txId);
-  await algosdk.waitForConfirmation(algod, txId, 10);
-  console.log("Deposit confirmed. Escrow", state.escrowAddress, "received", assetId ? `asset ${assetId}` : `${amount} microAlgos`);
+  const server = getHorizonServer();
+  const networkPassphrase = getNetworkPassphrase();
+  const sponsor = getSponsorKeypair();
+  const state = loadEscrowState();
+
+  const sponsorAccount = await server.loadAccount(sponsor.publicKey());
+  const tx = new TransactionBuilder(sponsorAccount, {
+    fee: BASE_FEE,
+    networkPassphrase,
+  })
+    .addOperation(
+      Operation.payment({
+        destination: state.escrowAddress,
+        asset: Asset.native(),
+        amount: amount.toFixed(7),
+      }),
+    )
+    .setTimeout(120)
+    .build();
+
+  tx.sign(sponsor);
+  const res = await server.submitTransaction(tx);
+  console.log("Deposit submitted. Hash:", res.hash);
+  console.log("Escrow", state.escrowAddress, "received", amount.toFixed(7), "XLM");
 }
 
 main().catch((e) => {

@@ -23,7 +23,7 @@ export default function CreateHackathonForm({ userWallet, onSave, onCancel }) {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [prizeTotal, setPrizeTotal] = useState('')
-  const [prizeCurrency, setPrizeCurrency] = useState('ALGO')
+  const [prizeCurrency, setPrizeCurrency] = useState('XLM')
   const [description, setDescription] = useState('')
   const [escrowAddress, setEscrowAddress] = useState(defaultAddress)
   const [error, setError] = useState('')
@@ -60,7 +60,7 @@ export default function CreateHackathonForm({ userWallet, onSave, onCancel }) {
       name: trimmedName,
       startDate,
       endDate,
-      prizePool: { total, currency: prizeCurrency || 'ALGO', locked: true },
+      prizePool: { total, currency: prizeCurrency || 'XLM', locked: true },
       organizerAddress: organizerEscrow,
       sponsorAddress: '',
       escrowAddress: organizerEscrow,
@@ -135,7 +135,7 @@ export default function CreateHackathonForm({ userWallet, onSave, onCancel }) {
               value={prizeCurrency}
               onChange={(e) => setPrizeCurrency(e.target.value)}
             >
-              <option value="ALGO">ALGO</option>
+              <option value="XLM">XLM</option>
             </select>
           </div>
         </div>

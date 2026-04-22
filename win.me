@@ -2,46 +2,32 @@
 
 ---
 
-## What is an escrow account??
+## What is an escrow account?
 
-**Simple:** An escrow account is a **holding account** that keeps money (or assets) safe until certain conditions are met. Nobody can take the money out alone—the rules of the account decide when and to whom it can be sent.
+An escrow account is a holding account that stores prize funds until release conditions are met.
 
-**In this project:** The escrow account is the **address of the LogicSig** (see below). The sponsor sends ALGO/ASA to this address. The account is “controlled” by the TEAL program: the only way to spend from it is by submitting a transaction that the program approves (i.e. the atomic group where both sponsor and organizer sign). So the prize sits in this account until both parties agree to release it to the winner.
-
-**Summary:** Escrow account = the account that holds the prize and only releases it when the contract’s rules are satisfied (here: both sponsor + organizer sign).
+In this project, escrow is a Stellar account configured with strict signer thresholds so one party cannot move funds alone.
 
 ---
 
-## What is an atomic group??
+## What is dual approval?
 
-**Simple:** An **atomic group** is a set of transactions that are treated as **one unit**: either **all** of them get applied, or **none** of them do. If any transaction in the group fails, the whole group is rejected. There is no “half success.”
+Dual approval means sponsor and organizer must both authorize payout actions.
 
-**In this project:** The release uses a group of **exactly 3** transactions:
-1. **Tx 0:** Sponsor signs (e.g. 0 ALGO to self) → “I approve this release.”
-2. **Tx 1:** Organizer signs (e.g. 0 ALGO to self) → “I approve this release.”
-3. **Tx 2:** Escrow pays the winner → the actual prize transfer, signed by the LogicSig.
+With Stellar multisig:
+- sponsor signer weight = 1
+- organizer signer weight = 1
+- threshold = 2
 
-The TEAL contract checks that the group has size 3, that tx0 is from the sponsor and tx1 from the organizer, and that tx2 is the payment/asset transfer from escrow to the winner. So “both keys turned at the same time” is implemented as one atomic group: both approvals and the payment happen together or not at all.
-
-**Summary:** Atomic group = several transactions that succeed or fail together; here it ensures both approvals and the prize payment happen in one step.
+So payout transactions require both signatures.
 
 ---
 
-## What is LogicSig and stateless LogicSig??
+## What is the smart-contract role?
 
-**LogicSig (Logic Signature):** A **LogicSig** is a **signature** that comes from running a small program (written in TEAL), not from a private key. On Algorand, you can attach such a program to a transaction; if the program returns “approve,” the transaction is considered signed. So the “key” that signs is the **logic**, not a secret key.
+Soroban contract logic can enforce release rules at the contract level:
+- initialize sponsor/organizer/token
+- require both signatures for release
+- transfer funds to winners only when conditions pass
 
-**Stateless LogicSig:** “Stateless” means the program does **not** read or write any on-chain state (no global/local storage of an app, no boxes). It only looks at:
-- the current transaction, and  
-- other transactions in the same group (e.g. `gtxn 0 Sender`).
-
-So the program is a pure function of the transaction(s); no memory between rounds. That makes it cheap, simple, and easy to reason about.
-
-**In this project:** The escrow is a **stateless LogicSig**. The TEAL program:
-- Checks the group has 3 txs, tx0 from sponsor, tx1 from organizer.
-- Checks this tx (index 2) is a payment or asset transfer from the escrow to the winner, with no rekey/close-remainder.
-- If all conditions pass, it returns success and “signs” the escrow’s payment tx.
-
-The compiled program’s hash gives the **escrow account address**; that’s the account that holds the prize and that only this LogicSig can sign for.
-
-**Summary:** LogicSig = signature by a TEAL program instead of a private key. Stateless LogicSig = that program only looks at the transaction(s), no on-chain state; in this project it’s the “lock” that only opens when both sponsor and organizer sign the right atomic group.
+This gives on-chain policy enforcement beyond UI-level checks.

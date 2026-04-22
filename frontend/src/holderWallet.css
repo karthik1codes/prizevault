@@ -765,12 +765,12 @@ textarea {
   font-size: 0.75rem;
 }
 
-/* Defly wallet connect section */
-.defly-login-section {
+/* Stellar wallet connect section */
+.wallet-login-section {
   margin: 32px 0 48px;
 }
 
-.defly-login-section .defly-login-container {
+.wallet-login-section .wallet-login-container {
   background: rgba(14, 17, 33, 0.75);
   border-radius: 24px;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -779,51 +779,51 @@ textarea {
   box-shadow: 0 24px 60px rgba(5, 6, 12, 0.6);
 }
 
-.defly-login-section h2 {
+.wallet-login-section h2 {
   margin: 0 0 8px;
   font-size: clamp(1.5rem, 2.5vw, 2rem);
 }
 
-.defly-login-section p {
+.wallet-login-section p {
   margin: 0 0 20px;
   color: rgba(243, 245, 255, 0.8);
 }
 
-.defly-not-found p {
+.wallet-not-found p {
   margin-bottom: 16px;
 }
 
-.defly-install-link {
+.wallet-install-link {
   display: inline-block;
   margin-bottom: 20px;
   text-decoration: none;
   cursor: pointer;
 }
 
-.defly-try-anyway {
+.wallet-try-anyway {
   margin-top: 8px;
   margin-bottom: 12px !important;
   font-size: 0.9rem;
   color: rgba(243, 245, 255, 0.7);
 }
 
-.defly-install-hint {
+.wallet-install-hint {
   margin-top: 20px;
   font-size: 0.9rem;
   color: rgba(243, 245, 255, 0.7);
 }
 
-.defly-install-hint .defly-install-link {
+.wallet-install-hint .wallet-install-link {
   color: #7a8cff;
   text-decoration: underline;
 }
 
-.defly-install-hint .defly-install-link:hover {
+.wallet-install-hint .wallet-install-link:hover {
   color: #9dadff;
 }
 
-.defly-connect-btn,
-.defly-disconnect-btn {
+.wallet-connect-btn,
+.wallet-disconnect-btn {
   margin-right: 12px;
   margin-bottom: 8px;
   cursor: pointer;

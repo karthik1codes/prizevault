@@ -77,7 +77,7 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
       setHackathons(updated)
       setAmount('')
       const hack = updated.find((h) => h.id === hackathonId)
-      alert(`Contributed ${amount} ${hack?.prizePool.currency ?? 'ALGO'} to prize pool`)
+      alert(`Contributed ${amount} ${hack?.prizePool.currency ?? 'XLM'} to prize pool`)
     } catch (error) {
       console.error('Transaction failed:', error)
       alert('Transaction failed. Please try again.')
@@ -111,7 +111,7 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
 
       {!userWallet && (
         <div className="alert alert-warning">
-          Please connect your Defly wallet to view sponsor features.
+          Please connect your Stellar wallet to view sponsor features.
         </div>
       )}
 
@@ -120,7 +120,7 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
           <section className="available-hackathons-section">
             <h2>Hackathons you can contribute to</h2>
             <p className="muted" style={{ marginBottom: '1rem' }}>
-              Contribute to prize pools from this page. For on-chain lock (escrow app {ESCROW_APP_ID}), run from project root: <code>npm run deposit-app -- --amount=&lt;microAlgos&gt;</code> (env: SPONSOR_MNEMONIC, ALGOD_URL).
+              Contribute to prize pools from this page. For on-chain lock (escrow contract {ESCROW_APP_ID}), run from project root: <code>npm run deposit -- --amount=&lt;xlm&gt;</code> (env: SPONSOR_SECRET_KEY, STELLAR_HORIZON_URL).
             </p>
             {availableHackathons.length === 0 ? (
               <p className="muted">No upcoming hackathons available for sponsorship.</p>
@@ -146,7 +146,7 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
                       <div className="contribute-section">
                         <input
                           type="number"
-                          placeholder="Amount (ALGO)"
+                          placeholder="Amount (XLM)"
                           value={amount}
                           onChange={(e) => setAmount(e.target.value)}
                           className="input-inline"
@@ -174,7 +174,7 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
                           rel="noreferrer"
                           className="btn btn-small"
                         >
-                          View on Lora
+                          View on Stellar Lab
                         </a>
                       </div>
                     </div>
@@ -205,7 +205,7 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
                       <div className="proposal-body">
                         <p>Event end date: {String(p.eventEndDate)}</p>
                         <p>Winners: {winners.length}</p>
-                        <p>Total: {totalAlgo} ALGO</p>
+                        <p>Total: {totalAlgo} XLM</p>
                       </div>
                       <div className="proposal-actions">
                         <button

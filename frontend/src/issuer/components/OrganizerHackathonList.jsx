@@ -14,7 +14,7 @@ function getMockHackathons() {
       name: 'RIFT \'26',
       startDate: '2026-02-19',
       endDate: '2026-02-20',
-      prizePool: { total: 10000, currency: 'ALGO', locked: true },
+      prizePool: { total: 10000, currency: 'XLM', locked: true },
       organizerAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
       sponsorAddress: '0x1234567890abcdef',
       escrowAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
@@ -79,7 +79,7 @@ export default function OrganizerHackathonList({ userWallet, onNavigate }) {
                   <strong>Dates:</strong> {h.startDate} – {h.endDate}
                 </p>
                 <p>
-                  <strong>Prize pool:</strong> {h.prizePool?.total || 0} {h.prizePool?.currency || 'ALGO'}
+                  <strong>Prize pool:</strong> {h.prizePool?.total || 0} {h.prizePool?.currency || 'XLM'}
                 </p>
                 <p className="escrow-row">
                   <strong>Escrow:</strong>{' '}

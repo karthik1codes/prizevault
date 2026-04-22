@@ -12,7 +12,7 @@ export interface UserProfile {
 }
 
 export interface HolderState {
-  deflyConnected: boolean
+  walletConnected: boolean
   userWallet: string | null
   userRole: UserRole
   hackathons: Hackathon[]
@@ -41,8 +41,8 @@ export interface HolderState {
 
 export interface HolderContextValue {
   state: HolderState
-  connectDeflyWallet: () => Promise<string | null>
-  disconnectDeflyWallet: () => Promise<void>
+  connectStellarWallet: () => Promise<string | null>
+  disconnectStellarWallet: () => Promise<void>
   setUserRole: (role: UserRole) => void
   loadHackathons: () => Hackathon[]
   createHackathon: (hackathon: Hackathon) => void

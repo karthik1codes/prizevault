@@ -4,7 +4,7 @@ import SponsorDashboard from './components/SponsorDashboard'
 import ParticipantDashboard from './components/ParticipantDashboard'
 import HackathonList from './components/HackathonList'
 import { UserRole } from '../types/holder'
-import deflyWallet from './deflyWallet'
+import stellarWallet from './stellarWallet'
 
 export type HolderView = 'list' | 'sponsor' | 'participant' | 'organizer'
 
@@ -43,14 +43,14 @@ export default function ConnectedHolderView({
               className="button secondary"
               onClick={async () => {
                 try {
-                  await deflyWallet.disconnect()
+                  await stellarWallet.disconnect()
                 } catch (_) {
                   /* ignore */
                 }
                 onDisconnect()
               }}
             >
-              Disconnect
+              Disconnect Wallet
             </button>
           </div>
           {userRole && (

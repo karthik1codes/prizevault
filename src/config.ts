@@ -1,29 +1,28 @@
-import algosdk from "algosdk";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { Keypair, Horizon, Networks } from "@stellar/stellar-sdk";
 
 const ENV = process.env;
 
-export function getAlgodClient(): algosdk.Algodv2 {
-  const url = ENV.ALGOD_URL || "http://localhost:8080";
-  const token = ENV.ALGOD_TOKEN || "";
-  return new algosdk.Algodv2(token, url, "");
+export function getHorizonServer(): Horizon.Server {
+  const url = ENV.STELLAR_HORIZON_URL || "https://horizon-testnet.stellar.org";
+  return new Horizon.Server(url);
 }
 
-export function getSponsorAccount(): algosdk.Account {
-  const mnemonic = ENV.SPONSOR_MNEMONIC;
-  if (!mnemonic) throw new Error("SPONSOR_MNEMONIC not set");
-  return algosdk.mnemonicToSecretKey(mnemonic);
+export function getNetworkPassphrase(): string {
+  return ENV.STELLAR_NETWORK_PASSPHRASE || Networks.TESTNET;
 }
 
-export function getOrganizerAccount(): algosdk.Account {
-  const mnemonic = ENV.ORGANIZER_MNEMONIC;
-  if (!mnemonic) throw new Error("ORGANIZER_MNEMONIC not set");
-  return algosdk.mnemonicToSecretKey(mnemonic);
+export function getSponsorKeypair(): Keypair {
+  const secret = ENV.SPONSOR_SECRET_KEY;
+  if (!secret) throw new Error("SPONSOR_SECRET_KEY not set");
+  return Keypair.fromSecret(secret);
 }
 
-export function loadEscrowLsigPath(): string {
-  return resolve(process.cwd(), "escrow.lsig.json");
+export function getOrganizerKeypair(): Keypair {
+  const secret = ENV.ORGANIZER_SECRET_KEY;
+  if (!secret) throw new Error("ORGANIZER_SECRET_KEY not set");
+  return Keypair.fromSecret(secret);
 }
 
 export function escrowStatePath(): string {
@@ -34,7 +33,8 @@ export interface EscrowState {
   escrowAddress: string;
   sponsorAddress: string;
   organizerAddress: string;
-  programB64: string;
+  networkPassphrase: string;
+  contractId?: string;
 }
 
 export function loadEscrowState(): EscrowState {

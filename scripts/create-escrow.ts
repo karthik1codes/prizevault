@@ -1,58 +1,95 @@
 #!/usr/bin/env node
 /**
- * Create hackathon prize escrow: compile TEAL with sponsor/organizer addresses,
- * compute escrow address, and save state for release.
- * Uses AlgoKit (@algorandfoundation/algokit-utils) + algosdk only; Algorand only.
+ * Create a Stellar escrow account and enforce 2-of-2 signer approvals.
+ * Escrow account signer weights:
+ * - sponsor: weight 1
+ * - organizer: weight 1
+ * - master key: weight 0
+ * Thresholds: low/med/high = 2
  */
-import algosdk from "algosdk";
-import { compileTeal } from "@algorandfoundation/algokit-utils";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
-import { getAlgodClient, getSponsorAccount, getOrganizerAccount, escrowStatePath } from "../src/config.js";
-
-const CONTRACTS_DIR = resolve(process.cwd(), "contracts");
-const TEAL_PATH = resolve(CONTRACTS_DIR, "escrow_lsig.teal");
-
-function substituteTemplate(teal: string, sponsorB64: string, organizerB64: string): string {
-  return teal
-    .replace(/TMPL_B64_SPONSOR/g, sponsorB64)
-    .replace(/TMPL_B64_ORGANIZER/g, organizerB64);
-}
+import { writeFileSync } from "node:fs";
+import {
+  BASE_FEE,
+  Keypair,
+  Operation,
+  TransactionBuilder,
+} from "@stellar/stellar-sdk";
+import {
+  escrowStatePath,
+  getHorizonServer,
+  getNetworkPassphrase,
+  getOrganizerKeypair,
+  getSponsorKeypair,
+} from "../src/config.js";
 
 async function main() {
-  const algod = getAlgodClient();
-  const sponsor = getSponsorAccount();
-  const organizer = getOrganizerAccount();
+  const server = getHorizonServer();
+  const networkPassphrase = getNetworkPassphrase();
+  const sponsor = getSponsorKeypair();
+  const organizer = getOrganizerKeypair();
+  const escrow = Keypair.random();
 
-  if (!existsSync(TEAL_PATH)) {
-    throw new Error(`TEAL not found at ${TEAL_PATH}`);
+  // Fund escrow account on testnet.
+  const friendbotRes = await fetch(`https://friendbot.stellar.org?addr=${encodeURIComponent(escrow.publicKey())}`);
+  if (!friendbotRes.ok) {
+    throw new Error("Failed to fund escrow via Friendbot. Ensure you are on Stellar testnet.");
   }
-  let teal = readFileSync(TEAL_PATH, "utf-8");
 
-  // 32-byte addresses as base64 for TEAL "byte base64" instruction
-  const sponsorB64 = Buffer.from(algosdk.decodeAddress(String(sponsor.addr)).publicKey).toString("base64");
-  const organizerB64 = Buffer.from(algosdk.decodeAddress(String(organizer.addr)).publicKey).toString("base64");
-  teal = substituteTemplate(teal, sponsorB64, organizerB64);
+  const sponsorAccount = await server.loadAccount(sponsor.publicKey());
+  const setOptionsTx = new TransactionBuilder(sponsorAccount, {
+    fee: BASE_FEE,
+    networkPassphrase,
+  })
+    .addOperation(
+      Operation.setOptions({
+        source: escrow.publicKey(),
+        signer: {
+          ed25519PublicKey: sponsor.publicKey(),
+          weight: 1,
+        },
+      }),
+    )
+    .addOperation(
+      Operation.setOptions({
+        source: escrow.publicKey(),
+        signer: {
+          ed25519PublicKey: organizer.publicKey(),
+          weight: 1,
+        },
+      }),
+    )
+    .addOperation(
+      Operation.setOptions({
+        source: escrow.publicKey(),
+        masterWeight: 0,
+        lowThreshold: 2,
+        medThreshold: 2,
+        highThreshold: 2,
+      }),
+    )
+    .setTimeout(120)
+    .build();
 
-  const compiled = await compileTeal(teal, algod);
-  const program = compiled.compiledBase64ToBytes;
-  const lsig = new algosdk.LogicSigAccount(program);
-  const escrowAddress = lsig.address();
+  // Escrow authorizes account changes; sponsor submits tx.
+  setOptionsTx.sign(escrow);
+  setOptionsTx.sign(sponsor);
+  await server.submitTransaction(setOptionsTx);
 
   const state = {
-    escrowAddress,
-    sponsorAddress: sponsor.addr,
-    organizerAddress: organizer.addr,
-    programB64: compiled.compiled,
+    escrowAddress: escrow.publicKey(),
+    sponsorAddress: sponsor.publicKey(),
+    organizerAddress: organizer.publicKey(),
+    networkPassphrase,
   };
   writeFileSync(escrowStatePath(), JSON.stringify(state, null, 2));
 
-  console.log("Escrow created (Algorand only, AlgoKit/algosdk).");
-  console.log("Escrow address:", escrowAddress);
-  console.log("Sponsor:", sponsor.addr);
-  console.log("Organizer:", organizer.addr);
+  console.log("Stellar escrow created with 2-of-2 signer policy.");
+  console.log("Escrow public key:", escrow.publicKey());
+  console.log("Escrow secret (store securely):", escrow.secret());
+  console.log("Sponsor:", sponsor.publicKey());
+  console.log("Organizer:", organizer.publicKey());
   console.log("State saved to", escrowStatePath());
-  console.log("\nNext: Sponsor deposits ALGO/ASA to the escrow address, then run release when both parties approve.");
+  console.log("\nNext: run deposit and release scripts to move funds.");
 }
 
 main().catch((e) => {

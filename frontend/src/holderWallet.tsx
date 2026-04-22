@@ -25,10 +25,10 @@ class HolderErrorBoundary extends Component<
             </div>
           </header>
           <main style={{ padding: '24px clamp(24px, 6vw, 72px)' }}>
-            <section className="defly-login-section">
-              <div className="defly-login-container">
-                <h2>Connect Your Defly Wallet</h2>
-                <p>Connect your Defly wallet to access the escrow dashboard.</p>
+            <section className="wallet-login-section">
+              <div className="wallet-login-container">
+                <h2>Connect Your Stellar Wallet</h2>
+                <p>Connect your Stellar wallet to access the escrow dashboard.</p>
                 <p className="muted" style={{ marginTop: 12 }}>
                   Something went wrong loading the app. Try refreshing. If the problem continues, check the browser console.
                 </p>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../constants/escrow'
+import { getActiveSession, hasRequiredRole } from '../utils/authSession'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import OrganizerDashboard from './components/OrganizerDashboard'
@@ -21,7 +22,7 @@ const DEFAULT_HACKATHONS = [
     name: 'RIFT \'26',
     startDate: '2026-02-19',
     endDate: '2026-02-20',
-    prizePool: { total: 10000, currency: 'ALGO', locked: true },
+    prizePool: { total: 10000, currency: 'XLM', locked: true },
     organizerAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
     sponsorAddress: '0x1234567890abcdef',
     escrowAddress: DEFAULT_ORGANIZER_ESCROW_ADDRESS,
@@ -60,12 +61,19 @@ function initHackathonData() {
 }
 
 export default function IssuerApp() {
+  useEffect(() => {
+    if (!hasRequiredRole('organizer')) {
+      window.location.href = '/holder'
+    }
+  }, [])
+
   initHackathonData()
   const [activeView, setActiveView] = useState('dashboard')
   const [navigateParam, setNavigateParam] = useState(null)
 
   const organizerName = 'Organizer'
-  const walletAddress = DEFAULT_ORGANIZER_ESCROW_ADDRESS
+  const session = getActiveSession()
+  const walletAddress = session?.wallet || DEFAULT_ORGANIZER_ESCROW_ADDRESS
 
   const hackathons = getHackathons()
   const myHackathons = hackathons.filter(

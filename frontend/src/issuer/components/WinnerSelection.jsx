@@ -117,7 +117,7 @@ export default function WinnerSelection({ hackathonId, userWallet, onSave }) {
               <th>Project</th>
               <th>Prize Tier</th>
               <th>Payout Address</th>
-              <th>Prize (ALGO)</th>
+              <th>Prize (XLM)</th>
             </tr>
           </thead>
           <tbody>
@@ -156,7 +156,7 @@ export default function WinnerSelection({ hackathonId, userWallet, onSave }) {
                   {winners[p.id] && (
                     <input
                       type="text"
-                      placeholder="Algorand address"
+                      placeholder="Stellar address (G...)"
                       value={winners[p.id]?.payoutAddress || ''}
                       onChange={(e) =>
                         handleUpdateWinner(p.id, 'payoutAddress', e.target.value)
