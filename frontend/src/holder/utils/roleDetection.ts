@@ -1,7 +1,13 @@
 import { UserRole } from '../../types/holder'
 import { Hackathon } from '../../types/hackathon'
+import { getPayoutProposals, savePayoutProposals } from '../../utils/payoutProposalsStorage'
+import {
+  broadcastHackathonsDatasetChanged,
+  PRIZE_VAULT_HACKATHONS_KEY,
+  REGISTERED_HACKATHONS_KEY,
+} from '../../utils/hackathonSync'
 
-const STORAGE_KEY = 'prize_vault_hackathons'
+const STORAGE_KEY = PRIZE_VAULT_HACKATHONS_KEY
 
 /**
  * Detects user role based on wallet address and hackathon data
@@ -81,7 +87,58 @@ export function getHackathonsFromStorage(): Hackathon[] {
 export function saveHackathonsToStorage(hackathons: Hackathon[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(hackathons))
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('prize_vault_hackathons_changed'))
+      broadcastHackathonsDatasetChanged()
+    }
   } catch (_) {
     // Ignore storage errors
+  }
+}
+
+const TIMELINE_STORAGE_KEY = 'prize_vault_hackathon_timelines'
+
+/**
+ * Removes a hackathon everywhere it is persisted (shared across organizer, sponsor, participant UIs).
+ */
+export function deleteHackathonById(hackathonId: string): void {
+  const current = getHackathonsFromStorage()
+  const filtered = current.filter((h) => h.id !== hackathonId)
+  saveHackathonsToStorage(filtered)
+
+  try {
+    const proposals = getPayoutProposals()
+    const kept = proposals.filter(
+      (p) => String((p as Record<string, unknown>).hackathonId) !== hackathonId,
+    )
+    savePayoutProposals(kept)
+  } catch (_) {
+    // ignore
+  }
+
+  try {
+    const reg = localStorage.getItem(REGISTERED_HACKATHONS_KEY)
+    if (reg) {
+      const ids: string[] = JSON.parse(reg)
+      localStorage.setItem(
+        REGISTERED_HACKATHONS_KEY,
+        JSON.stringify(ids.filter((id) => id !== hackathonId)),
+      )
+    }
+  } catch (_) {
+    // ignore
+  }
+
+  try {
+    const raw = localStorage.getItem(TIMELINE_STORAGE_KEY)
+    if (raw) {
+      const store = JSON.parse(raw) as Record<string, unknown>
+      if (store && typeof store === 'object' && hackathonId in store) {
+        delete store[hackathonId]
+        localStorage.setItem(TIMELINE_STORAGE_KEY, JSON.stringify(store))
+      }
+    }
+  } catch (_) {
+    // ignore
   }
 }

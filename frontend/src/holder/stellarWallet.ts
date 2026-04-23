@@ -1,16 +1,36 @@
 /**
  * Stellar wallet adapter using Freighter browser wallet.
+ * Uses signMessage so Freighter always opens a confirmation step (pick / confirm account),
+ * instead of requestAccess + getAddress which can return immediately for allowlisted sites.
  */
-import { getAddress, isConnected, requestAccess } from '@stellar/freighter-api'
+import { getAddress, isConnected, signMessage } from '@stellar/freighter-api'
+import { Networks } from '@stellar/stellar-sdk'
+
+const CONNECT_CHALLENGE =
+  'Prize Vault (Stellar testnet): sign this message to connect your wallet to this browser session. This is not a payment and does not move funds.'
+
+function freighterErrorMessage(err: unknown): string {
+  if (typeof err === 'string') return err
+  if (err && typeof err === 'object' && 'message' in err && typeof (err as { message: string }).message === 'string') {
+    return (err as { message: string }).message
+  }
+  return 'Freighter request failed'
+}
 
 const stellarWallet = {
   connector: null as null,
   async connect(): Promise<string[]> {
-    const access = await requestAccess()
-    if (access.error) throw new Error(access.error)
-    const addrRes = await getAddress()
-    if (addrRes.error || !addrRes.address) throw new Error(addrRes.error || 'No Stellar account returned')
-    return [addrRes.address]
+    const signed = await signMessage(CONNECT_CHALLENGE, {
+      networkPassphrase: Networks.TESTNET,
+    })
+    if (signed.error) {
+      throw new Error(freighterErrorMessage(signed.error))
+    }
+    const addr = signed.signerAddress
+    if (!addr) {
+      throw new Error('No wallet address returned from Freighter. Approve the sign request or pick an account.')
+    }
+    return [addr]
   },
   async reconnectSession(): Promise<string[]> {
     const connected = await isConnected()

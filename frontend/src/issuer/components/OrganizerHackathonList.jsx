@@ -1,23 +1,38 @@
 import React, { useEffect, useState } from 'react'
-import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../../constants/escrow'
+import { deleteHackathonById } from '../../holder/utils/roleDetection'
+import { hackathonBelongsToOrganizerPortal } from '../../utils/organizerPortalFilter'
 
 const STORAGE_KEY = 'prize_vault_hackathons'
 
-export default function OrganizerHackathonList({ userWallet, onNavigate }) {
-  const [hackathons, setHackathons] = useState([])
+function loadHackathons() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    const parsed = stored ? JSON.parse(stored) : []
+    return parsed.filter((h) => !(h.id === 'hack_001' && h.name === "RIFT '26"))
+  } catch (_) {
+    return []
+  }
+}
+
+export default function OrganizerHackathonList({ sessionWallet, onNavigate }) {
+  const [hackathons, setHackathons] = useState(() => loadHackathons())
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      const parsed = stored ? JSON.parse(stored) : []
-      setHackathons(parsed.filter((h) => !(h.id === 'hack_001' && h.name === "RIFT '26")))
-    } catch (_) {
-      setHackathons([])
+    const refresh = () => setHackathons(loadHackathons())
+    refresh()
+    const onStorage = (e) => {
+      if (e.key === STORAGE_KEY || e.key === null) refresh()
+    }
+    window.addEventListener('prize_vault_hackathons_changed', refresh)
+    window.addEventListener('storage', onStorage)
+    return () => {
+      window.removeEventListener('prize_vault_hackathons_changed', refresh)
+      window.removeEventListener('storage', onStorage)
     }
   }, [])
 
-  const myHackathons = hackathons.filter(
-    (h) => h.organizerAddress?.toLowerCase() === (userWallet || DEFAULT_ORGANIZER_ESCROW_ADDRESS)?.toLowerCase()
+  const myHackathons = hackathons.filter((h) =>
+    hackathonBelongsToOrganizerPortal(h, sessionWallet),
   )
 
   return (
@@ -83,6 +98,22 @@ export default function OrganizerHackathonList({ userWallet, onNavigate }) {
                   onClick={() => onNavigate?.('payouts', h.id)}
                 >
                   Create Payout
+                </button>
+                <button
+                  type="button"
+                  className="btn-small btn-danger"
+                  onClick={() => {
+                    if (
+                      !window.confirm(
+                        `Delete hackathon "${h.name}"? This removes it for sponsors and participants and deletes related proposals.`,
+                      )
+                    ) {
+                      return
+                    }
+                    deleteHackathonById(h.id)
+                  }}
+                >
+                  Delete
                 </button>
               </div>
             </div>

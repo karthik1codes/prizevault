@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../../constants/escrow'
+import { broadcastHackathonsDatasetChanged } from '../../utils/hackathonSync'
 
 const STORAGE_KEY = 'prize_vault_hackathons'
 
@@ -17,15 +18,15 @@ function saveHackathons(hackathons) {
   } catch (_) {}
 }
 
-export default function CreateHackathonForm({ userWallet, onSave, onCancel }) {
-  const defaultAddress = userWallet || DEFAULT_ORGANIZER_ESCROW_ADDRESS
+export default function CreateHackathonForm({ userWallet: _userWallet, onSave, onCancel }) {
+  /** Always the organizer/escrow destination — do not use the connected wallet here (sponsor and organizer differ). */
+  const organizerEscrowAddress = DEFAULT_ORGANIZER_ESCROW_ADDRESS
   const [name, setName] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [prizeTotal, setPrizeTotal] = useState('')
   const [prizeCurrency, setPrizeCurrency] = useState('XLM')
   const [description, setDescription] = useState('')
-  const [escrowAddress, setEscrowAddress] = useState(defaultAddress)
   const [error, setError] = useState('')
 
   const handleSubmit = (e) => {
@@ -49,7 +50,7 @@ export default function CreateHackathonForm({ userWallet, onSave, onCancel }) {
       setError('Please enter a valid prize pool amount.')
       return
     }
-    const organizerEscrow = (escrowAddress || defaultAddress).trim()
+    const organizerEscrow = organizerEscrowAddress.trim()
     if (!organizerEscrow) {
       setError('Organizer / escrow address is required.')
       return
@@ -74,6 +75,8 @@ export default function CreateHackathonForm({ userWallet, onSave, onCancel }) {
 
     const existing = getStoredHackathons()
     saveHackathons([...existing, newHackathon])
+    window.dispatchEvent(new CustomEvent('prize_vault_hackathons_changed'))
+    broadcastHackathonsDatasetChanged()
     onSave?.()
   }
 
@@ -155,10 +158,13 @@ export default function CreateHackathonForm({ userWallet, onSave, onCancel }) {
           <input
             id="create-hack-escrow"
             type="text"
-            value={escrowAddress}
-            onChange={(e) => setEscrowAddress(e.target.value)}
-            placeholder={defaultAddress}
+            value={organizerEscrowAddress}
+            readOnly
+            placeholder={organizerEscrowAddress}
           />
+          <p className="muted" style={{ marginTop: 6 }}>
+            Funding destination is locked to organizer wallet to prevent self-funding mistakes.
+          </p>
         </div>
         {error && <p className="error-text">{error}</p>}
         <div className="button-row">

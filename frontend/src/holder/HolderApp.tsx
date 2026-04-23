@@ -12,7 +12,7 @@ import {
 import { resolveSessionWithQrBootstrap } from '../utils/qrSession'
 import ProfileForm from './components/ProfileForm'
 
-// Stellar wallet SDK loads only after user clicks connect.
+// Stellar wallet SDK loads after the profile step (Freighter + QR in StellarLogin).
 const StellarConnectBlock = lazy(() => import('./StellarConnectBlock'))
 const ConnectedHolderView = lazy(() => import('./ConnectedHolderView'))
 
@@ -38,7 +38,6 @@ export default function HolderApp() {
   const [activeView, setActiveView] = useState<HolderView>('list')
   const [loginStep, setLoginStep] = useState<'profile' | 'connect'>('profile')
   const [pendingProfile, setPendingProfile] = useState<UserProfile | null>(null)
-  const [showConnectUI, setShowConnectUI] = useState(false)
 
   useEffect(() => {
     const session = resolveSessionWithQrBootstrap() || getActiveSession()
@@ -165,47 +164,21 @@ export default function HolderApp() {
                 </>
               ) : (
                 <>
-                  <h2>Connect Your Stellar Wallet</h2>
-                  <p>Use Freighter browser wallet to connect and manage Stellar payouts.</p>
-                  {!showConnectUI ? (
-                    <>
-                      <button
-                        type="button"
-                        className="button primary wallet-connect-btn"
-                        onClick={() => setShowConnectUI(true)}
-                      >
-                        Connect Stellar Wallet
-                      </button>
-                      <button
-                        type="button"
-                        className="button ghost"
-                        onClick={() => setLoginStep('profile')}
-                        style={{ marginLeft: 8 }}
-                      >
-                        Back
-                      </button>
-                      <p className="wallet-install-hint">
-                        Don’t have Freighter?{' '}
-                        <a
-                          href="https://www.freighter.app/"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="wallet-install-link"
-                        >
-                          Get Freighter
-                        </a>
-                        {' '}for Chrome and compatible browsers.
-                      </p>
-                    </>
-                  ) : (
-                    <Suspense fallback={<p className="muted">Loading connection…</p>}>
-                      <StellarConnectBlock
-                        onConnect={handleWalletConnect}
-                        onError={handleWalletError}
-                        desiredRole={pendingProfile?.role || null}
-                      />
-                    </Suspense>
-                  )}
+                  <button
+                    type="button"
+                    className="button ghost"
+                    onClick={() => setLoginStep('profile')}
+                    style={{ marginBottom: 16 }}
+                  >
+                    Back
+                  </button>
+                  <Suspense fallback={<p className="muted">Loading connection…</p>}>
+                    <StellarConnectBlock
+                      onConnect={handleWalletConnect}
+                      onError={handleWalletError}
+                      desiredRole={pendingProfile?.role || null}
+                    />
+                  </Suspense>
                 </>
               )}
             </div>

@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
+import { hackathonBelongsToOrganizerPortal } from '../../utils/organizerPortalFilter'
+import { broadcastHackathonsDatasetChanged } from '../../utils/hackathonSync'
 
 const STORAGE_KEY = 'prize_vault_hackathons'
 
@@ -16,7 +18,7 @@ function saveHackathons(hackathons) {
   } catch (_) {}
 }
 
-export default function ParticipantManager({ hackathonId, userWallet, onNavigate }) {
+export default function ParticipantManager({ hackathonId, sessionWallet, onNavigate }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedHackathon, setSelectedHackathon] = useState(hackathonId || null)
   const [hackathons, setHackathons] = useState([])
@@ -27,8 +29,15 @@ export default function ParticipantManager({ hackathonId, userWallet, onNavigate
 
   useEffect(() => {
     refreshData()
-    const interval = setInterval(refreshData, 2000)
-    return () => clearInterval(interval)
+    const onStorage = (e) => {
+      if (e.key === STORAGE_KEY || e.key === null) refreshData()
+    }
+    window.addEventListener('prize_vault_hackathons_changed', refreshData)
+    window.addEventListener('storage', onStorage)
+    return () => {
+      window.removeEventListener('prize_vault_hackathons_changed', refreshData)
+      window.removeEventListener('storage', onStorage)
+    }
   }, [refreshData])
 
   useEffect(() => {
@@ -36,8 +45,8 @@ export default function ParticipantManager({ hackathonId, userWallet, onNavigate
   }, [hackathonId])
 
   const myHackathons = useMemo(
-    () => hackathons.filter((h) => h.organizerAddress?.toLowerCase() === userWallet?.toLowerCase()),
-    [hackathons, userWallet]
+    () => hackathons.filter((h) => hackathonBelongsToOrganizerPortal(h, sessionWallet)),
+    [hackathons, sessionWallet],
   )
 
   const currentHack = hackathonId || selectedHackathon || myHackathons[0]?.id
@@ -72,6 +81,8 @@ export default function ParticipantManager({ hackathonId, userWallet, onNavigate
       }
     })
     saveHackathons(updated)
+    window.dispatchEvent(new CustomEvent('prize_vault_hackathons_changed'))
+    broadcastHackathonsDatasetChanged()
     setHackathons(updated)
   }
 

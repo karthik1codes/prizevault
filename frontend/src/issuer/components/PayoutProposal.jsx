@@ -1,8 +1,22 @@
 import React, { useState, useMemo, useEffect } from 'react'
+import { requestAccess, signTransaction } from '@stellar/freighter-api'
+import {
+  Asset,
+  BASE_FEE,
+  Horizon,
+  Networks,
+  Operation,
+  Transaction,
+  TransactionBuilder,
+} from '@stellar/stellar-sdk'
 import { getPayoutProposals, savePayoutProposals } from '../../utils/payoutProposalsStorage'
-import { ESCROW_APP_ID } from '../../constants/escrow'
+import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../../constants/escrow'
+import { hackathonBelongsToOrganizerPortal } from '../../utils/organizerPortalFilter'
+import { broadcastHackathonsDatasetChanged } from '../../utils/hackathonSync'
 
 const STORAGE_KEY = 'prize_vault_hackathons'
+const HORIZON_URL = 'https://horizon-testnet.stellar.org'
+const STELLAR_SERVER = new Horizon.Server(HORIZON_URL)
 
 function getHackathons() {
   try {
@@ -12,16 +26,34 @@ function getHackathons() {
   return []
 }
 
-export default function PayoutProposal({ hackathonId, userWallet, onExecute }) {
+function formatStellarSubmitError(error) {
+  if (!(error instanceof Error)) return 'Failed to execute payout on testnet.'
+  const data = error?.response?.data
+  const codes = data?.extras?.result_codes
+  if (codes) {
+    const txCode = codes.transaction_result_code || codes.transaction
+    const opCodes = codes.operations || codes.operation_result_codes
+    const detail = [txCode, opCodes ? JSON.stringify(opCodes) : ''].filter(Boolean).join(' · ')
+    return detail ? `${error.message} (${detail})` : error.message
+  }
+  return error.message
+}
+
+export default function PayoutProposal({ hackathonId, sessionWallet, onExecute }) {
   const [proposals, setProposals] = useState([])
+  const [isExecutingId, setIsExecutingId] = useState(null)
+  const [executeError, setExecuteError] = useState('')
 
   useEffect(() => {
-    setProposals(getPayoutProposals())
+    const load = () => setProposals(getPayoutProposals())
+    load()
+    window.addEventListener('prize_vault_hackathons_changed', load)
+    return () => window.removeEventListener('prize_vault_hackathons_changed', load)
   }, [])
 
   const hackathons = useMemo(() => getHackathons(), [])
-  const myHackathons = hackathons.filter(
-    (h) => h.organizerAddress?.toLowerCase() === userWallet?.toLowerCase()
+  const myHackathons = hackathons.filter((h) =>
+    hackathonBelongsToOrganizerPortal(h, sessionWallet),
   )
   const hackathon = hackathonId
     ? hackathons.find((h) => h.id === hackathonId)
@@ -54,16 +86,99 @@ export default function PayoutProposal({ hackathonId, userWallet, onExecute }) {
         x.id === h.id ? { ...x, payoutProposed: true } : x
       )
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedHackathons))
+      window.dispatchEvent(new CustomEvent('prize_vault_hackathons_changed'))
+      broadcastHackathonsDatasetChanged()
     } catch (_) {}
   }
 
-  const handleExecutePayout = (proposal) => {
-    const updated = proposals.map((p) =>
-      p.id === proposal.id ? { ...p, status: 'executed', txHash: '0xmock...' } : p
-    )
-    setProposals(updated)
-    savePayoutProposals(updated)
-    onExecute?.(proposal)
+  const handleExecutePayout = async (proposal) => {
+    setExecuteError('')
+    setIsExecutingId(proposal.id)
+    try {
+      const hackathonsNow = getHackathons()
+      const hack = hackathonsNow.find((h) => h.id === proposal.hackathonId)
+      if (!hack) {
+        throw new Error('Hackathon not found for this payout proposal.')
+      }
+
+      /** Organizer dashboard: prizes always send from the hackathon organizer account → winners (sponsor only approves). */
+      const organizerPayoutSource = (
+        (hack.organizerAddress || '').trim() || DEFAULT_ORGANIZER_ESCROW_ADDRESS
+      ).trim()
+      if (!organizerPayoutSource) {
+        throw new Error('Hackathon is missing organizerAddress for payout.')
+      }
+
+      const access = await requestAccess()
+      if (access.error) {
+        throw new Error(access.error)
+      }
+
+      /** Always debit the organizer prize account; Freighter signs via `address` (may differ from UI-selected key). */
+      const payoutSourceAddress = organizerPayoutSource
+
+      const winners = (proposal.winners || [])
+        .filter((w) => w?.payoutAddress && Number(w?.prizeAmount || 0) > 0)
+        .map((w) => ({
+          payoutAddress: w.payoutAddress.trim(),
+          prizeAmount: Number(w.prizeAmount || 0),
+        }))
+
+      if (!winners.length) {
+        throw new Error('No valid winners with payout amounts found.')
+      }
+
+      const sourceAccount = await STELLAR_SERVER.loadAccount(payoutSourceAddress)
+      const fee = await STELLAR_SERVER.fetchBaseFee().catch(() => BASE_FEE)
+      const builder = new TransactionBuilder(sourceAccount, {
+        fee: String(fee || BASE_FEE),
+        networkPassphrase: Networks.TESTNET,
+      })
+
+      winners.forEach((winner) => {
+        builder.addOperation(
+          Operation.payment({
+            destination: winner.payoutAddress,
+            asset: Asset.native(),
+            amount: Number(winner.prizeAmount).toFixed(7).replace(/\.?0+$/, ''),
+          })
+        )
+      })
+
+      const tx = builder.setTimeout(180).build()
+      const signed = await signTransaction(tx.toXDR(), {
+        networkPassphrase: Networks.TESTNET,
+        network: 'TESTNET',
+        address: payoutSourceAddress,
+      })
+
+      if (signed.error || !signed.signedTxXdr) {
+        throw new Error(signed.error || 'Failed to sign payout transaction in Freighter.')
+      }
+
+      const signedTx = new Transaction(signed.signedTxXdr, Networks.TESTNET)
+      const submitResult = await STELLAR_SERVER.submitTransaction(signedTx)
+
+      const updated = proposals.map((p) =>
+        p.id === proposal.id
+          ? {
+              ...p,
+              status: 'executed',
+              txHash: submitResult.hash,
+              executedAt: new Date().toISOString(),
+            }
+          : p
+      )
+      setProposals(updated)
+      savePayoutProposals(updated)
+      onExecute?.(proposal)
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Execute payout failed', error)
+      setExecuteError(formatStellarSubmitError(error))
+    } finally {
+      setIsExecutingId(null)
+    }
   }
 
   // Build winners JSON for Stellar release script. Prize amounts in XLM.
@@ -130,7 +245,11 @@ export default function PayoutProposal({ hackathonId, userWallet, onExecute }) {
           <p className="muted">No payout proposals yet.</p>
         ) : (
           <div className="proposal-cards">
-            {displayProposals.map((p) => (
+            {displayProposals.map((p) => {
+              const hackForProposal = getHackathons().find((h) => h.id === p.hackathonId)
+              const organizerHint =
+                (hackForProposal?.organizerAddress || '').trim() || DEFAULT_ORGANIZER_ESCROW_ADDRESS
+              return (
               <div key={p.id} className="proposal-card full">
                 <div className="proposal-header">
                   <h4>{p.hackathonName}</h4>
@@ -144,7 +263,9 @@ export default function PayoutProposal({ hackathonId, userWallet, onExecute }) {
                 {p.organizerApproved && p.sponsorApproved && p.status !== 'executed' && (
                   <div className="execute-payout-app">
                     <p className="muted" style={{ marginBottom: '0.5rem' }}>
-                      Escrow contract <strong>{ESCROW_APP_ID}</strong>: run from project root with SPONSOR_SECRET_KEY, ORGANIZER_SECRET_KEY and STELLAR_HORIZON_URL set.
+                      Both approvals complete. Click execute and approve in Freighter when prompted to sign for the
+                      organizer prize account ({organizerHint.slice(0, 6)}…{organizerHint.slice(-4)}).
+                      XLM is sent from that account to each winner&apos;s payout address below.
                     </p>
                     <p className="muted" style={{ fontSize: '0.8rem', marginBottom: '0.25rem' }}>Winners (set WINNERS_JSON then run release flow script):</p>
                     <pre className="release-command" style={{ fontSize: '0.7rem', overflow: 'auto', maxWidth: '100%', padding: '0.5rem', background: '#1a1a1a', borderRadius: 4 }}>
@@ -165,14 +286,15 @@ export default function PayoutProposal({ hackathonId, userWallet, onExecute }) {
                       className="btn-secondary"
                       style={{ marginLeft: '0.5rem' }}
                       onClick={() => handleExecutePayout(p)}
+                      disabled={isExecutingId === p.id}
                     >
-                      Mark as Executed
+                      {isExecutingId === p.id ? 'Executing...' : 'Execute Payout On Testnet'}
                     </button>
                   </div>
                 )}
                 {p.status === 'executed' && (
                   <a
-                    href="https://testnet.algoexplorer.io"
+                    href={p.txHash ? `https://stellar.expert/explorer/testnet/tx/${p.txHash}` : 'https://stellar.expert/explorer/testnet'}
                     target="_blank"
                     rel="noreferrer"
                     className="btn-secondary"
@@ -181,9 +303,11 @@ export default function PayoutProposal({ hackathonId, userWallet, onExecute }) {
                   </a>
                 )}
               </div>
-            ))}
+            )
+            })}
           </div>
         )}
+        {executeError && <p className="error-text">{executeError}</p>}
       </section>
     </div>
   )

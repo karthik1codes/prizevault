@@ -3,7 +3,7 @@ import { Hackathon } from '../../types/hackathon'
 import { getHackathonsFromStorage, saveHackathonsToStorage } from '../utils/roleDetection'
 import { getPayoutProposals, savePayoutProposals } from '../../utils/payoutProposalsStorage'
 import { ESCROW_APP_ID } from '../../constants/escrow'
-import { submitSponsorApprovalOnChain } from '../../utils/sponsorApprovalOnChain'
+import { subscribeHackathonsDatasetChanged } from '../../utils/hackathonSync'
 
 interface SponsorDashboardProps {
   userWallet: string | null
@@ -16,8 +16,15 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
   const [amount, setAmount] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const loadHackathons = () => setHackathons(getHackathonsFromStorage())
+
   useEffect(() => {
-    setHackathons(getHackathonsFromStorage())
+    const reloadAll = () => {
+      loadHackathons()
+      setProposals(getPayoutProposals())
+    }
+    reloadAll()
+    return subscribeHackathonsDatasetChanged(reloadAll, ['prize_vault_payout_proposals'])
   }, [])
 
   useEffect(() => {
@@ -87,34 +94,17 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
     }
   }
 
-  const handleApprovePayout = async (proposalId: string) => {
-    if (!userWallet) {
-      alert('Connect your Stellar wallet before approving a payout.')
-      return
-    }
-
+  const handleApprovePayout = (proposalId: string) => {
     setLoading(true)
     try {
-      const tx = await submitSponsorApprovalOnChain({
-        sponsorAddress: userWallet,
-        proposalId,
-      })
       const updated = proposals.map((p) =>
-        p.id === proposalId
-          ? {
-              ...p,
-              sponsorApproved: true,
-              sponsorApprovedAt: new Date().toISOString(),
-              sponsorApprovalTxHash: tx.txHash,
-            }
-          : p
+        p.id === proposalId ? { ...p, sponsorApproved: true } : p
       )
       savePayoutProposals(updated)
       setProposals(updated)
-      alert(`Sponsor approval recorded on-chain. Tx hash: ${tx.txHash}`)
     } catch (error) {
       console.error('Approval failed:', error)
-      alert(error instanceof Error ? error.message : 'Approval failed. Please try again.')
+      alert('Approval failed. Please try again.')
     } finally {
       setLoading(false)
     }

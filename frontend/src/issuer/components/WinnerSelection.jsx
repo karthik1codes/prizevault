@@ -1,4 +1,6 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
+import { hackathonBelongsToOrganizerPortal } from '../../utils/organizerPortalFilter'
+import { broadcastHackathonsDatasetChanged } from '../../utils/hackathonSync'
 
 const STORAGE_KEY = 'prize_vault_hackathons'
 
@@ -17,13 +19,20 @@ const PRIZE_TIERS = [
   { value: 'special', label: 'Special Prize' },
 ]
 
-export default function WinnerSelection({ hackathonId, userWallet, onSave }) {
+export default function WinnerSelection({ hackathonId, sessionWallet, onSave }) {
   const [winners, setWinners] = useState({})
   const [saved, setSaved] = useState(false)
+  const [tick, setTick] = useState(0)
 
-  const hackathons = useMemo(() => getHackathons(), [])
-  const myHackathons = hackathons.filter(
-    (h) => h.organizerAddress?.toLowerCase() === userWallet?.toLowerCase()
+  useEffect(() => {
+    const bump = () => setTick((t) => t + 1)
+    window.addEventListener('prize_vault_hackathons_changed', bump)
+    return () => window.removeEventListener('prize_vault_hackathons_changed', bump)
+  }, [])
+
+  const hackathons = useMemo(() => getHackathons(), [tick])
+  const myHackathons = hackathons.filter((h) =>
+    hackathonBelongsToOrganizerPortal(h, sessionWallet),
   )
   const hackathon = hackathonId
     ? hackathons.find((h) => h.id === hackathonId)
@@ -82,6 +91,8 @@ export default function WinnerSelection({ hackathonId, userWallet, onSave }) {
           : h
       )
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+      window.dispatchEvent(new CustomEvent('prize_vault_hackathons_changed'))
+      broadcastHackathonsDatasetChanged()
       setSaved(true)
       onSave?.()
     } catch (_) {}

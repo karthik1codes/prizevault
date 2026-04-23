@@ -17,9 +17,14 @@ const urlRewritesPlugin = () => {
     name: 'url-rewrites',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        const rewrite = rewrites[req.url]
+        if (!req.url) return next()
+        const pathname = req.url.split('?')[0]
+        const key =
+          pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
+        const rewrite = rewrites[key] || rewrites[pathname]
         if (rewrite) {
-          req.url = rewrite
+          const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''
+          req.url = rewrite + qs
         }
         next()
       })

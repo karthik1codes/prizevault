@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../constants/escrow'
+import { hackathonBelongsToOrganizerPortal } from '../utils/organizerPortalFilter'
 import {
   clearActiveSession,
   getActiveSession,
@@ -19,6 +20,7 @@ import AuditLogPage from './components/AuditLogPage'
 import TwoFASetup from './components/TwoFASetup'
 import Timeline from './components/Timeline'
 import { getIssuerAuditLogs } from '../utils/issuerAuditLog'
+import { broadcastHackathonsDatasetChanged } from '../utils/hackathonSync'
 import './issuerApp.css'
 
 const HACKATHON_STORAGE_KEY = 'prize_vault_hackathons'
@@ -36,6 +38,7 @@ function initHackathonData() {
     const existing = localStorage.getItem(HACKATHON_STORAGE_KEY)
     if (!existing) {
       localStorage.setItem(HACKATHON_STORAGE_KEY, JSON.stringify([]))
+      broadcastHackathonsDatasetChanged()
     } else {
       const parsed = JSON.parse(existing)
       const fixed = parsed.map((h) => ({
@@ -44,6 +47,7 @@ function initHackathonData() {
         participantCount: h.participants?.length || 0,
       })).filter((h) => !(h.id === 'hack_001' && h.name === "RIFT '26"))
       localStorage.setItem(HACKATHON_STORAGE_KEY, JSON.stringify(fixed))
+      broadcastHackathonsDatasetChanged()
     }
   } catch (_) {}
 }
@@ -65,7 +69,10 @@ export default function IssuerApp() {
 
   const organizerName = 'Organizer'
   const session = getActiveSession()
-  const walletAddress = session?.wallet || DEFAULT_ORGANIZER_ESCROW_ADDRESS
+  /** Connected Stellar account (may differ from canonical organizer); used for portal filters. */
+  const sessionWallet = session?.wallet ?? null
+  /** Always show the organizer G-address in the header (not the sponsor session wallet). */
+  const organizerDisplayAddress = DEFAULT_ORGANIZER_ESCROW_ADDRESS
 
   const handleDisconnect = () => {
     clearActiveSession()
@@ -74,12 +81,11 @@ export default function IssuerApp() {
   }
 
   const hackathons = getHackathons()
-  const myHackathons = hackathons.filter(
-    (h) => h.organizerAddress?.toLowerCase() === walletAddress?.toLowerCase()
+  const myHackathons = hackathons.filter((h) =>
+    hackathonBelongsToOrganizerPortal(h, sessionWallet),
   )
   const totalParticipants = myHackathons.reduce((sum, h) => sum + (h.participants?.length || 0), 0)
   const pendingPayouts = myHackathons.filter((h) => h.winnersSelected && !h.payoutProposed).length
-  const awaitingApproval = myHackathons.filter((h) => h.payoutProposed).length
 
   const [stats, setStats] = useState({
     hackathons: myHackathons.length,
@@ -90,19 +96,30 @@ export default function IssuerApp() {
   const [auditLogs, setAuditLogs] = useState([])
 
   useEffect(() => {
-    const hackathonsData = getHackathons()
-    const myH = hackathonsData.filter(
-      (h) => h.organizerAddress?.toLowerCase() === walletAddress?.toLowerCase()
-    )
-    const parts = myH.reduce((sum, h) => sum + (h.participants?.length || 0), 0)
-    const pending = myH.filter((h) => h.winnersSelected && !h.payoutProposed).length
-    const awaiting = myH.filter((h) => h.payoutProposed).length
-    setStats({
-      hackathons: myH.length,
-      participants: parts,
-      pendingPayouts: pending,
-    })
-  }, [activeView])
+    const recompute = () => {
+      const hackathonsData = getHackathons()
+      const myH = hackathonsData.filter((h) =>
+        hackathonBelongsToOrganizerPortal(h, sessionWallet),
+      )
+      const parts = myH.reduce((sum, h) => sum + (h.participants?.length || 0), 0)
+      const pending = myH.filter((h) => h.winnersSelected && !h.payoutProposed).length
+      setStats({
+        hackathons: myH.length,
+        participants: parts,
+        pendingPayouts: pending,
+      })
+    }
+    recompute()
+    window.addEventListener('prize_vault_hackathons_changed', recompute)
+    const onStorage = (e) => {
+      if (e.key === HACKATHON_STORAGE_KEY || e.key === null) recompute()
+    }
+    window.addEventListener('storage', onStorage)
+    return () => {
+      window.removeEventListener('prize_vault_hackathons_changed', recompute)
+      window.removeEventListener('storage', onStorage)
+    }
+  }, [sessionWallet])
 
   useEffect(() => {
     const refreshLogs = () => setAuditLogs(getIssuerAuditLogs())
@@ -121,7 +138,7 @@ export default function IssuerApp() {
       case 'dashboard':
         return (
           <OrganizerDashboard
-            userWallet={walletAddress}
+            sessionWallet={sessionWallet}
             onNavigate={handleNavigate}
           />
         )
@@ -129,7 +146,7 @@ export default function IssuerApp() {
         return (
           <ParticipantManager
             hackathonId={navigateParam}
-            userWallet={walletAddress}
+            sessionWallet={sessionWallet}
             onNavigate={handleNavigate}
           />
         )
@@ -137,7 +154,7 @@ export default function IssuerApp() {
         return (
           <WinnerSelection
             hackathonId={navigateParam}
-            userWallet={walletAddress}
+            sessionWallet={sessionWallet}
             onSave={() => handleNavigate('payouts')}
           />
         )
@@ -145,26 +162,26 @@ export default function IssuerApp() {
         return (
           <PayoutProposal
             hackathonId={navigateParam}
-            userWallet={walletAddress}
+            sessionWallet={sessionWallet}
           />
         )
       case 'hackathons':
         return (
           <OrganizerHackathonList
-            userWallet={walletAddress}
+            sessionWallet={sessionWallet}
             onNavigate={handleNavigate}
           />
         )
       case 'create-hackathon':
         return (
           <CreateHackathonForm
-            userWallet={walletAddress}
+            userWallet={sessionWallet}
             onSave={() => handleNavigate('hackathons')}
             onCancel={() => handleNavigate('hackathons')}
           />
         )
       case 'timeline':
-        return <Timeline userWallet={walletAddress} />
+        return <Timeline sessionWallet={sessionWallet} />
       case 'audit':
         return <AuditLogPage logs={auditLogs} />
       case 'settings':
@@ -174,7 +191,7 @@ export default function IssuerApp() {
           </div>
         )
       default:
-        return <OrganizerDashboard userWallet={walletAddress} onNavigate={handleNavigate} />
+        return <OrganizerDashboard sessionWallet={sessionWallet} onNavigate={handleNavigate} />
     }
   }
 
@@ -183,7 +200,7 @@ export default function IssuerApp() {
       <div className="grid-backdrop" aria-hidden />
       <Header
         organizerName={organizerName}
-        walletAddress={walletAddress}
+        walletAddress={organizerDisplayAddress}
         stats={stats}
         onDisconnect={handleDisconnect}
       />

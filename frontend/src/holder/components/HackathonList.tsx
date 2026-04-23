@@ -3,8 +3,13 @@ import { Hackathon, Participant } from '../../types/hackathon'
 import { UserRole } from '../../types/holder'
 import { getHackathonsFromStorage } from '../utils/roleDetection'
 import { getProfileForWallet } from '../utils/userProfileStorage'
+import {
+  broadcastHackathonsDatasetChanged,
+  REGISTERED_HACKATHONS_KEY,
+  subscribeHackathonsDatasetChanged,
+} from '../../utils/hackathonSync'
 
-const REGISTERED_KEY = 'registered_hackathons'
+const REGISTERED_KEY = REGISTERED_HACKATHONS_KEY
 
 interface HackathonListProps {
   userWallet: string | null
@@ -18,15 +23,19 @@ export default function HackathonList({ userWallet, userRole, onNavigate }: Hack
   const [registeringId, setRegisteringId] = useState<string | null>(null)
   const [registeredIds, setRegisteredIds] = useState<string[]>([])
 
-  useEffect(() => {
-    const stored = getHackathonsFromStorage()
-    setHackathons(stored)
+  const loadLists = () => {
+    setHackathons(getHackathonsFromStorage())
     try {
       const reg = localStorage.getItem(REGISTERED_KEY)
       if (reg) setRegisteredIds(JSON.parse(reg))
     } catch {
       // ignore
     }
+  }
+
+  useEffect(() => {
+    loadLists()
+    return subscribeHackathonsDatasetChanged(loadLists)
   }, [])
 
   const filteredHackathons = useMemo(() => {
@@ -61,6 +70,8 @@ export default function HackathonList({ userWallet, userRole, onNavigate }: Hack
       })
       const storageKey = 'prize_vault_hackathons'
       localStorage.setItem(storageKey, JSON.stringify(updated))
+      window.dispatchEvent(new CustomEvent('prize_vault_hackathons_changed'))
+      broadcastHackathonsDatasetChanged()
       setHackathons(updated)
       const newRegistered = [...registeredIds, hackathonId]
       setRegisteredIds(newRegistered)

@@ -1,5 +1,6 @@
-import React from 'react'
-import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../../constants/escrow'
+import React, { useEffect, useMemo, useState } from 'react'
+import { deleteHackathonById } from '../../holder/utils/roleDetection'
+import { hackathonBelongsToOrganizerPortal } from '../../utils/organizerPortalFilter'
 
 const STORAGE_KEY = 'prize_vault_hackathons'
 
@@ -14,9 +15,27 @@ function getHackathons() {
   return []
 }
 
-export default function OrganizerDashboard({ userWallet = DEFAULT_ORGANIZER_ESCROW_ADDRESS, onNavigate }) {
-  const hackathons = getHackathons().filter(
-    (h) => h.organizerAddress?.toLowerCase() === userWallet?.toLowerCase()
+export default function OrganizerDashboard({ sessionWallet, onNavigate }) {
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    const bump = () => setTick((t) => t + 1)
+    const onStorage = (e) => {
+      if (e.key === STORAGE_KEY || e.key === null) bump()
+    }
+    window.addEventListener('prize_vault_hackathons_changed', bump)
+    window.addEventListener('storage', onStorage)
+    return () => {
+      window.removeEventListener('prize_vault_hackathons_changed', bump)
+      window.removeEventListener('storage', onStorage)
+    }
+  }, [])
+
+  const hackathons = useMemo(
+    () =>
+      getHackathons().filter((h) =>
+        hackathonBelongsToOrganizerPortal(h, sessionWallet),
+      ),
+    [tick, sessionWallet],
   )
 
   const totalParticipants = hackathons.reduce((sum, h) => sum + (h.participants?.length || 0), 0)
@@ -118,6 +137,22 @@ export default function OrganizerDashboard({ userWallet = DEFAULT_ORGANIZER_ESCR
                     onClick={() => onNavigate?.('payouts', h.id)}
                   >
                     Create Payout
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-small btn-danger"
+                    onClick={() => {
+                      if (
+                        !window.confirm(
+                          `Delete hackathon "${h.name}"? This removes it for sponsors and participants and deletes related proposals.`,
+                        )
+                      ) {
+                        return
+                      }
+                      deleteHackathonById(h.id)
+                    }}
+                  >
+                    Delete
                   </button>
                 </div>
               </div>

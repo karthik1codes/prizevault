@@ -4,11 +4,7 @@ import stellarWallet from '../stellarWallet'
 import organizerWalletQr from '../../assets/organizer-wallet-qr.png'
 import sponsorWalletQr from '../../assets/sponsor-wallet-qr.png'
 import participantWalletQr from '../../assets/participant-wallet-qr.png'
-import {
-  clearManualConnectRequirement,
-  AppRole,
-  isManualConnectRequired,
-} from '../../utils/authSession'
+import { clearManualConnectRequirement, AppRole } from '../../utils/authSession'
 import { ROLE_WALLET_MAP } from '../../constants/qrWallets'
 
 interface StellarLoginProps {
@@ -31,18 +27,6 @@ export default function StellarLogin({ onConnect, onError, desiredRole = null }:
     : ''
 
   useEffect(() => {
-    if (!isManualConnectRequired()) {
-      stellarWallet
-        .reconnectSession()
-        .then((accounts) => {
-          if (accounts.length > 0) {
-            setIsConnected(true)
-            onConnect(accounts[0])
-          }
-        })
-        .catch(() => {})
-    }
-
     const buildQr = async () => {
       try {
         // Encode a browser URL so Google Lens opens directly to the Stellar account page.
@@ -58,7 +42,7 @@ export default function StellarLogin({ onConnect, onError, desiredRole = null }:
     }
 
     buildQr()
-  }, [onConnect, desiredRole, walletExplorerUrl])
+  }, [desiredRole, walletExplorerUrl])
 
   const handleConnect = async () => {
     setConnectError('')
@@ -99,7 +83,8 @@ export default function StellarLogin({ onConnect, onError, desiredRole = null }:
   return (
     <div className="wallet-login-container">
       <p className="wallet-try-anyway">
-        Connect using Freighter browser extension (desktop), or scan QR to continue on phone.
+        Connect with Freighter (desktop): your extension will open to sign a short testnet message so you can confirm
+        the exact account. Or scan the QR to continue on phone.
       </p>
       <button
         type="button"

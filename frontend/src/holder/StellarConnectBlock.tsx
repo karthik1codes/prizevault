@@ -1,5 +1,5 @@
 /**
- * Loaded only after user clicks "Connect Stellar Wallet".
+ * Shown immediately after the profile step; wraps StellarLogin (Freighter + QR).
  */
 import StellarLogin from './components/StellarLogin'
 import { AppRole } from '../utils/authSession'

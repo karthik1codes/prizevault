@@ -1,5 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import ReactDOM from 'react-dom/client'
+import { requestAccess, signTransaction } from '@stellar/freighter-api'
+import {
+  Asset,
+  BASE_FEE,
+  Horizon,
+  Networks,
+  Operation,
+  Transaction,
+  TransactionBuilder,
+} from '@stellar/stellar-sdk'
 import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from './constants/escrow'
 import SharedHeader from './components/SharedHeader'
 import {
@@ -10,11 +20,30 @@ import {
 } from './utils/authSession'
 import { resolveSessionWithQrBootstrap } from './utils/qrSession'
 import { getPayoutProposals, savePayoutProposals } from './utils/payoutProposalsStorage'
+import {
+  broadcastHackathonsDatasetChanged,
+  subscribeHackathonsDatasetChanged,
+} from './utils/hackathonSync'
 import '../styles.css'
 import './index.css'
 import './recruiter.css'
 
 const HACKATHON_STORAGE_KEY = 'prize_vault_hackathons'
+const HORIZON_URL = 'https://horizon-testnet.stellar.org'
+const STELLAR_SERVER = new Horizon.Server(HORIZON_URL)
+function toStellarAmount(value) {
+  const fixed = Number(value).toFixed(7)
+  return fixed.replace(/\.?0+$/, '')
+}
+
+function formatXlm(value) {
+  const num = Number(value || 0)
+  if (!Number.isFinite(num)) return '0'
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(num)
+}
 
 function getHackathonsFromStorage() {
   try {
@@ -28,6 +57,8 @@ function getHackathonsFromStorage() {
 function saveHackathonsToStorage(hackathons) {
   try {
     localStorage.setItem(HACKATHON_STORAGE_KEY, JSON.stringify(hackathons))
+    window.dispatchEvent(new CustomEvent('prize_vault_hackathons_changed'))
+    broadcastHackathonsDatasetChanged()
   } catch (_) {}
 }
 
@@ -62,7 +93,15 @@ function EscrowOverviewPanel({ escrows, selectedEscrowId, onSelectEscrow }) {
   )
 }
 
-function FundingPanel({ selectedEscrow, onFund, asaHoldings, senderAddress, onSyncOnChain }) {
+function FundingPanel({
+  selectedEscrow,
+  onFund,
+  fundingDestinationAddress,
+  displaySenderAddress,
+  onSyncOnChain,
+  isFunding,
+  fundingError,
+}) {
   const [amount, setAmount] = useState('')
 
   if (!selectedEscrow) {
@@ -84,46 +123,24 @@ function FundingPanel({ selectedEscrow, onFund, asaHoldings, senderAddress, onSy
         <div>
           <h3>Fund prize pool</h3>
           <p className="muted">
-            Deposit XLM or Stellar assets into the escrow for{' '}
+            Send XLM from your sponsor wallet into the organizer prize custody account for{' '}
             <strong>{selectedEscrow.name}</strong>.
           </p>
         </div>
       </div>
       <p className="muted">
         Current balance:{' '}
-        <strong>
-          {selectedEscrow.balanceAlgo} XLM
-          {selectedEscrow.assetId ? ` · ASA #${selectedEscrow.assetId}` : ''}
-        </strong>
+        <strong>{selectedEscrow.balanceAlgo} XLM</strong>
       </p>
-      <p className="muted" style={{ marginTop: 8, fontSize: '0.85rem' }}>
-        On-chain ASA balances for this escrow:
-      </p>
-      {asaHoldings && asaHoldings.length > 0 ? (
-        <ul className="candidate-list" style={{ marginTop: 8 }}>
-          {asaHoldings.map((asset) => (
-            <li key={asset.assetId}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span className="muted">ASA #{asset.assetId}</span>
-                <strong>{asset.amount}</strong>
-              </div>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="muted" style={{ marginTop: 4, fontSize: '0.8rem' }}>
-          No ASA tokens detected yet for this escrow on chain.
-        </p>
-      )}
       <div
         className="muted"
         style={{ marginTop: 8, fontSize: '0.85rem', display: 'flex', gap: 8, alignItems: 'center' }}
       >
         <span>
-          Escrow address:{' '}
+          Organizer prize custody:{' '}
           <code>
-            {selectedEscrow.escrowAddress.slice(0, 8)}…
-            {selectedEscrow.escrowAddress.slice(-6)}
+            {fundingDestinationAddress.slice(0, 8)}…
+            {fundingDestinationAddress.slice(-6)}
           </code>
         </span>
         <button
@@ -133,10 +150,10 @@ function FundingPanel({ selectedEscrow, onFund, asaHoldings, senderAddress, onSy
           onClick={async () => {
             try {
               if (navigator.clipboard?.writeText) {
-                await navigator.clipboard.writeText(selectedEscrow.escrowAddress)
+                await navigator.clipboard.writeText(fundingDestinationAddress)
               } else {
                 const textarea = document.createElement('textarea')
-                textarea.value = selectedEscrow.escrowAddress
+                textarea.value = fundingDestinationAddress
                 textarea.style.position = 'fixed'
                 textarea.style.opacity = '0'
                 document.body.appendChild(textarea)
@@ -155,10 +172,10 @@ function FundingPanel({ selectedEscrow, onFund, asaHoldings, senderAddress, onSy
         </button>
       </div>
       <p className="muted" style={{ marginTop: 4, fontSize: '0.8rem' }}>
-        Sender address to use in Stellar wallet:{' '}
+        Your wallet (signs the sponsor deposit):{' '}
         <code>
-          {senderAddress.slice(0, 8)}…
-          {senderAddress.slice(-6)}
+          {displaySenderAddress.slice(0, 8)}…
+          {displaySenderAddress.slice(-6)}
         </code>
       </p>
       <button
@@ -174,6 +191,7 @@ function FundingPanel({ selectedEscrow, onFund, asaHoldings, senderAddress, onSy
         style={{ marginTop: 16 }}
         onSubmit={(e) => {
           e.preventDefault()
+          if (isFunding) return
           if (!amount) return
           onFund({
             escrowId: selectedEscrow.id,
@@ -191,14 +209,19 @@ function FundingPanel({ selectedEscrow, onFund, asaHoldings, senderAddress, onSy
           onChange={(e) => setAmount(e.target.value)}
         />
         <button type="submit" className="button primary small">
-          Fund escrow
+          {isFunding ? 'Submitting on testnet...' : 'Fund escrow'}
         </button>
       </form>
+      {fundingError && (
+        <p className="muted" style={{ marginTop: 10, color: '#ff9ba5' }}>
+          {fundingError}
+        </p>
+      )}
     </section>
   )
 }
 
-function ReleaseApprovalsPanel({ pendingReleases, onApprove }) {
+function ReleaseApprovalsPanel({ pendingReleases, onApprove, isApproving, approveError }) {
   return (
     <section className="recruiter-card">
       <div className="card-header">
@@ -235,8 +258,9 @@ function ReleaseApprovalsPanel({ pendingReleases, onApprove }) {
                     type="button"
                     className="button primary small"
                     onClick={() => onApprove(item.id)}
+                    disabled={isApproving}
                   >
-                    Approve release
+                    {isApproving ? 'Approving...' : 'Approve release'}
                   </button>
                 ) : (
                   <p className="muted" style={{ fontSize: '0.85rem' }}>
@@ -247,6 +271,11 @@ function ReleaseApprovalsPanel({ pendingReleases, onApprove }) {
             </li>
           ))}
         </ul>
+      )}
+      {approveError && (
+        <p className="muted" style={{ marginTop: 10, color: '#ff9ba5' }}>
+          {approveError}
+        </p>
       )}
     </section>
   )
@@ -264,21 +293,27 @@ function BudgetSummaryPanel({ stats }) {
       <div className="status-grid">
         <div className="status-tile ok">
           <span className="label">Committed</span>
-          <div style={{ fontWeight: 700, fontSize: '1.25rem' }}>{stats.committed} XLM</div>
+          <div style={{ fontWeight: 700, fontSize: '1.25rem', lineHeight: 1.25, wordBreak: 'break-word' }}>
+            {formatXlm(stats.committed)} XLM
+          </div>
           <p className="muted" style={{ marginTop: 4 }}>
             Across all active hackathons
           </p>
         </div>
         <div className="status-tile warn">
           <span className="label">Locked in escrow</span>
-          <div style={{ fontWeight: 700, fontSize: '1.25rem' }}>{stats.locked} XLM</div>
+          <div style={{ fontWeight: 700, fontSize: '1.25rem', lineHeight: 1.25, wordBreak: 'break-word' }}>
+            {formatXlm(stats.locked)} XLM
+          </div>
           <p className="muted" style={{ marginTop: 4 }}>
             Awaiting winners / approvals
           </p>
         </div>
         <div className="status-tile">
           <span className="label">Released</span>
-          <div style={{ fontWeight: 700, fontSize: '1.25rem' }}>{stats.released} XLM</div>
+          <div style={{ fontWeight: 700, fontSize: '1.25rem', lineHeight: 1.25, wordBreak: 'break-word' }}>
+            {formatXlm(stats.released)} XLM
+          </div>
           <p className="muted" style={{ marginTop: 4 }}>
             Paid out to winners on Stellar
           </p>
@@ -370,6 +405,10 @@ function SponsorDashboard() {
   const [proposals, setProposals] = useState([])
   const [selectedEscrowId, setSelectedEscrowId] = useState(null)
   const [activities, setActivities] = useState([])
+  const [isFunding, setIsFunding] = useState(false)
+  const [fundingError, setFundingError] = useState('')
+  const [isApproving, setIsApproving] = useState(false)
+  const [approveError, setApproveError] = useState('')
 
   const sponsorName = 'Hackathon Sponsor Inc.'
   const defaultWallet = senderAddress
@@ -380,21 +419,32 @@ function SponsorDashboard() {
       setProposals(getPayoutProposals())
     }
     refresh()
+    const unsub = subscribeHackathonsDatasetChanged(refresh, ['prize_vault_payout_proposals'])
     const interval = setInterval(refresh, 2000)
-    return () => clearInterval(interval)
+    return () => {
+      unsub()
+      clearInterval(interval)
+    }
   }, [])
 
   const escrows = useMemo(
     () =>
       hackathons.map((h) => {
-        const balance = Number(h.sponsorFundingXlm || 0)
+        const balance = Number(
+          h.onChainBalanceXlm ?? h.sponsorFundingXlm ?? 0
+        )
+        const prizeCustody = (
+          h.escrowAddress?.trim() ||
+          h.organizerAddress?.trim() ||
+          DEFAULT_ORGANIZER_ESCROW_ADDRESS
+        ).trim()
         return {
           id: h.id,
           name: h.name,
-          escrowAddress: h.escrowAddress || h.organizerAddress || DEFAULT_ORGANIZER_ESCROW_ADDRESS,
+          /** On-chain XLM for payouts is held on the organizer prize account after sponsor funding. */
+          escrowAddress: prizeCustody,
           status: balance > 0 ? 'Funded' : 'Awaiting top-up',
           balanceAlgo: balance,
-          assetId: null,
         }
       }),
     [hackathons]
@@ -462,49 +512,161 @@ function SponsorDashboard() {
 
   const selectedEscrow = escrows.find((e) => e.id === selectedEscrowId) ?? null
 
-  const handleFund = ({ escrowId, amount }) => {
+  const syncEscrowOnChainState = async (escrowId) => {
+    const hack = hackathons.find((h) => h.id === escrowId)
+    if (!hack) return
+    const custodyAddress = (
+      hack.escrowAddress?.trim() ||
+      hack.organizerAddress?.trim() ||
+      DEFAULT_ORGANIZER_ESCROW_ADDRESS
+    ).trim()
+    if (!custodyAddress) return
+    try {
+      const account = await STELLAR_SERVER.loadAccount(custodyAddress)
+      const nativeBalance = account.balances.find((b) => b.asset_type === 'native')
+      const onChainBalanceXlm = Number(nativeBalance?.balance || 0)
+      const updatedHackathons = hackathons.map((h) =>
+        h.id === escrowId ? { ...h, onChainBalanceXlm } : h
+      )
+      saveHackathonsToStorage(updatedHackathons)
+      setHackathons(updatedHackathons)
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to sync on-chain balance', error)
+    }
+  }
+
+  useEffect(() => {
+    if (selectedEscrowId) {
+      syncEscrowOnChainState(selectedEscrowId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedEscrowId])
+
+  const handleFund = async ({ escrowId, amount }) => {
     const numericAmount = Number(amount)
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
       return
     }
-    const updatedHackathons = hackathons.map((h) =>
-      h.id === escrowId
-        ? {
-            ...h,
-            sponsorFundingXlm: Number(h.sponsorFundingXlm || 0) + numericAmount,
-            sponsorAddress: senderAddress,
-          }
-        : h
-    )
-    saveHackathonsToStorage(updatedHackathons)
-    setHackathons(updatedHackathons)
-    setActivities((prev) => [
-      {
-        id: `act_fund_${Date.now()}`,
-        timestamp: 'Just now',
-        title: 'Escrow funded',
-        description: `Added ${numericAmount} XLM to ${selectedEscrow?.name || 'escrow'}.`,
-      },
-      ...prev,
-    ])
+    const hackRow = hackathons.find((h) => h.id === escrowId)
+    if (!hackRow) return
+    const organizerCustody = (
+      hackRow.organizerAddress?.trim() || DEFAULT_ORGANIZER_ESCROW_ADDRESS
+    ).trim()
+    if (!organizerCustody) return
+
+    setFundingError('')
+    setIsFunding(true)
+    try {
+      if (organizerCustody.toLowerCase() === senderAddress.toLowerCase()) {
+        throw new Error(
+          'Connected wallet matches the organizer prize account. Connect the sponsor wallet so XLM can be sent into organizer custody.',
+        )
+      }
+
+      const access = await requestAccess()
+      if (access.error) {
+        throw new Error(access.error)
+      }
+
+      const sourceAccount = await STELLAR_SERVER.loadAccount(senderAddress)
+      const fee = await STELLAR_SERVER.fetchBaseFee().catch(() => BASE_FEE)
+      const tx = new TransactionBuilder(sourceAccount, {
+        fee: String(fee || BASE_FEE),
+        networkPassphrase: Networks.TESTNET,
+      })
+        .addOperation(
+          Operation.payment({
+            destination: organizerCustody,
+            asset: Asset.native(),
+            amount: toStellarAmount(numericAmount),
+          })
+        )
+        .setTimeout(120)
+        .build()
+
+      const signed = await signTransaction(tx.toXDR(), {
+        networkPassphrase: Networks.TESTNET,
+        address: senderAddress,
+      })
+
+      if (signed.error || !signed.signedTxXdr) {
+        throw new Error(signed.error || 'Failed to sign transaction in Freighter')
+      }
+
+      const signedTx = new Transaction(signed.signedTxXdr, Networks.TESTNET)
+      const submitResult = await STELLAR_SERVER.submitTransaction(signedTx)
+
+      const updatedHackathons = hackathons.map((h) =>
+        h.id === escrowId
+          ? {
+              ...h,
+              sponsorFundingXlm: Number(h.sponsorFundingXlm || 0) + numericAmount,
+              sponsorAddress: senderAddress,
+              organizerAddress:
+                hackRow.organizerAddress?.trim() || DEFAULT_ORGANIZER_ESCROW_ADDRESS,
+              escrowAddress: organizerCustody,
+            }
+          : h
+      )
+      saveHackathonsToStorage(updatedHackathons)
+      setHackathons(updatedHackathons)
+      await syncEscrowOnChainState(escrowId)
+
+      setActivities((prev) => [
+        {
+          id: `act_fund_${Date.now()}`,
+          timestamp: 'Just now',
+          title: 'Escrow funded on Stellar testnet',
+          description: `Sent ${numericAmount} XLM to ${hackRow.name} (organizer custody). Tx: ${submitResult.hash.slice(0, 12)}…`,
+        },
+        ...prev,
+      ])
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Funding transaction failed', error)
+      setFundingError(error instanceof Error ? error.message : 'Funding failed on Stellar testnet.')
+    } finally {
+      setIsFunding(false)
+    }
   }
 
-  const handleApproveRelease = (releaseId) => {
-    const updatedProposals = proposals.map((p) =>
-      p.id === releaseId ? { ...p, sponsorApproved: true, status: 'approved' } : p
-    )
-    savePayoutProposals(updatedProposals)
-    setProposals(updatedProposals)
-    const release = pendingReleases.find((r) => r.id === releaseId)
-    setActivities((prev) => [
-      {
-        id: `act_approve_${Date.now()}`,
-        timestamp: 'Just now',
-        title: 'Release approved',
-        description: `Approved payout proposal for ${release?.hackathon || 'hackathon'}.`,
-      },
-      ...prev,
-    ])
+  const handleApproveRelease = async (releaseId) => {
+    setApproveError('')
+    setIsApproving(true)
+    try {
+      const proposal = proposals.find((p) => p.id === releaseId)
+      if (!proposal) {
+        throw new Error('Payout proposal not found.')
+      }
+
+      const updatedProposals = proposals.map((p) =>
+        p.id === releaseId
+          ? {
+              ...p,
+              sponsorApproved: true,
+              status: p.organizerApproved ? 'approved' : p.status,
+            }
+          : p
+      )
+      savePayoutProposals(updatedProposals)
+      setProposals(updatedProposals)
+      setActivities((prev) => [
+        {
+          id: `act_approve_${Date.now()}`,
+          timestamp: 'Just now',
+          title: 'Sponsor approval recorded',
+          description: `Approved payout proposal for ${proposal.hackathonName}. Awaiting organizer execution from escrow wallet.`,
+        },
+        ...prev,
+      ])
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Payout approval/execution failed', error)
+      setApproveError(error instanceof Error ? error.message : 'Payout execution failed.')
+    } finally {
+      setIsApproving(false)
+    }
   }
 
   return (
@@ -551,7 +713,7 @@ function SponsorDashboard() {
               <h3>What this console manages</h3>
               <ul>
                 <li>Smart-contract escrow creation per hackathon</li>
-                <li>Sponsor deposits into escrow (XLM / Stellar assets)</li>
+                <li>Sponsor deposits into escrow (XLM)</li>
                 <li>Organizer + sponsor approval tracking</li>
                 <li>Atomic prize releases to winners</li>
                 <li>Budget and activity history per sponsor</li>
@@ -570,17 +732,23 @@ function SponsorDashboard() {
             <FundingPanel
               selectedEscrow={selectedEscrow}
               onFund={handleFund}
-              asaHoldings={[]}
-              senderAddress={senderAddress}
-              onSyncOnChain={() => {
-                setHackathons(getHackathonsFromStorage())
-                setProposals(getPayoutProposals())
-              }}
+              fundingDestinationAddress={
+                selectedEscrow?.escrowAddress || DEFAULT_ORGANIZER_ESCROW_ADDRESS
+              }
+              displaySenderAddress={senderAddress}
+              onSyncOnChain={() => selectedEscrowId && syncEscrowOnChainState(selectedEscrowId)}
+              isFunding={isFunding}
+              fundingError={fundingError}
             />
           </section>
 
           <section className="recruiter-smart-grid" id="approvals">
-            <ReleaseApprovalsPanel pendingReleases={pendingReleases} onApprove={handleApproveRelease} />
+            <ReleaseApprovalsPanel
+              pendingReleases={pendingReleases}
+              onApprove={handleApproveRelease}
+              isApproving={isApproving}
+              approveError={approveError}
+            />
             <BudgetSummaryPanel stats={budgetStats} />
           </section>
 

@@ -8,14 +8,17 @@ export default function SharedHeader({ activeTab = 'landing' }) {
     { id: 'issuer', label: 'Organizer', href: '/issuer' },
   ]
   const session = getActiveSession()
-  const tabs = session
-    ? allTabs.filter((tab) => {
-        if (session.role === 'participant') return tab.id === 'holder'
-        if (session.role === 'sponsor') return tab.id === 'recruiter'
-        if (session.role === 'organizer') return tab.id === 'issuer'
-        return false
-      })
-    : allTabs
+  const tabs =
+    activeTab === 'landing' || activeTab === 'holder'
+      ? allTabs.filter((tab) => tab.id === 'holder')
+      : session
+        ? allTabs.filter((tab) => {
+            if (session.role === 'participant') return tab.id === 'holder'
+            if (session.role === 'sponsor') return tab.id === 'recruiter'
+            if (session.role === 'organizer') return tab.id === 'issuer'
+            return false
+          })
+        : allTabs
 
   return (
     <header className="main-header">

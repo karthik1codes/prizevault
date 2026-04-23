@@ -4,6 +4,7 @@ import { GlobalWorkerOptions } from 'pdfjs-dist'
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../../constants/escrow'
 import { appendIssuerAuditLog } from '../../utils/issuerAuditLog'
+import { hackathonBelongsToOrganizerPortal } from '../../utils/organizerPortalFilter'
 
 const HACKATHON_STORAGE_KEY = 'prize_vault_hackathons'
 const TIMELINE_STORAGE_KEY = 'prize_vault_hackathon_timelines'
@@ -99,7 +100,7 @@ function extractTimelineEventsFromText(text) {
   return events.slice(0, 100)
 }
 
-export default function Timeline({ userWallet }) {
+export default function Timeline({ sessionWallet }) {
   const [allHackathons, setAllHackathons] = useState([])
   const [selectedHackathonId, setSelectedHackathonId] = useState('')
   const [events, setEvents] = useState([])
@@ -108,14 +109,23 @@ export default function Timeline({ userWallet }) {
   const [pdfError, setPdfError] = useState('')
 
   useEffect(() => {
-    const list = getStoredHackathons()
-    setAllHackathons(list)
+    const load = () => setAllHackathons(getStoredHackathons())
+    load()
+    const onStorage = (e) => {
+      if (e.key === HACKATHON_STORAGE_KEY || e.key === null) load()
+    }
+    window.addEventListener('prize_vault_hackathons_changed', load)
+    window.addEventListener('storage', onStorage)
+    return () => {
+      window.removeEventListener('prize_vault_hackathons_changed', load)
+      window.removeEventListener('storage', onStorage)
+    }
   }, [])
 
-  const myWallet = (userWallet || DEFAULT_ORGANIZER_ESCROW_ADDRESS).toLowerCase()
+  const auditWallet = sessionWallet || DEFAULT_ORGANIZER_ESCROW_ADDRESS
   const myHackathons = useMemo(
-    () => allHackathons.filter((h) => h.organizerAddress?.toLowerCase() === myWallet),
-    [allHackathons, myWallet]
+    () => allHackathons.filter((h) => hackathonBelongsToOrganizerPortal(h, sessionWallet)),
+    [allHackathons, sessionWallet],
   )
 
   useEffect(() => {
@@ -154,7 +164,7 @@ export default function Timeline({ userWallet }) {
       action: 'create',
       user: 'Organizer',
       details: `Timeline event added${selectedHackathon ? ` for ${selectedHackathon.name}` : ''}.`,
-      wallet: userWallet || DEFAULT_ORGANIZER_ESCROW_ADDRESS,
+      wallet: auditWallet,
       hackathonId: selectedHackathonId || null,
     })
   }
@@ -165,7 +175,7 @@ export default function Timeline({ userWallet }) {
       action: 'delete',
       user: 'Organizer',
       details: `Timeline event removed${selectedHackathon ? ` for ${selectedHackathon.name}` : ''}.`,
-      wallet: userWallet || DEFAULT_ORGANIZER_ESCROW_ADDRESS,
+      wallet: auditWallet,
       hackathonId: selectedHackathonId || null,
     })
   }
@@ -196,7 +206,7 @@ export default function Timeline({ userWallet }) {
       action: 'update',
       user: 'Organizer',
       details: `Timeline saved for ${selectedHackathon?.name || 'selected hackathon'} (${cleaned.length} events, previously ${previous.length}).`,
-      wallet: userWallet || DEFAULT_ORGANIZER_ESCROW_ADDRESS,
+      wallet: auditWallet,
       hackathonId: selectedHackathonId,
     })
     setTimeout(() => setSaveMessage(''), 2000)
@@ -238,7 +248,7 @@ export default function Timeline({ userWallet }) {
         action: 'update',
         user: 'Organizer',
         details: `Timeline PDF imported for ${selectedHackathon?.name || 'selected hackathon'} (${parsedEvents.length} extracted events).`,
-        wallet: userWallet || DEFAULT_ORGANIZER_ESCROW_ADDRESS,
+        wallet: auditWallet,
         hackathonId: selectedHackathonId || null,
       })
     } catch (err) {
