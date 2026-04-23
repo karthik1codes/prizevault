@@ -3,6 +3,7 @@ import { Hackathon } from '../../types/hackathon'
 import { getHackathonsFromStorage, saveHackathonsToStorage } from '../utils/roleDetection'
 import { getPayoutProposals, savePayoutProposals } from '../../utils/payoutProposalsStorage'
 import { ESCROW_APP_ID } from '../../constants/escrow'
+import { submitSponsorApprovalOnChain } from '../../utils/sponsorApprovalOnChain'
 
 interface SponsorDashboardProps {
   userWallet: string | null
@@ -86,17 +87,34 @@ export default function SponsorDashboard({ userWallet, onNavigate }: SponsorDash
     }
   }
 
-  const handleApprovePayout = (proposalId: string) => {
+  const handleApprovePayout = async (proposalId: string) => {
+    if (!userWallet) {
+      alert('Connect your Stellar wallet before approving a payout.')
+      return
+    }
+
     setLoading(true)
     try {
+      const tx = await submitSponsorApprovalOnChain({
+        sponsorAddress: userWallet,
+        proposalId,
+      })
       const updated = proposals.map((p) =>
-        p.id === proposalId ? { ...p, sponsorApproved: true } : p
+        p.id === proposalId
+          ? {
+              ...p,
+              sponsorApproved: true,
+              sponsorApprovedAt: new Date().toISOString(),
+              sponsorApprovalTxHash: tx.txHash,
+            }
+          : p
       )
       savePayoutProposals(updated)
       setProposals(updated)
+      alert(`Sponsor approval recorded on-chain. Tx hash: ${tx.txHash}`)
     } catch (error) {
       console.error('Approval failed:', error)
-      alert('Approval failed. Please try again.')
+      alert(error instanceof Error ? error.message : 'Approval failed. Please try again.')
     } finally {
       setLoading(false)
     }
