@@ -5,6 +5,10 @@ import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../../constants/escrow'
 import { appendIssuerAuditLog } from '../../utils/issuerAuditLog'
 import { hackathonBelongsToOrganizerPortal } from '../../utils/organizerPortalFilter'
+import {
+  extractTimelineEventsFromText,
+  textFromPdfContentItems,
+} from '../../utils/timelinePdfParser'
 
 const HACKATHON_STORAGE_KEY = 'prize_vault_hackathons'
 const TIMELINE_STORAGE_KEY = 'prize_vault_hackathon_timelines'
@@ -42,62 +46,6 @@ function newEvent() {
     title: '',
     details: '',
   }
-}
-
-function extractTimelineEventsFromText(text) {
-  const lines = (text || '')
-    .split('\n')
-    .map((line) => line.replace(/\s+/g, ' ').trim())
-    .filter(Boolean)
-
-  const events = []
-  let current = null
-  const timeRegex =
-    /^(\d{1,2}(?::\d{2})?\s?(?:AM|PM|am|pm)?\s?(?:-|–|to)\s?\d{1,2}(?::\d{2})?\s?(?:AM|PM|am|pm)?|\d{1,2}(?::\d{2})?\s?(?:AM|PM|am|pm))\b/
-
-  for (const rawLine of lines) {
-    const line = rawLine.replace(/^[\u2022\-*]\s*/, '')
-    const timeMatch = line.match(timeRegex)
-
-    if (timeMatch) {
-      if (current && (current.time || current.title || current.details)) {
-        events.push(current)
-      }
-      const time = timeMatch[1].trim()
-      const title = line.slice(timeMatch[0].length).replace(/^[-:–]\s*/, '').trim()
-      current = {
-        id: newEvent().id,
-        time,
-        title,
-        details: '',
-      }
-      continue
-    }
-
-    if (!current) {
-      if (line.length > 8) {
-        current = {
-          id: newEvent().id,
-          time: '',
-          title: line,
-          details: '',
-        }
-      }
-      continue
-    }
-
-    if (!current.title) {
-      current.title = line
-    } else {
-      current.details = current.details ? `${current.details}\n${line}` : line
-    }
-  }
-
-  if (current && (current.time || current.title || current.details)) {
-    events.push(current)
-  }
-
-  return events.slice(0, 100)
 }
 
 export default function Timeline({ sessionWallet }) {
@@ -230,13 +178,10 @@ export default function Timeline({ sessionWallet }) {
       for (let pageNo = 1; pageNo <= pdf.numPages; pageNo += 1) {
         const page = await pdf.getPage(pageNo)
         const content = await page.getTextContent()
-        const pageText = content.items
-          .map((item) => ('str' in item ? item.str : ''))
-          .join(' ')
-        fullText += `${pageText}\n`
+        fullText += `${textFromPdfContentItems(content.items)}\n`
       }
 
-      const parsedEvents = extractTimelineEventsFromText(fullText)
+      const parsedEvents = extractTimelineEventsFromText(fullText, () => newEvent().id)
       if (!parsedEvents.length) {
         setPdfError('Could not detect timeline entries in this PDF. You can still add events manually.')
         return
@@ -313,7 +258,8 @@ export default function Timeline({ sessionWallet }) {
                 disabled={isParsingPdf}
               />
               <p className="muted" style={{ marginTop: 6 }}>
-                Upload an official timeline PDF to auto-fill events. You can edit entries before saving.
+                Upload a timeline PDF in Event Card format (Event #, TIME / SLOT, TITLE, DETAILS) to
+                auto-fill events. You can edit entries before saving.
               </p>
             </div>
             {isParsingPdf && <p className="muted">Reading PDF and extracting timeline…</p>}
