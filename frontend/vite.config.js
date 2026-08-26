@@ -75,6 +75,10 @@ export default defineConfig({
       allow: ['..'],
     },
     proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
       '/present': {
         target: 'http://localhost:3000',
         changeOrigin: true

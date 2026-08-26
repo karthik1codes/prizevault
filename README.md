@@ -10,8 +10,8 @@ Sponsors worry prize money will be misused or delayed; organizers don't want to 
 
 - **Classic Stellar escrow account** — 2-of-2 multisig (sponsor + organizer) for script-driven flows.
 - **Soroban smart contract** (`contracts/stellar-escrow`) — on-chain propose → approve → execute release logic.
+- **Next.js app** (`web/`) — UI + `/api/escrow/*` in one process; server-held testnet keys invoke the contract.
 - **TypeScript scripts** — create escrow, deposit, release, and approval-gated agent runner.
-- **React frontend** — organizer console, sponsor dashboard, participant views, Freighter wallet integration.
 
 ## Payout proposal cycle (Soroban)
 
@@ -28,14 +28,13 @@ Classic account flow (scripts): create escrow → deposit → dual-signed releas
 | Path | Description |
 |------|-------------|
 | `contracts/stellar-escrow/` | Soroban escrow contract (Rust) |
-| `scripts/create-escrow.ts` | Create Stellar escrow account with 2-of-2 signers |
-| `scripts/deposit.ts` | Sponsor deposits XLM into escrow |
-| `scripts/release.ts` | Release XLM to winner (both keys sign) |
-| `scripts/agent.ts` | Runs release only when both approval env flags are set |
-| `scripts/deploy-contract.ts` | Saves deployed Soroban contract id to `escrow-state.json` |
-| `frontend/` | React app (organizer, sponsor, participant UIs) |
+| `web/` | Next.js app (pages + `/api/escrow/*`) |
+| `web/src/client/` | React UI (organizer, sponsor, participant) |
+| `src/soroban/escrowClient.ts` | Soroban invoke helpers (stellar-sdk) |
+| `src/api/escrowHandlers.ts` | Shared propose/approve/execute handlers |
+| `scripts/` | Classic escrow CLI scripts |
 | `Hackathon_Event_Card_Format.pdf` | Reference PDF for timeline auto-import |
-| `backend.md` | Script and production notes |
+| `backend.md` | API and production notes |
 
 ## Quick start
 
@@ -43,28 +42,43 @@ Classic account flow (scripts): create escrow → deposit → dual-signed releas
 
 ```bash
 npm install
-cd frontend && npm install
+cd web && npm install
 ```
 
 ### 2. Configure environment
 
-Create `.env` in the repo root:
+Create `.env` in the repo root (see `.env.example`):
 
 ```env
 STELLAR_HORIZON_URL=https://horizon-testnet.stellar.org
+STELLAR_RPC_URL=https://soroban-testnet.stellar.org
 STELLAR_NETWORK_PASSPHRASE=Test SDF Network ; September 2015
 SPONSOR_SECRET_KEY=
 ORGANIZER_SECRET_KEY=
 SOROBAN_CONTRACT_ID=
-WINNER_STELLAR_ADDRESS=
-RELEASE_AMOUNT_XLM=1
-APPROVE_SPONSOR=0
-APPROVE_ORGANIZER=0
+PORT=3000
 ```
 
-Treat secret keys as sensitive. Scripts default to **Stellar Testnet**.
+Treat secret keys as sensitive. Defaults target **Stellar Testnet**.
 
-### 3. Classic escrow scripts
+### 3. Run (UI + API together)
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000). Escrow actions use same-origin `/api/escrow/*`.
+
+| Route | Role |
+|-------|------|
+| `/` | Landing |
+| `/organizer` | Organizer console (hackathons, winners, payouts, timeline) |
+| `/holder` | Escrow wallet / participant views |
+| `/verifier` | Sponsor approval flows |
+
+Organizer timeline supports PDF upload in **Event Card format** (`Event #`, `TIME / SLOT`, `TITLE`, `DETAILS`) — see `Hackathon_Event_Card_Format.pdf`.
+
+### 4. Classic escrow scripts
 
 ```bash
 npm run create-escrow
@@ -72,7 +86,7 @@ npm run deposit -- --amount=25
 npm run release -- --winner=<STELLAR_G_ADDRESS> --amount=5
 ```
 
-### 4. Agent mode (approval-gated release)
+### 5. Agent mode (approval-gated release)
 
 Set in `.env`:
 
@@ -87,21 +101,6 @@ npm run agent
 ```
 
 If either approval flag is missing, the agent prints status and exits without paying. When both are set, it delegates to `release.ts`.
-
-### 5. Frontend
-
-```bash
-cd frontend && npm run dev
-```
-
-| Route | Role |
-|-------|------|
-| `/` | Landing |
-| `/organizer` | Organizer console (hackathons, winners, payouts, timeline) |
-| `/holder` | Escrow wallet / sponsor & participant views |
-| `/verifier` | Sponsor approval flows |
-
-Organizer timeline supports PDF upload in **Event Card format** (`Event #`, `TIME / SLOT`, `TITLE`, `DETAILS`) — see `Hackathon_Event_Card_Format.pdf`.
 
 ## Soroban contract (Stellar CLI)
 
@@ -139,7 +138,7 @@ stellar contract invoke --id $CONTRACT_ID --source organiser --network testnet -
 - `init` cannot be run twice on the same contract — redeploy if addresses were wrong.
 - `--sponsor` / `--organizer` must match the G-addresses of your CLI keys (`stellar keys address sponsor` / `organiser`).
 - Pass `amount` in payout JSON as a **string**, not a number.
-- After deploy, update `frontend/src/constants/escrow.js` (`ESCROW_APP_ID`) and `SOROBAN_CONTRACT_ID` in `.env` if using scripts.
+- After deploy, update `web/src/client/constants/escrow.ts` (`ESCROW_APP_ID`) and `SOROBAN_CONTRACT_ID` in `.env`.
 
 Save the deployed contract id:
 
