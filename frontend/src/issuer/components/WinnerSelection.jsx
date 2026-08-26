@@ -1,211 +1,378 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
+import Icon from '../../components/Icon'
 import { hackathonBelongsToOrganizerPortal } from '../../utils/organizerPortalFilter'
 import { broadcastHackathonsDatasetChanged } from '../../utils/hackathonSync'
+import { useHackathons } from '../../hooks/useHackathons'
+import { appendIssuerAuditLog } from '../../utils/issuerAuditLog'
+import { formatXlm, prizeCurrency, prizeTotal } from '../../utils/format'
 
 const STORAGE_KEY = 'prize_vault_hackathons'
 
-function getHackathons() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) return JSON.parse(stored)
-  } catch (_) {}
-  return []
-}
-
 const PRIZE_TIERS = [
-  { value: '1st', label: '1st Place' },
-  { value: '2nd', label: '2nd Place' },
-  { value: '3rd', label: '3rd Place' },
-  { value: 'special', label: 'Special Prize' },
+  { value: '1st', label: '1st place' },
+  { value: '2nd', label: '2nd place' },
+  { value: '3rd', label: '3rd place' },
+  { value: 'special', label: 'Special prize' },
 ]
 
+const STELLAR_ADDRESS = /^G[A-Z2-7]{55}$/
+
 export default function WinnerSelection({ hackathonId, sessionWallet, onSave }) {
+  const { hackathons, reload } = useHackathons()
+  const myHackathons = useMemo(
+    () => hackathons.filter((h) => hackathonBelongsToOrganizerPortal(h, sessionWallet)),
+    [hackathons, sessionWallet],
+  )
+
+  // Local selection so the picker actually works. Seeded from the nav param,
+  // then owned by the user -- the original pinned it to the prop forever and
+  // wired onChange to an empty function.
+  const [selectedId, setSelectedId] = useState(hackathonId || null)
+  useEffect(() => {
+    if (hackathonId) setSelectedId(hackathonId)
+  }, [hackathonId])
+
+  const hackathon = useMemo(() => {
+    const wanted = selectedId || myHackathons[0]?.id
+    return hackathons.find((h) => h.id === wanted) || null
+  }, [hackathons, myHackathons, selectedId])
+
+  const participants = hackathon?.participants || []
+  const pool = prizeTotal(hackathon || {})
+  const currency = prizeCurrency(hackathon || {})
+
   const [winners, setWinners] = useState({})
   const [saved, setSaved] = useState(false)
-  const [tick, setTick] = useState(0)
+  const [touched, setTouched] = useState(false)
 
+  // Re-seed from whatever is already stored when the event changes.
   useEffect(() => {
-    const bump = () => setTick((t) => t + 1)
-    window.addEventListener('prize_vault_hackathons_changed', bump)
-    return () => window.removeEventListener('prize_vault_hackathons_changed', bump)
-  }, [])
+    const existing = hackathon?.winners || []
+    const seeded = {}
+    for (const w of existing) {
+      if (!w?.id) continue
+      seeded[w.id] = {
+        prizeTier: w.prizeTier || '',
+        payoutAddress: w.payoutAddress || '',
+        prizeAmount: w.prizeAmount ?? '',
+      }
+    }
+    setWinners(seeded)
+    setSaved(false)
+    setTouched(false)
+  }, [hackathon?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const hackathons = useMemo(() => getHackathons(), [tick])
-  const myHackathons = hackathons.filter((h) =>
-    hackathonBelongsToOrganizerPortal(h, sessionWallet),
-  )
-  const hackathon = hackathonId
-    ? hackathons.find((h) => h.id === hackathonId)
-    : myHackathons[0]
-  const participants = hackathon?.participants || []
-
-  const handleToggleWinner = (id, checked) => {
-    if (!checked) {
-      setWinners((prev) => {
+  const toggleWinner = (id, checked) => {
+    setTouched(true)
+    setSaved(false)
+    setWinners((prev) => {
+      if (!checked) {
         const next = { ...prev }
         delete next[id]
         return next
-      })
-      return
-    }
-    const participant = participants.find((x) => x.id === id)
-    const existingPayoutAddress = participant?.payoutAddress || ''
-    setWinners((prev) => ({
-      ...prev,
-      [id]: prev[id] || {
-        prizeTier: '',
-        payoutAddress: existingPayoutAddress,
-        prizeAmount: 0,
-      },
-    }))
+      }
+      const participant = participants.find((x) => x.id === id)
+      return {
+        ...prev,
+        [id]: prev[id] || {
+          prizeTier: '',
+          payoutAddress: participant?.payoutAddress || '',
+          prizeAmount: '',
+        },
+      }
+    })
   }
 
-  const handleUpdateWinner = (id, field, value) => {
-    setWinners((prev) => ({
-      ...prev,
-      [id]: {
-        ...(prev[id] || {}),
-        [field]: value,
-      },
-    }))
+  const updateWinner = (id, field, value) => {
+    setTouched(true)
+    setSaved(false)
+    setWinners((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), [field]: value } }))
   }
+
+  const selectedIds = Object.keys(winners)
+  const allocated = selectedIds.reduce((sum, id) => sum + (Number(winners[id]?.prizeAmount) || 0), 0)
+  const overAllocated = pool > 0 && allocated > pool
+
+  const errors = useMemo(() => {
+    const list = []
+    for (const id of selectedIds) {
+      const w = winners[id]
+      const name = participants.find((p) => p.id === id)?.name || 'Winner'
+      if (!w.prizeTier) list.push(`${name}: choose a prize tier.`)
+      if (!STELLAR_ADDRESS.test(String(w.payoutAddress || '').trim())) {
+        list.push(`${name}: payout address must be a valid Stellar public key (G...).`)
+      }
+      if (!(Number(w.prizeAmount) > 0)) list.push(`${name}: prize amount must be greater than 0.`)
+    }
+    if (overAllocated) {
+      list.push(
+        `Allocated ${formatXlm(allocated)} ${currency} exceeds the ${formatXlm(pool)} ${currency} prize pool.`,
+      )
+    }
+    return list
+  }, [selectedIds, winners, participants, overAllocated, allocated, pool, currency])
+
+  const canSave = selectedIds.length > 0 && errors.length === 0
 
   const handleSave = () => {
-    const winnerList = Object.entries(winners).map(([participantId, data]) => {
+    setTouched(true)
+    if (!canSave || !hackathon) return
+
+    const winnerList = selectedIds.map((participantId) => {
       const p = participants.find((x) => x.id === participantId)
+      const data = winners[participantId]
       return {
         id: participantId,
         name: p?.name,
         team: p?.team,
         prizeTier: data.prizeTier,
-        payoutAddress: data.payoutAddress,
+        payoutAddress: String(data.payoutAddress).trim(),
         prizeAmount: Number(data.prizeAmount) || 0,
       }
     })
 
     try {
-      const stored = getHackathons()
+      const raw = localStorage.getItem(STORAGE_KEY)
+      const stored = raw ? JSON.parse(raw) : []
       const updated = stored.map((h) =>
-        h.id === hackathon?.id
-          ? { ...h, winners: winnerList, winnersSelected: winnerList.length > 0 }
-          : h
+        h.id === hackathon.id
+          ? {
+              ...h,
+              winners: winnerList,
+              winnersSelected: winnerList.length > 0,
+              participants: (h.participants || []).map((p) =>
+                winnerList.some((w) => w.id === p.id) ? { ...p, status: 'winner' } : p,
+              ),
+            }
+          : h,
       )
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
       window.dispatchEvent(new CustomEvent('prize_vault_hackathons_changed'))
       broadcastHackathonsDatasetChanged()
+      appendIssuerAuditLog({
+        action: 'select_winners',
+        hackathonId: hackathon.id,
+        details: `Selected ${winnerList.length} winner(s) for ${hackathon.name}, allocating ${formatXlm(allocated)} ${currency}.`,
+        wallet: sessionWallet,
+      })
+      reload()
       setSaved(true)
-      onSave?.()
-    } catch (_) {}
+      onSave?.(hackathon.id)
+    } catch (_) {
+      // Storage failures surface through the unchanged UI state.
+    }
+  }
+
+  if (myHackathons.length === 0) {
+    return (
+      <div className="pv-card">
+        <div className="pv-empty">
+          <span className="pv-empty__icon">
+            <Icon name="trophy" size={20} />
+          </span>
+          <h3 className="pv-empty__title">No hackathons to judge</h3>
+          <p className="pv-empty__text">Create an event and register participants first.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="winner-selection">
-      <div className="table-header">
-        <h2>Select Winners</h2>
-        {hackathon && <span className="muted">{hackathon.name}</span>}
+    <div className="pv-stack pv-stack--lg">
+      <div className="pv-card">
+        <div className="pv-card__header">
+          <div>
+            <h3 className="pv-card__title">{hackathon?.name || 'Select an event'}</h3>
+            <p className="pv-card__subtitle">
+              Prize pool {formatXlm(pool)} {currency} &middot; {participants.length} participant
+              {participants.length === 1 ? '' : 's'}
+            </p>
+          </div>
+          {myHackathons.length > 1 ? (
+            <div className="pv-card__actions">
+              <label className="pv-field" style={{ minWidth: 220 }}>
+                <span className="pv-sr-only">Choose hackathon</span>
+                <select
+                  className="pv-select"
+                  value={hackathon?.id || ''}
+                  onChange={(e) => setSelectedId(e.target.value)}
+                >
+                  {myHackathons.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          ) : null}
+        </div>
+
+        {participants.length === 0 ? (
+          <div className="pv-empty">
+            <span className="pv-empty__icon">
+              <Icon name="users" size={20} />
+            </span>
+            <h4 className="pv-empty__title">No participants yet</h4>
+            <p className="pv-empty__text">
+              Participants appear here once they register from the escrow wallet.
+            </p>
+          </div>
+        ) : (
+          <div className="pv-card__body pv-card__body--flush">
+            <div className="pv-table-wrap">
+              <table className="pv-table">
+                <thead>
+                  <tr>
+                    <th scope="col" style={{ width: 44 }}>
+                      <span className="pv-sr-only">Winner</span>
+                    </th>
+                    <th scope="col">Participant</th>
+                    <th scope="col">Project</th>
+                    <th scope="col" style={{ minWidth: 150 }}>
+                      Prize tier
+                    </th>
+                    <th scope="col" style={{ minWidth: 220 }}>
+                      Payout address
+                    </th>
+                    <th scope="col" className="pv-table__num" style={{ minWidth: 130 }}>
+                      Prize ({currency})
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {participants.map((p) => {
+                    const win = winners[p.id]
+                    const addrInvalid =
+                      touched && win && !STELLAR_ADDRESS.test(String(win.payoutAddress || '').trim())
+                    return (
+                      <tr key={p.id}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={!!win}
+                            onChange={(e) => toggleWinner(p.id, e.target.checked)}
+                            aria-label={`Mark ${p.name} as a winner`}
+                          />
+                        </td>
+                        <td>
+                          <span className="pv-table__primary">{p.name}</span>
+                          {p.team ? <span className="pv-table__sub">{p.team}</span> : null}
+                        </td>
+                        <td>{p.project || <span className="pv-dim">--</span>}</td>
+                        <td>
+                          {win ? (
+                            <select
+                              className="pv-select"
+                              value={win.prizeTier || ''}
+                              onChange={(e) => updateWinner(p.id, 'prizeTier', e.target.value)}
+                              aria-invalid={touched && !win.prizeTier ? 'true' : undefined}
+                              aria-label={`Prize tier for ${p.name}`}
+                            >
+                              <option value="">Select tier</option>
+                              {PRIZE_TIERS.map((t) => (
+                                <option key={t.value} value={t.value}>
+                                  {t.label}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="pv-dim">--</span>
+                          )}
+                        </td>
+                        <td>
+                          {win ? (
+                            <input
+                              type="text"
+                              className="pv-input pv-input--mono"
+                              placeholder="G..."
+                              spellCheck={false}
+                              value={win.payoutAddress || ''}
+                              onChange={(e) => updateWinner(p.id, 'payoutAddress', e.target.value)}
+                              aria-invalid={addrInvalid ? 'true' : undefined}
+                              aria-label={`Payout address for ${p.name}`}
+                            />
+                          ) : (
+                            <span className="pv-dim">--</span>
+                          )}
+                        </td>
+                        <td className="pv-table__num">
+                          {win ? (
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              className="pv-input"
+                              style={{ textAlign: 'right' }}
+                              placeholder="0"
+                              value={win.prizeAmount}
+                              onChange={(e) => updateWinner(p.id, 'prizeAmount', e.target.value)}
+                              aria-invalid={
+                                touched && !(Number(win.prizeAmount) > 0) ? 'true' : undefined
+                              }
+                              aria-label={`Prize amount for ${p.name}`}
+                            />
+                          ) : (
+                            <span className="pv-dim">--</span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {participants.length > 0 ? (
+          <div className="pv-card__footer" style={{ justifyContent: 'space-between' }}>
+            <div className="pv-row pv-row--sm">
+              <span className="pv-muted">
+                {selectedIds.length} winner{selectedIds.length === 1 ? '' : 's'} &middot; allocated{' '}
+                <strong className={overAllocated ? '' : 'pv-tnum'}
+                  style={overAllocated ? { color: 'var(--pv-danger-text)' } : undefined}
+                >
+                  {formatXlm(allocated)} {currency}
+                </strong>
+                {pool > 0 ? ` of ${formatXlm(pool)} ${currency}` : ''}
+              </span>
+              {saved ? (
+                <span className="pv-badge pv-badge--success">
+                  <Icon name="check" size={12} />
+                  Saved
+                </span>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              className="pv-btn pv-btn--primary"
+              onClick={handleSave}
+              disabled={selectedIds.length === 0}
+            >
+              Save winners
+            </button>
+          </div>
+        ) : null}
       </div>
 
-      {myHackathons.length > 1 && !hackathonId && (
-        <select
-          className="filter-select"
-          value={hackathon?.id || ''}
-          onChange={() => {}}
-        >
-          {myHackathons.map((h) => (
-            <option key={h.id} value={h.id}>
-              {h.name}
-            </option>
-          ))}
-        </select>
-      )}
-
-      <div className="table-wrapper">
-        <table className="student-table">
-          <thead>
-            <tr>
-              <th>Select</th>
-              <th>Name / Team</th>
-              <th>Project</th>
-              <th>Prize Tier</th>
-              <th>Payout Address</th>
-              <th>Prize (XLM)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {participants.map((p) => (
-              <tr key={p.id}>
-                <td>
-                  <input
-                    type="checkbox"
-                    checked={!!winners[p.id]}
-                    onChange={(e) => handleToggleWinner(p.id, e.target.checked)}
-                  />
-                </td>
-                <td>
-                  <strong>{p.name}</strong>
-                  {p.team && <div className="muted">{p.team}</div>}
-                </td>
-                <td>{p.project || '-'}</td>
-                <td>
-                  {winners[p.id] && (
-                    <select
-                      value={winners[p.id]?.prizeTier || ''}
-                      onChange={(e) =>
-                        handleUpdateWinner(p.id, 'prizeTier', e.target.value)
-                      }
-                    >
-                      <option value="">Select</option>
-                      {PRIZE_TIERS.map((t) => (
-                        <option key={t.value} value={t.value}>
-                          {t.label}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </td>
-                <td>
-                  {winners[p.id] && (
-                    <input
-                      type="text"
-                      placeholder="Stellar address (G...)"
-                      value={winners[p.id]?.payoutAddress || ''}
-                      onChange={(e) =>
-                        handleUpdateWinner(p.id, 'payoutAddress', e.target.value)
-                      }
-                      className="input-inline"
-                    />
-                  )}
-                </td>
-                <td>
-                  {winners[p.id] && (
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      value={winners[p.id]?.prizeAmount || ''}
-                      onChange={(e) =>
-                        handleUpdateWinner(
-                          p.id,
-                          'prizeAmount',
-                          e.target.value
-                        )
-                      }
-                      className="input-inline input-number"
-                    />
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="winner-actions">
-        <button type="button" className="btn-primary" onClick={handleSave}>
-          Save Winners
-        </button>
-        {saved && <span className="success-message">Winners saved</span>}
-      </div>
+      {touched && errors.length > 0 ? (
+        <div className="pv-alert pv-alert--danger" role="alert" aria-live="polite">
+          <span className="pv-alert__icon">
+            <Icon name="alert" size={16} />
+          </span>
+          <div className="pv-alert__content">
+            <p className="pv-alert__title">
+              Fix {errors.length} issue{errors.length === 1 ? '' : 's'} before saving
+            </p>
+            <ul className="pv-alert__text" style={{ paddingLeft: '1.1em', listStyle: 'disc' }}>
+              {errors.map((e) => (
+                <li key={e}>{e}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

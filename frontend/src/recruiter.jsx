@@ -12,6 +12,7 @@ import {
 } from '@stellar/stellar-sdk'
 import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from './constants/escrow'
 import SharedHeader from './components/SharedHeader'
+import Icon from './components/Icon'
 import {
   clearActiveSession,
   getActiveSession,
@@ -24,25 +25,21 @@ import {
   broadcastHackathonsDatasetChanged,
   subscribeHackathonsDatasetChanged,
 } from './utils/hackathonSync'
-import '../styles.css'
-import './index.css'
-import './recruiter.css'
+import EscrowOverviewPanel from './recruiter/views/EscrowOverviewPanel'
+import FundingPanel from './recruiter/views/FundingPanel'
+import ReleaseApprovalsPanel from './recruiter/views/ReleaseApprovalsPanel'
+import BudgetSummaryPanel from './recruiter/views/BudgetSummaryPanel'
+import ActivityHistoryPanel from './recruiter/views/ActivityHistoryPanel'
+import SponsorProfilePanel from './recruiter/views/SponsorProfilePanel'
+import './styles/index.css'
 
 const HACKATHON_STORAGE_KEY = 'prize_vault_hackathons'
 const HORIZON_URL = 'https://horizon-testnet.stellar.org'
 const STELLAR_SERVER = new Horizon.Server(HORIZON_URL)
+
 function toStellarAmount(value) {
   const fixed = Number(value).toFixed(7)
   return fixed.replace(/\.?0+$/, '')
-}
-
-function formatXlm(value) {
-  const num = Number(value || 0)
-  if (!Number.isFinite(num)) return '0'
-  return new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(num)
 }
 
 function getHackathonsFromStorage() {
@@ -62,328 +59,7 @@ function saveHackathonsToStorage(hackathons) {
   } catch (_) {}
 }
 
-function EscrowOverviewPanel({ escrows, selectedEscrowId, onSelectEscrow }) {
-  return (
-    <section className="recruiter-card">
-      <div className="card-header">
-        <div>
-          <h3>Prize escrows</h3>
-          <p className="muted">All hackathon prize pools this sponsor is funding on Stellar.</p>
-        </div>
-      </div>
-      <div className="status-grid">
-        {escrows.map((escrow) => (
-          <button
-            key={escrow.id}
-            type="button"
-            className={`status-tile${
-              selectedEscrowId === escrow.id ? ' status-tile--active' : ''
-            }`}
-            onClick={() => onSelectEscrow(escrow.id)}
-          >
-            <div className="label">{escrow.status}</div>
-            <div style={{ fontWeight: 600 }}>{escrow.name}</div>
-            <p className="muted" style={{ marginTop: 4, fontSize: '0.8rem' }}>
-              {escrow.escrowAddress.slice(0, 6)}…{escrow.escrowAddress.slice(-4)}
-            </p>
-          </button>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function FundingPanel({
-  selectedEscrow,
-  onFund,
-  fundingDestinationAddress,
-  displaySenderAddress,
-  onSyncOnChain,
-  isFunding,
-  fundingError,
-}) {
-  const [amount, setAmount] = useState('')
-
-  if (!selectedEscrow) {
-    return (
-      <section className="recruiter-card">
-        <div className="card-header">
-          <div>
-            <h3>Fund prize pool</h3>
-            <p className="muted">Select an escrow on the left to fund its prize.</p>
-          </div>
-        </div>
-      </section>
-    )
-  }
-
-  return (
-    <section className="recruiter-card">
-      <div className="card-header">
-        <div>
-          <h3>Fund prize pool</h3>
-          <p className="muted">
-            Send XLM from your sponsor wallet into the organizer prize custody account for{' '}
-            <strong>{selectedEscrow.name}</strong>.
-          </p>
-        </div>
-      </div>
-      <p className="muted">
-        Current balance:{' '}
-        <strong>{selectedEscrow.balanceAlgo} XLM</strong>
-      </p>
-      <div
-        className="muted"
-        style={{ marginTop: 8, fontSize: '0.85rem', display: 'flex', gap: 8, alignItems: 'center' }}
-      >
-        <span>
-          Organizer prize custody:{' '}
-          <code>
-            {fundingDestinationAddress.slice(0, 8)}…
-            {fundingDestinationAddress.slice(-6)}
-          </code>
-        </span>
-        <button
-          type="button"
-          className="button ghost small"
-          style={{ paddingInline: 10 }}
-          onClick={async () => {
-            try {
-              if (navigator.clipboard?.writeText) {
-                await navigator.clipboard.writeText(fundingDestinationAddress)
-              } else {
-                const textarea = document.createElement('textarea')
-                textarea.value = fundingDestinationAddress
-                textarea.style.position = 'fixed'
-                textarea.style.opacity = '0'
-                document.body.appendChild(textarea)
-                textarea.focus()
-                textarea.select()
-                document.execCommand('copy')
-                document.body.removeChild(textarea)
-              }
-            } catch {
-              // eslint-disable-next-line no-alert
-              alert('Unable to copy address, please copy it manually.')
-            }
-          }}
-        >
-          Copy
-        </button>
-      </div>
-      <p className="muted" style={{ marginTop: 4, fontSize: '0.8rem' }}>
-        Your wallet (signs the sponsor deposit):{' '}
-        <code>
-          {displaySenderAddress.slice(0, 8)}…
-          {displaySenderAddress.slice(-6)}
-        </code>
-      </p>
-      <button
-        type="button"
-        className="button ghost small"
-        style={{ marginTop: 10 }}
-        onClick={onSyncOnChain}
-      >
-        Sync balances from chain
-      </button>
-      <form
-        className="issuer-form"
-        style={{ marginTop: 16 }}
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (isFunding) return
-          if (!amount) return
-          onFund({
-            escrowId: selectedEscrow.id,
-            amount,
-          })
-          setAmount('')
-        }}
-      >
-        <input
-          type="number"
-          min="0"
-          step="0.1"
-          placeholder="Amount in XLM"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-        />
-        <button type="submit" className="button primary small">
-          {isFunding ? 'Submitting on testnet...' : 'Fund escrow'}
-        </button>
-      </form>
-      {fundingError && (
-        <p className="muted" style={{ marginTop: 10, color: '#ff9ba5' }}>
-          {fundingError}
-        </p>
-      )}
-    </section>
-  )
-}
-
-function ReleaseApprovalsPanel({ pendingReleases, onApprove, isApproving, approveError }) {
-  return (
-    <section className="recruiter-card">
-      <div className="card-header">
-        <div>
-          <h3>Pending prize releases</h3>
-          <p className="muted">Approve payouts once organizers have selected winners.</p>
-        </div>
-      </div>
-      {pendingReleases.length === 0 ? (
-        <p className="muted">No pending releases. Winners will appear here once proposed.</p>
-      ) : (
-        <ul className="candidate-list">
-          {pendingReleases.map((item) => (
-            <li key={item.id}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <div>
-                  <strong>{item.hackathon}</strong>
-                  <div className="muted" style={{ fontSize: '0.85rem' }}>
-                    Winner:{' '}
-                    {item.winnerAddress && item.winnerAddress !== 'N/A'
-                      ? `${item.winnerAddress.slice(0, 10)}…${item.winnerAddress.slice(-6)}`
-                      : 'Not specified'}
-                  </div>
-                </div>
-                <span className="pill pending">{item.amountLabel}</span>
-              </div>
-              <div className="chip-row">
-                <span className="chip">{item.organizerState || 'Organizer selected winners'}</span>
-                <span className="chip">{item.sponsorState || 'Waiting on sponsor'}</span>
-              </div>
-              <div style={{ marginTop: 10 }}>
-                {item.canApprove ? (
-                  <button
-                    type="button"
-                    className="button primary small"
-                    onClick={() => onApprove(item.id)}
-                    disabled={isApproving}
-                  >
-                    {isApproving ? 'Approving...' : 'Approve release'}
-                  </button>
-                ) : (
-                  <p className="muted" style={{ fontSize: '0.85rem' }}>
-                    Organizer has selected winners. Waiting for organizer to create payout proposal.
-                  </p>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-      {approveError && (
-        <p className="muted" style={{ marginTop: 10, color: '#ff9ba5' }}>
-          {approveError}
-        </p>
-      )}
-    </section>
-  )
-}
-
-function BudgetSummaryPanel({ stats }) {
-  return (
-    <section className="recruiter-card">
-      <div className="card-header">
-        <div>
-          <h3>Budget overview</h3>
-          <p className="muted">How much this sponsor has committed, locked, and released.</p>
-        </div>
-      </div>
-      <div className="status-grid">
-        <div className="status-tile ok">
-          <span className="label">Committed</span>
-          <div style={{ fontWeight: 700, fontSize: '1.25rem', lineHeight: 1.25, wordBreak: 'break-word' }}>
-            {formatXlm(stats.committed)} XLM
-          </div>
-          <p className="muted" style={{ marginTop: 4 }}>
-            Across all active hackathons
-          </p>
-        </div>
-        <div className="status-tile warn">
-          <span className="label">Locked in escrow</span>
-          <div style={{ fontWeight: 700, fontSize: '1.25rem', lineHeight: 1.25, wordBreak: 'break-word' }}>
-            {formatXlm(stats.locked)} XLM
-          </div>
-          <p className="muted" style={{ marginTop: 4 }}>
-            Awaiting winners / approvals
-          </p>
-        </div>
-        <div className="status-tile">
-          <span className="label">Released</span>
-          <div style={{ fontWeight: 700, fontSize: '1.25rem', lineHeight: 1.25, wordBreak: 'break-word' }}>
-            {formatXlm(stats.released)} XLM
-          </div>
-          <p className="muted" style={{ marginTop: 4 }}>
-            Paid out to winners on Stellar
-          </p>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function ActivityHistoryPanel({ activities }) {
-  return (
-    <section className="recruiter-card">
-      <div className="card-header">
-        <div>
-          <h3>Activity history</h3>
-          <p className="muted">Recent funding, approvals, and releases for this sponsor.</p>
-        </div>
-      </div>
-      {activities.length === 0 ? (
-        <p className="muted">No recent activity yet.</p>
-      ) : (
-        <div className="log-list">
-          {activities.map((item) => (
-            <article key={item.id}>
-              <span className="timestamp">{item.timestamp}</span>
-              <div style={{ fontWeight: 600 }}>{item.title}</div>
-              <p className="muted" style={{ marginTop: 4 }}>
-                {item.description}
-              </p>
-            </article>
-          ))}
-        </div>
-      )}
-    </section>
-  )
-}
-
-function SponsorProfilePanel({ sponsorName, defaultWallet }) {
-  return (
-    <section className="recruiter-card">
-      <div className="card-header">
-        <div>
-          <h3>Sponsor profile</h3>
-          <p className="muted">Basic profile and default payout wallet for this sponsor.</p>
-        </div>
-      </div>
-      <ul className="bookmark-list issuer-list">
-        <li>
-          <strong>Organization</strong>
-          <p className="muted">{sponsorName}</p>
-        </li>
-        <li>
-          <strong>Default wallet</strong>
-          <p className="muted">
-            <code>
-              {defaultWallet.slice(0, 10)}…
-              {defaultWallet.slice(-6)}
-            </code>
-          </p>
-        </li>
-        <li>
-          <strong>Network</strong>
-          <p className="muted">Stellar Testnet (configurable in backend)</p>
-        </li>
-      </ul>
-    </section>
-  )
-}
-
-function SponsorDashboard() {
+function SponsorConsole() {
   useEffect(() => {
     resolveSessionWithQrBootstrap()
   }, [])
@@ -395,12 +71,15 @@ function SponsorDashboard() {
   }, [])
 
   const activeSession = getActiveSession()
-  const senderAddress = activeSession?.wallet || 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF'
+  const senderAddress =
+    activeSession?.wallet || 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF'
+
   const handleDisconnect = () => {
     clearActiveSession()
     requireManualConnect()
     window.location.href = '/holder'
   }
+
   const [hackathons, setHackathons] = useState([])
   const [proposals, setProposals] = useState([])
   const [selectedEscrowId, setSelectedEscrowId] = useState(null)
@@ -413,26 +92,21 @@ function SponsorDashboard() {
   const sponsorName = 'Hackathon Sponsor Inc.'
   const defaultWallet = senderAddress
 
+  // savePayoutProposals now announces its own writes, so the 2-second poll the
+  // original ran forever is no longer needed to notice cross-surface approvals.
   useEffect(() => {
     const refresh = () => {
       setHackathons(getHackathonsFromStorage())
       setProposals(getPayoutProposals())
     }
     refresh()
-    const unsub = subscribeHackathonsDatasetChanged(refresh, ['prize_vault_payout_proposals'])
-    const interval = setInterval(refresh, 2000)
-    return () => {
-      unsub()
-      clearInterval(interval)
-    }
+    return subscribeHackathonsDatasetChanged(refresh, ['prize_vault_payout_proposals'])
   }, [])
 
   const escrows = useMemo(
     () =>
       hackathons.map((h) => {
-        const balance = Number(
-          h.onChainBalanceXlm ?? h.sponsorFundingXlm ?? 0
-        )
+        const balance = Number(h.onChainBalanceXlm ?? h.sponsorFundingXlm ?? 0)
         const prizeCustody = (
           h.escrowAddress?.trim() ||
           h.organizerAddress?.trim() ||
@@ -447,7 +121,7 @@ function SponsorDashboard() {
           balanceAlgo: balance,
         }
       }),
-    [hackathons]
+    [hackathons],
   )
 
   useEffect(() => {
@@ -460,57 +134,53 @@ function SponsorDashboard() {
     }
   }, [escrows, selectedEscrowId])
 
-  const pendingReleases = useMemo(
-    () => {
-      const approvals = proposals
-        .filter((p) => p.organizerApproved && !p.sponsorApproved && p.status !== 'executed')
-        .map((p) => ({
-          id: p.id,
-          hackathon: p.hackathonName,
-          winnerAddress: p.winners?.[0]?.payoutAddress || 'N/A',
-          amountLabel: `${(p.winners || []).reduce((sum, w) => sum + Number(w.prizeAmount || 0), 0)} XLM`,
-          organizerState: 'Organizer approved',
-          sponsorState: 'Waiting on sponsor',
-          canApprove: true,
-        }))
+  const pendingReleases = useMemo(() => {
+    const approvals = proposals
+      .filter((p) => p.organizerApproved && !p.sponsorApproved && p.status !== 'executed')
+      .map((p) => ({
+        id: p.id,
+        hackathon: p.hackathonName,
+        winners: p.winners || [],
+        total: (p.winners || []).reduce((sum, w) => sum + Number(w.prizeAmount || 0), 0),
+        organizerState: 'Organizer approved',
+        sponsorState: 'Waiting on you',
+        canApprove: true,
+      }))
 
-      const proposalsByHackathon = new Set(approvals.map((x) => x.hackathon))
-      const selectedWinnersOnly = hackathons
-        .filter((h) => h.winnersSelected && Array.isArray(h.winners) && h.winners.length > 0)
-        .filter((h) => !proposalsByHackathon.has(h.name))
-        .map((h) => ({
-          id: `winner_only_${h.id}`,
-          hackathon: h.name,
-          winnerAddress: h.winners?.[0]?.payoutAddress || 'N/A',
-          amountLabel: `${(h.winners || []).reduce((sum, w) => sum + Number(w.prizeAmount || 0), 0)} XLM`,
-          organizerState: 'Winners selected',
-          sponsorState: 'Proposal pending',
-          canApprove: false,
-        }))
+    const proposalsByHackathon = new Set(approvals.map((x) => x.hackathon))
+    const selectedWinnersOnly = hackathons
+      .filter((h) => h.winnersSelected && Array.isArray(h.winners) && h.winners.length > 0)
+      .filter((h) => !proposalsByHackathon.has(h.name))
+      .map((h) => ({
+        id: `winner_only_${h.id}`,
+        hackathon: h.name,
+        winners: h.winners || [],
+        total: (h.winners || []).reduce((sum, w) => sum + Number(w.prizeAmount || 0), 0),
+        organizerState: 'Winners selected',
+        sponsorState: 'Proposal pending',
+        canApprove: false,
+      }))
 
-      return [...approvals, ...selectedWinnersOnly]
-    },
-    [proposals, hackathons]
-  )
+    return [...approvals, ...selectedWinnersOnly]
+  }, [proposals, hackathons])
 
   const budgetStats = useMemo(() => {
     const committed = escrows.reduce((sum, e) => sum + e.balanceAlgo, 0)
-    const locked = escrows.filter((e) => e.status !== 'Released').reduce((sum, e) => sum + e.balanceAlgo, 0)
+    const locked = escrows
+      .filter((e) => e.status !== 'Released')
+      .reduce((sum, e) => sum + e.balanceAlgo, 0)
     const released = proposals
       .filter((p) => p.status === 'executed')
       .reduce(
         (sum, p) =>
           sum + (p.winners || []).reduce((inner, w) => inner + Number(w.prizeAmount || 0), 0),
-        0
+        0,
       )
-    return {
-      committed,
-      locked,
-      released,
-    }
+    return { committed, locked, released }
   }, [escrows, proposals])
 
   const selectedEscrow = escrows.find((e) => e.id === selectedEscrowId) ?? null
+  const actionableCount = pendingReleases.filter((r) => r.canApprove).length
 
   const syncEscrowOnChainState = async (escrowId) => {
     const hack = hackathons.find((h) => h.id === escrowId)
@@ -526,7 +196,7 @@ function SponsorDashboard() {
       const nativeBalance = account.balances.find((b) => b.asset_type === 'native')
       const onChainBalanceXlm = Number(nativeBalance?.balance || 0)
       const updatedHackathons = hackathons.map((h) =>
-        h.id === escrowId ? { ...h, onChainBalanceXlm } : h
+        h.id === escrowId ? { ...h, onChainBalanceXlm } : h,
       )
       saveHackathonsToStorage(updatedHackathons)
       setHackathons(updatedHackathons)
@@ -580,7 +250,7 @@ function SponsorDashboard() {
             destination: organizerCustody,
             asset: Asset.native(),
             amount: toStellarAmount(numericAmount),
-          })
+          }),
         )
         .setTimeout(120)
         .build()
@@ -607,7 +277,7 @@ function SponsorDashboard() {
                 hackRow.organizerAddress?.trim() || DEFAULT_ORGANIZER_ESCROW_ADDRESS,
               escrowAddress: organizerCustody,
             }
-          : h
+          : h,
       )
       saveHackathonsToStorage(updatedHackathons)
       setHackathons(updatedHackathons)
@@ -617,8 +287,11 @@ function SponsorDashboard() {
         {
           id: `act_fund_${Date.now()}`,
           timestamp: 'Just now',
+          icon: 'send',
+          tone: 'success',
           title: 'Escrow funded on Stellar testnet',
-          description: `Sent ${numericAmount} XLM to ${hackRow.name} (organizer custody). Tx: ${submitResult.hash.slice(0, 12)}…`,
+          description: `Sent ${numericAmount} XLM to ${hackRow.name} (organizer custody).`,
+          txHash: submitResult.hash,
         },
         ...prev,
       ])
@@ -647,7 +320,7 @@ function SponsorDashboard() {
               sponsorApproved: true,
               status: p.organizerApproved ? 'approved' : p.status,
             }
-          : p
+          : p,
       )
       savePayoutProposals(updatedProposals)
       setProposals(updatedProposals)
@@ -655,75 +328,84 @@ function SponsorDashboard() {
         {
           id: `act_approve_${Date.now()}`,
           timestamp: 'Just now',
+          icon: 'checkCircle',
+          tone: 'success',
           title: 'Sponsor approval recorded',
-          description: `Approved payout proposal for ${proposal.hackathonName}. Awaiting organizer execution from escrow wallet.`,
+          description: `Approved the payout for ${proposal.hackathonName}. The organizer can now execute the release.`,
         },
         ...prev,
       ])
     } catch (error) {
       // eslint-disable-next-line no-console
-      console.error('Payout approval/execution failed', error)
-      setApproveError(error instanceof Error ? error.message : 'Payout execution failed.')
+      console.error('Payout approval failed', error)
+      setApproveError(error instanceof Error ? error.message : 'Approval failed.')
     } finally {
       setIsApproving(false)
     }
   }
 
   return (
-    <div className="recruiter-page">
-      <div className="recruiter-backdrop" aria-hidden />
-      <SharedHeader activeTab="recruiter" />
-      <div className="recruiter-sub-header">
-        <div className="recruiter-sub-header-content">
-          <div>
-            <h1>Sponsor Prize Console</h1>
-            <p>
-              Lock hackathon prizes in Stellar escrows and release them only when both organizer and sponsor agree on
-              the winner.
+    <div className="pv-shell pv-app">
+      <a className="pv-skip-link" href="#console">
+        Skip to content
+      </a>
+
+      <SharedHeader activeTab="recruiter" subtitle="Sponsor" />
+
+      <div className="pv-container pv-container--wide" style={{ paddingTop: 'var(--pv-space-8)' }}>
+        <div className="pv-page-header">
+          <div className="pv-page-header__text">
+            <h1 className="pv-page-header__title">Sponsor console</h1>
+            <p className="pv-page-header__desc">
+              Fund prize pools in XLM and co-approve winner payouts. Nothing is released without both
+              your approval and the organizer&apos;s.
             </p>
           </div>
-          <div style={{ marginTop: 12 }}>
-            <button type="button" className="button ghost" onClick={handleDisconnect}>
-              Disconnect Wallet
+          <div className="pv-page-header__actions">
+            {actionableCount > 0 ? (
+              <a href="#approvals" className="pv-btn pv-btn--primary pv-btn--sm">
+                <Icon name="clock" size={14} />
+                {actionableCount} awaiting you
+              </a>
+            ) : null}
+            <button
+              type="button"
+              className="pv-btn pv-btn--secondary pv-btn--sm"
+              onClick={handleDisconnect}
+            >
+              <Icon name="logout" size={14} />
+              Disconnect
             </button>
           </div>
         </div>
       </div>
 
-      <main>
-        <section className="hero">
-          <div className="hero-copy">
-            <span className="hero-eyebrow">Prize funds, trust-first.</span>
-            <h2>Fund once, release only with dual approval across every hackathon you sponsor.</h2>
-            <p>
-              Create and monitor escrow accounts for each event, fund them in XLM, and approve winner payouts in a
-              single atomic group—fully transparent on-chain.
-            </p>
-            <div className="hero-actions">
-              <a href="#workspace" className="button primary">
-                View all escrows
-              </a>
-              <a href="#approvals" className="button ghost">
-                See pending payouts
-              </a>
-            </div>
-          </div>
-          <aside className="hero-panel">
-            <div className="hero-card">
-              <h3>What this console manages</h3>
-              <ul>
-                <li>Smart-contract escrow creation per hackathon</li>
-                <li>Sponsor deposits into escrow (XLM)</li>
-                <li>Organizer + sponsor approval tracking</li>
-                <li>Atomic prize releases to winners</li>
-                <li>Budget and activity history per sponsor</li>
-              </ul>
-            </div>
-          </aside>
-        </section>
+      <main
+        className="pv-container pv-container--wide"
+        id="console"
+        style={{ paddingBottom: 'var(--pv-space-13)' }}
+      >
+        <div className="pv-stack pv-stack--lg">
+          <BudgetSummaryPanel stats={budgetStats} />
 
-        <div className="sponsor-layout-row" id="workspace">
-          <section className="workspace">
+          <section className="pv-section" id="approvals">
+            <ReleaseApprovalsPanel
+              pendingReleases={pendingReleases}
+              onApprove={handleApproveRelease}
+              isApproving={isApproving}
+              approveError={approveError}
+            />
+          </section>
+
+          <div
+            id="workspace"
+            style={{
+              display: 'grid',
+              gap: 'var(--pv-space-7)',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              alignItems: 'start',
+            }}
+          >
             <EscrowOverviewPanel
               escrows={escrows}
               selectedEscrowId={selectedEscrowId}
@@ -740,43 +422,34 @@ function SponsorDashboard() {
               isFunding={isFunding}
               fundingError={fundingError}
             />
-          </section>
+          </div>
 
-          <section className="recruiter-smart-grid" id="approvals">
-            <ReleaseApprovalsPanel
-              pendingReleases={pendingReleases}
-              onApprove={handleApproveRelease}
-              isApproving={isApproving}
-              approveError={approveError}
-            />
-            <BudgetSummaryPanel stats={budgetStats} />
-          </section>
-
-          <section className="ai-grid">
+          <div
+            style={{
+              display: 'grid',
+              gap: 'var(--pv-space-7)',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              alignItems: 'start',
+            }}
+          >
             <ActivityHistoryPanel activities={activities} />
             <SponsorProfilePanel sponsorName={sponsorName} defaultWallet={defaultWallet} />
-          </section>
-        </div>
-
-        <section className="cta">
-          <h2>Ready to sponsor hackathons with on-chain guarantees?</h2>
-          <p>
-            Pair this sponsor console with the organizer portal and Stellar agent scripts to get end‑to‑end transparent
-            prize flows.
-          </p>
-          <div className="cta-actions">
-            <a href="/issuer" className="button primary">
-              View organizer tools
-            </a>
-            <a href="/dashboard" className="button ghost">
-              Back to overview
-            </a>
           </div>
-        </section>
+        </div>
       </main>
 
-      <footer className="recruiter-footer">
-        <p>Sponsor console blueprint • Stellar hackathon prize escrows.</p>
+      <footer className="pv-footer">
+        <div className="pv-footer__inner">
+          <span>Stellar hackathon prize escrows · sponsor console.</span>
+          <ul className="pv-footer__links">
+            <li>
+              <a href="/issuer">Organizer tools</a>
+            </li>
+            <li>
+              <a href="/">Overview</a>
+            </li>
+          </ul>
+        </div>
       </footer>
     </div>
   )
@@ -784,7 +457,6 @@ function SponsorDashboard() {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <SponsorDashboard />
+    <SponsorConsole />
   </React.StrictMode>,
 )
-

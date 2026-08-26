@@ -1,8 +1,9 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import SharedHeader from '../components/SharedHeader'
+import Icon from '../components/Icon'
 import { detectUserRole } from './utils/roleDetection'
 import { getProfileForWallet, setProfileForWallet } from './utils/userProfileStorage'
-import { UserRole, UserProfile } from '../types/holder'
+import { UserProfile, UserRole } from '../types/holder'
 import {
   clearActiveSession,
   getActiveSession,
@@ -16,16 +17,14 @@ import ProfileForm from './components/ProfileForm'
 const StellarConnectBlock = lazy(() => import('./StellarConnectBlock'))
 const ConnectedHolderView = lazy(() => import('./ConnectedHolderView'))
 
-export type HolderView = 'list' | 'sponsor' | 'participant' | 'organizer'
+export type HolderView = 'list' | 'sponsor' | 'participant' | 'organizer' | 'event'
 
-function HolderHeader() {
+function Loading({ label }: { label: string }) {
   return (
-    <div className="holder-sub-header">
-      <div className="holder-sub-header-content">
-        <div>
-          <h1>Escrow Wallet</h1>
-          <p>Manage hackathon prizes, sponsorships, and participations.</p>
-        </div>
+    <div className="pv-card">
+      <div className="pv-empty">
+        <span className="pv-btn__spinner" style={{ width: 20, height: 20 }} />
+        <p className="pv-empty__text">{label}</p>
       </div>
     </div>
   )
@@ -36,8 +35,11 @@ export default function HolderApp() {
   const [userWallet, setUserWallet] = useState<string | null>(null)
   const [userRole, setUserRole] = useState<UserRole>(null)
   const [activeView, setActiveView] = useState<HolderView>('list')
+  /** Hackathon id carried by navigation, e.g. "View details" on an event card. */
+  const [activeEventId, setActiveEventId] = useState<string | null>(null)
   const [loginStep, setLoginStep] = useState<'profile' | 'connect'>('profile')
   const [pendingProfile, setPendingProfile] = useState<UserProfile | null>(null)
+  const [connectError, setConnectError] = useState('')
 
   useEffect(() => {
     const session = resolveSessionWithQrBootstrap() || getActiveSession()
@@ -60,10 +62,20 @@ export default function HolderApp() {
     }
   }, [])
 
+  // Deep link from the landing page event grid: /holder?event=<id>
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const eventId = params.get('event')
+    if (!eventId) return
+    setActiveEventId(eventId)
+    setActiveView('event')
+    window.history.replaceState({}, '', window.location.pathname + window.location.hash)
+  }, [])
+
   const handleWalletConnect = (address: string) => {
     setUserWallet(address)
     setWalletConnected(true)
-    // Prefer the profile just submitted this session so sponsor choice redirects correctly
+    // Prefer the profile just submitted so a sponsor choice redirects correctly.
     let role: UserRole
     if (pendingProfile) {
       setProfileForWallet(address, pendingProfile)
@@ -89,11 +101,10 @@ export default function HolderApp() {
     }
     if (role === 'organizer') {
       window.location.href = '/issuer'
-      return
     }
   }
 
-  // Route users to their role-specific windows.
+  // Route users to their role-specific consoles.
   useEffect(() => {
     if (!walletConnected || !userRole) return
     if (userRole === 'sponsor') {
@@ -106,12 +117,25 @@ export default function HolderApp() {
   }, [walletConnected, userRole])
 
   const handleWalletError = (error: string) => {
+    // eslint-disable-next-line no-console
     console.error('Stellar wallet connection error:', error)
-    alert(error)
+    setConnectError(error)
   }
 
-  const handleNavigate = (view: string, params?: any) => {
-    if (view === 'sponsor') setActiveView('sponsor')
+  /**
+   * Honour the hackathon id every caller already passes. The original dropped
+   * `params` entirely, so "View details" / "View status" only swapped tabs.
+   */
+  const handleNavigate = (view: string, params?: { hackathonId?: string } | unknown) => {
+    const hackathonId =
+      params && typeof params === 'object' && 'hackathonId' in params
+        ? String((params as { hackathonId?: string }).hackathonId ?? '')
+        : ''
+
+    if (hackathonId) setActiveEventId(hackathonId)
+
+    if (view === 'event') setActiveView('event')
+    else if (view === 'sponsor') setActiveView('sponsor')
     else if (view === 'participant') setActiveView('participant')
     else if (view === 'organizer') setActiveView('organizer')
     else setActiveView('list')
@@ -124,73 +148,122 @@ export default function HolderApp() {
     setUserWallet(null)
     setUserRole(null)
     setActiveView('list')
+    setActiveEventId(null)
     setLoginStep('profile')
     setPendingProfile(null)
+    setConnectError('')
   }
 
-  const connectedContent = walletConnected && userWallet && (
-    <Suspense fallback={<p className="muted">Loading dashboard…</p>}>
-      <ConnectedHolderView
-        userWallet={userWallet}
-        userRole={userRole}
-        activeView={activeView}
-        setActiveView={setActiveView}
-        onDisconnect={handleDisconnect}
-        onNavigate={handleNavigate}
-      />
-    </Suspense>
-  )
-
   return (
-    <div className="holder-wallet">
-      <div className="grid-backdrop" aria-hidden />
-      <SharedHeader activeTab="holder" />
-      <HolderHeader />
-      <main>
-        {/* Step 1: Profile – then Step 2: Connect Stellar wallet */}
-        {!walletConnected && (
-          <section className="wallet-login-section">
-            <div className="wallet-login-container">
-              {loginStep === 'profile' ? (
-                <>
-                  <h2>Enter your details</h2>
-                  <p>Tell us who you are and how you’re participating. Then connect your Stellar wallet.</p>
+    <div className="pv-shell pv-app">
+      <a className="pv-skip-link" href="#wallet">
+        Skip to content
+      </a>
+
+      <SharedHeader activeTab="holder" subtitle="Escrow Wallet" />
+
+      <main className="pv-container pv-container--wide" id="wallet">
+        {!walletConnected ? (
+          <div
+            style={{
+              maxWidth: 520,
+              margin: '0 auto',
+              padding: 'var(--pv-space-12) 0 var(--pv-space-13)',
+            }}
+          >
+            <div className="pv-card pv-card--raised">
+              <div className="pv-card__header">
+                <div>
+                  <h1 className="pv-card__title" style={{ fontSize: 'var(--pv-text-xl)' }}>
+                    {loginStep === 'profile' ? 'Tell us who you are' : 'Connect your wallet'}
+                  </h1>
+                  <p className="pv-card__subtitle">
+                    {loginStep === 'profile'
+                      ? 'Step 1 of 2 — this decides which console you land in.'
+                      : 'Step 2 of 2 — confirm the Stellar account you control.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="pv-card__body">
+                {loginStep === 'profile' ? (
                   <ProfileForm
                     onSubmit={(profile) => {
                       setPendingProfile(profile)
+                      setConnectError('')
                       setLoginStep('connect')
                     }}
                   />
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    className="button ghost"
-                    onClick={() => setLoginStep('profile')}
-                    style={{ marginBottom: 16 }}
-                  >
-                    Back
-                  </button>
-                  <Suspense fallback={<p className="muted">Loading connection…</p>}>
-                    <StellarConnectBlock
-                      onConnect={handleWalletConnect}
-                      onError={handleWalletError}
-                      desiredRole={pendingProfile?.role || null}
-                    />
-                  </Suspense>
-                </>
-              )}
-            </div>
-          </section>
-        )}
+                ) : (
+                  <div className="pv-stack pv-stack--lg">
+                    <button
+                      type="button"
+                      className="pv-btn pv-btn--ghost pv-btn--sm"
+                      onClick={() => setLoginStep('profile')}
+                      style={{ alignSelf: 'flex-start' }}
+                    >
+                      <Icon name="chevronRight" size={14} style={{ transform: 'rotate(180deg)' }} />
+                      Back to details
+                    </button>
 
-        {/* Connected State - HolderProvider only mounts after connect */}
-        {connectedContent}
+                    {connectError ? (
+                      <div className="pv-alert pv-alert--danger" role="alert">
+                        <span className="pv-alert__icon">
+                          <Icon name="alert" size={16} />
+                        </span>
+                        <div className="pv-alert__content">
+                          <p className="pv-alert__text">{connectError}</p>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <Suspense fallback={<Loading label="Loading wallet connection..." />}>
+                      <StellarConnectBlock
+                        onConnect={handleWalletConnect}
+                        onError={handleWalletError}
+                        desiredRole={pendingProfile?.role || null}
+                      />
+                    </Suspense>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <p
+              className="pv-muted"
+              style={{
+                textAlign: 'center',
+                marginTop: 'var(--pv-space-8)',
+                fontSize: 'var(--pv-text-sm)',
+              }}
+            >
+              Prizes are held in a 2-of-2 escrow. Neither sponsor nor organizer can move funds alone.
+            </p>
+          </div>
+        ) : (
+          userWallet && (
+            <div style={{ padding: 'var(--pv-space-8) 0 var(--pv-space-13)' }}>
+              <Suspense fallback={<Loading label="Loading your dashboard..." />}>
+                <ConnectedHolderView
+                  userWallet={userWallet}
+                  userRole={userRole}
+                  activeView={activeView}
+                  activeEventId={activeEventId}
+                  setActiveView={setActiveView}
+                  onDisconnect={handleDisconnect}
+                  onNavigate={handleNavigate}
+                />
+              </Suspense>
+            </div>
+          )
+        )}
       </main>
-      <footer className="hw-footer">
-        <p>Hackathon prize escrow powered by Stellar smart contracts.</p>
-        <p className="footer-meta">2-of-2 approvals · Atomic payouts · Transparent audit trail</p>
+
+      <footer className="pv-footer">
+        <div className="pv-footer__inner">
+          <span>Hackathon prize escrow powered by Stellar smart contracts.</span>
+          <span className="pv-dim">2-of-2 approvals · Atomic payouts · Transparent audit trail</span>
+        </div>
       </footer>
     </div>
   )

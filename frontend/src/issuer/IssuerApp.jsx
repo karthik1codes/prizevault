@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../constants/escrow'
 import { hackathonBelongsToOrganizerPortal } from '../utils/organizerPortalFilter'
-import {
-  clearActiveSession,
-  getActiveSession,
-  hasRequiredRole,
-  requireManualConnect,
-} from '../utils/authSession'
+import { clearActiveSession, hasRequiredRole, requireManualConnect } from '../utils/authSession'
 import { resolveSessionWithQrBootstrap } from '../utils/qrSession'
+import { prizeTotal } from '../utils/format'
+import { useHackathons } from '../hooks/useHackathons'
+import { broadcastHackathonsDatasetChanged } from '../utils/hackathonSync'
+import { getIssuerAuditLogs } from '../utils/issuerAuditLog'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import OrganizerDashboard from './components/OrganizerDashboard'
@@ -19,107 +18,95 @@ import CreateHackathonForm from './components/CreateHackathonForm'
 import AuditLogPage from './components/AuditLogPage'
 import TwoFASetup from './components/TwoFASetup'
 import Timeline from './components/Timeline'
-import { getIssuerAuditLogs } from '../utils/issuerAuditLog'
-import { broadcastHackathonsDatasetChanged } from '../utils/hackathonSync'
-import './issuerApp.css'
 
 const HACKATHON_STORAGE_KEY = 'prize_vault_hackathons'
 
-function getHackathons() {
-  try {
-    const stored = localStorage.getItem(HACKATHON_STORAGE_KEY)
-    if (stored) return JSON.parse(stored)
-  } catch (_) {}
-  return []
-}
-
+/**
+ * One-time normalisation of the stored dataset. Must run in an effect, not in
+ * the render body -- it writes localStorage and posts to a BroadcastChannel, so
+ * calling it per render clobbered concurrent writes from other tabs.
+ */
 function initHackathonData() {
   try {
     const existing = localStorage.getItem(HACKATHON_STORAGE_KEY)
     if (!existing) {
       localStorage.setItem(HACKATHON_STORAGE_KEY, JSON.stringify([]))
       broadcastHackathonsDatasetChanged()
-    } else {
-      const parsed = JSON.parse(existing)
-      const fixed = parsed.map((h) => ({
+      return
+    }
+    const parsed = JSON.parse(existing)
+    if (!Array.isArray(parsed)) return
+
+    const fixed = parsed
+      .map((h) => ({
         ...h,
         participants: h.participants || [],
         participantCount: h.participants?.length || 0,
-      })).filter((h) => !(h.id === 'hack_001' && h.name === "RIFT '26"))
+      }))
+      .filter((h) => !(h.id === 'hack_001' && h.name === "RIFT '26"))
+
+    // Only write when something actually changed, so a mount is not a mutation.
+    if (JSON.stringify(fixed) !== existing) {
       localStorage.setItem(HACKATHON_STORAGE_KEY, JSON.stringify(fixed))
       broadcastHackathonsDatasetChanged()
     }
-  } catch (_) {}
+  } catch (_) {
+    // Corrupt storage must not block the console from loading.
+  }
+}
+
+const VIEW_META = {
+  dashboard: { title: 'Dashboard', desc: 'Everything that needs your attention right now.' },
+  hackathons: { title: 'My Hackathons', desc: 'Every event you organize.' },
+  participants: { title: 'Participants', desc: 'Registrations, shortlists and payout addresses.' },
+  timeline: { title: 'Event Timeline', desc: 'Schedule for a hackathon. Import from a PDF event card or edit by hand.' },
+  winners: { title: 'Select Winners', desc: 'Assign prize tiers and amounts before proposing a payout.' },
+  payouts: { title: 'Payout Proposals', desc: 'Propose, track sponsor approval, and execute releases on Stellar.' },
+  audit: { title: 'Audit Logs', desc: 'Every organizer action, exportable as CSV.' },
+  settings: { title: 'Settings', desc: 'Two-factor authentication for this console.' },
+  'create-hackathon': { title: 'Create Hackathon', desc: 'Set up a new event and its prize pool.' },
 }
 
 export default function IssuerApp() {
+  // Session must live in state: resolveSessionWithQrBootstrap() writes it during
+  // the first effect, and children need to re-render once the real wallet lands.
+  const [session, setSession] = useState(null)
+  const [sessionReady, setSessionReady] = useState(false)
+
   useEffect(() => {
-    resolveSessionWithQrBootstrap()
+    initHackathonData()
+    setSession(resolveSessionWithQrBootstrap())
+    setSessionReady(true)
   }, [])
 
   useEffect(() => {
+    if (!sessionReady) return
     if (!hasRequiredRole('organizer')) {
       window.location.href = '/holder'
     }
-  }, [])
+  }, [sessionReady])
 
-  initHackathonData()
   const [activeView, setActiveView] = useState('dashboard')
   const [navigateParam, setNavigateParam] = useState(null)
-
-  const organizerName = 'Organizer'
-  const session = getActiveSession()
-  /** Connected Stellar account (may differ from canonical organizer); used for portal filters. */
-  const sessionWallet = session?.wallet ?? null
-  /** Always show the organizer G-address in the header (not the sponsor session wallet). */
-  const organizerDisplayAddress = DEFAULT_ORGANIZER_ESCROW_ADDRESS
-
-  const handleDisconnect = () => {
-    clearActiveSession()
-    requireManualConnect()
-    window.location.href = '/holder'
-  }
-
-  const hackathons = getHackathons()
-  const myHackathons = hackathons.filter((h) =>
-    hackathonBelongsToOrganizerPortal(h, sessionWallet),
-  )
-  const totalParticipants = myHackathons.reduce((sum, h) => sum + (h.participants?.length || 0), 0)
-  const pendingPayouts = myHackathons.filter((h) => h.winnersSelected && !h.payoutProposed).length
-
-  const [stats, setStats] = useState({
-    hackathons: myHackathons.length,
-    participants: totalParticipants,
-    pendingPayouts,
-  })
-
   const [auditLogs, setAuditLogs] = useState([])
 
-  useEffect(() => {
-    const recompute = () => {
-      const hackathonsData = getHackathons()
-      const myH = hackathonsData.filter((h) =>
-        hackathonBelongsToOrganizerPortal(h, sessionWallet),
-      )
-      const parts = myH.reduce((sum, h) => sum + (h.participants?.length || 0), 0)
-      const pending = myH.filter((h) => h.winnersSelected && !h.payoutProposed).length
-      setStats({
-        hackathons: myH.length,
-        participants: parts,
-        pendingPayouts: pending,
-      })
-    }
-    recompute()
-    window.addEventListener('prize_vault_hackathons_changed', recompute)
-    const onStorage = (e) => {
-      if (e.key === HACKATHON_STORAGE_KEY || e.key === null) recompute()
-    }
-    window.addEventListener('storage', onStorage)
-    return () => {
-      window.removeEventListener('prize_vault_hackathons_changed', recompute)
-      window.removeEventListener('storage', onStorage)
-    }
-  }, [sessionWallet])
+  const sessionWallet = session?.wallet ?? null
+  /** Always show the canonical organizer G-address, not the session wallet. */
+  const organizerDisplayAddress = DEFAULT_ORGANIZER_ESCROW_ADDRESS
+
+  const { hackathons: myHackathons } = useHackathons((h) =>
+    hackathonBelongsToOrganizerPortal(h, sessionWallet),
+  )
+
+  const stats = useMemo(
+    () => ({
+      hackathons: myHackathons.length,
+      participants: myHackathons.reduce((sum, h) => sum + (h.participants?.length || 0), 0),
+      prizeLocked: myHackathons.reduce((sum, h) => sum + prizeTotal(h), 0),
+      pendingPayouts: myHackathons.filter((h) => h.winnersSelected && !h.payoutProposed).length,
+    }),
+    [myHackathons],
+  )
 
   useEffect(() => {
     const refreshLogs = () => setAuditLogs(getIssuerAuditLogs())
@@ -130,18 +117,13 @@ export default function IssuerApp() {
 
   const handleNavigate = (view, param) => {
     setActiveView(view)
-    setNavigateParam(param)
+    setNavigateParam(param ?? null)
   }
 
   const renderView = () => {
     switch (activeView) {
       case 'dashboard':
-        return (
-          <OrganizerDashboard
-            sessionWallet={sessionWallet}
-            onNavigate={handleNavigate}
-          />
-        )
+        return <OrganizerDashboard sessionWallet={sessionWallet} onNavigate={handleNavigate} />
       case 'participants':
         return (
           <ParticipantManager
@@ -155,23 +137,13 @@ export default function IssuerApp() {
           <WinnerSelection
             hackathonId={navigateParam}
             sessionWallet={sessionWallet}
-            onSave={() => handleNavigate('payouts')}
+            onSave={(id) => handleNavigate('payouts', id)}
           />
         )
       case 'payouts':
-        return (
-          <PayoutProposal
-            hackathonId={navigateParam}
-            sessionWallet={sessionWallet}
-          />
-        )
+        return <PayoutProposal hackathonId={navigateParam} sessionWallet={sessionWallet} />
       case 'hackathons':
-        return (
-          <OrganizerHackathonList
-            sessionWallet={sessionWallet}
-            onNavigate={handleNavigate}
-          />
-        )
+        return <OrganizerHackathonList sessionWallet={sessionWallet} onNavigate={handleNavigate} />
       case 'create-hackathon':
         return (
           <CreateHackathonForm
@@ -185,28 +157,49 @@ export default function IssuerApp() {
       case 'audit':
         return <AuditLogPage logs={auditLogs} />
       case 'settings':
-        return (
-          <div className="settings-view">
-            <TwoFASetup />
-          </div>
-        )
+        return <TwoFASetup />
       default:
         return <OrganizerDashboard sessionWallet={sessionWallet} onNavigate={handleNavigate} />
     }
   }
 
+  const meta = VIEW_META[activeView] || VIEW_META.dashboard
+
+  const handleDisconnect = () => {
+    clearActiveSession()
+    requireManualConnect()
+    window.location.href = '/holder'
+  }
+
   return (
-    <div className="organizer-app issuer-app">
-      <div className="grid-backdrop" aria-hidden />
+    <div className="pv-shell pv-app">
+      <a className="pv-skip-link" href="#console">
+        Skip to content
+      </a>
+
       <Header
-        organizerName={organizerName}
+        organizerName="Organizer"
         walletAddress={organizerDisplayAddress}
         stats={stats}
         onDisconnect={handleDisconnect}
       />
-      <div className="organizer-layout issuer-layout">
-        <Sidebar activeView={activeView} onViewChange={(v) => { setActiveView(v); setNavigateParam(null) }} />
-        <main className="organizer-content issuer-content">
+
+      <div className="pv-layout">
+        <Sidebar
+          activeView={activeView}
+          onViewChange={(view) => {
+            setActiveView(view)
+            setNavigateParam(null)
+          }}
+          badges={{ pendingPayouts: stats.pendingPayouts }}
+        />
+        <main className="pv-content" id="console">
+          <div className="pv-page-header">
+            <div className="pv-page-header__text">
+              <h2 className="pv-page-header__title">{meta.title}</h2>
+              <p className="pv-page-header__desc">{meta.desc}</p>
+            </div>
+          </div>
           {renderView()}
         </main>
       </div>

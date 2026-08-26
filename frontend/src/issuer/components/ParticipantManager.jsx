@@ -1,47 +1,37 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
+import Icon from '../../components/Icon'
+import AddressChip from '../../components/AddressChip'
 import { hackathonBelongsToOrganizerPortal } from '../../utils/organizerPortalFilter'
 import { broadcastHackathonsDatasetChanged } from '../../utils/hackathonSync'
+import { useHackathons } from '../../hooks/useHackathons'
+import { formatDate } from '../../utils/format'
 
 const STORAGE_KEY = 'prize_vault_hackathons'
 
-function getHackathons() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) return JSON.parse(stored)
-  } catch (_) {}
-  return []
+const STATUS_BADGE = {
+  registered: { label: 'Registered', className: '' },
+  shortlisted: { label: 'Shortlisted', className: 'pv-badge--accent' },
+  winner: { label: 'Winner', className: 'pv-badge--success' },
 }
 
-function saveHackathons(hackathons) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(hackathons))
-  } catch (_) {}
-}
+const FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'registered', label: 'Registered' },
+  { id: 'shortlisted', label: 'Shortlisted' },
+  { id: 'winner', label: 'Winners' },
+]
 
 export default function ParticipantManager({ hackathonId, sessionWallet, onNavigate }) {
+  const { hackathons, reload } = useHackathons()
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedHackathon, setSelectedHackathon] = useState(hackathonId || null)
-  const [hackathons, setHackathons] = useState([])
+  const [statusFilter, setStatusFilter] = useState('all')
 
-  const refreshData = useCallback(() => {
-    setHackathons(getHackathons())
-  }, [])
-
+  // Seed from the nav param, then let the dropdown own it. The original derived
+  // `hackathonId || selectedHackathon`, so the prop shadowed local state and
+  // changing the dropdown appeared to do nothing.
+  const [selectedId, setSelectedId] = useState(hackathonId || null)
   useEffect(() => {
-    refreshData()
-    const onStorage = (e) => {
-      if (e.key === STORAGE_KEY || e.key === null) refreshData()
-    }
-    window.addEventListener('prize_vault_hackathons_changed', refreshData)
-    window.addEventListener('storage', onStorage)
-    return () => {
-      window.removeEventListener('prize_vault_hackathons_changed', refreshData)
-      window.removeEventListener('storage', onStorage)
-    }
-  }, [refreshData])
-
-  useEffect(() => {
-    if (hackathonId) setSelectedHackathon(hackathonId)
+    if (hackathonId) setSelectedId(hackathonId)
   }, [hackathonId])
 
   const myHackathons = useMemo(
@@ -49,167 +39,225 @@ export default function ParticipantManager({ hackathonId, sessionWallet, onNavig
     [hackathons, sessionWallet],
   )
 
-  const currentHack = hackathonId || selectedHackathon || myHackathons[0]?.id
-
+  const currentId = selectedId || myHackathons[0]?.id || ''
   const currentHackathon = useMemo(
-    () => hackathons.find((x) => x.id === currentHack),
-    [hackathons, currentHack]
+    () => hackathons.find((h) => h.id === currentId) || null,
+    [hackathons, currentId],
+  )
+
+  const all = currentHackathon?.participants || []
+
+  const counts = useMemo(
+    () => ({
+      all: all.length,
+      registered: all.filter((p) => p.status === 'registered').length,
+      shortlisted: all.filter((p) => p.status === 'shortlisted').length,
+      winner: all.filter((p) => p.status === 'winner').length,
+    }),
+    [all],
   )
 
   const participants = useMemo(() => {
-    const list = currentHackathon?.participants || []
-    if (!searchTerm) return list
-    const s = searchTerm.toLowerCase()
-    return list.filter(
-      (p) =>
-        p.name?.toLowerCase().includes(s) ||
-        p.team?.toLowerCase().includes(s) ||
-        p.track?.toLowerCase().includes(s) ||
-        p.project?.toLowerCase().includes(s) ||
-        p.payoutAddress?.toLowerCase().includes(s)
+    let list = all
+    if (statusFilter !== 'all') list = list.filter((p) => p.status === statusFilter)
+    const s = searchTerm.trim().toLowerCase()
+    if (!s) return list
+    return list.filter((p) =>
+      [p.name, p.team, p.track, p.project, p.payoutAddress]
+        .filter(Boolean)
+        .some((field) => String(field).toLowerCase().includes(s)),
     )
-  }, [currentHackathon, searchTerm])
+  }, [all, statusFilter, searchTerm])
 
-  const handleStatusChange = (participantId, newStatus) => {
-    const updated = hackathons.map((h) => {
-      if (h.id !== currentHack) return h
-      return {
-        ...h,
-        participants: (h.participants || []).map((p) =>
-          p.id === participantId ? { ...p, status: newStatus } : p
-        ),
-      }
-    })
-    saveHackathons(updated)
-    window.dispatchEvent(new CustomEvent('prize_vault_hackathons_changed'))
-    broadcastHackathonsDatasetChanged()
-    setHackathons(updated)
+  const setStatus = (participantId, newStatus) => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY)
+      const stored = raw ? JSON.parse(raw) : []
+      const updated = stored.map((h) =>
+        h.id !== currentId
+          ? h
+          : {
+              ...h,
+              participants: (h.participants || []).map((p) =>
+                p.id === participantId ? { ...p, status: newStatus } : p,
+              ),
+            },
+      )
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+      window.dispatchEvent(new CustomEvent('prize_vault_hackathons_changed'))
+      broadcastHackathonsDatasetChanged()
+      reload()
+    } catch (_) {
+      // Leave the UI unchanged if the write fails.
+    }
   }
 
-  const getStatusBadge = (status) => {
-    const map = {
-      registered: { class: 'badge-pending', text: 'Registered' },
-      shortlisted: { class: 'badge-verified', text: 'Shortlisted' },
-      winner: { class: 'badge-issued', text: 'Winner' },
-    }
-    const b = map[status] || map.registered
-    return <span className={`status-badge ${b.class}`}>{b.text}</span>
+  if (myHackathons.length === 0) {
+    return (
+      <div className="pv-card">
+        <div className="pv-empty">
+          <span className="pv-empty__icon">
+            <Icon name="users" size={20} />
+          </span>
+          <h3 className="pv-empty__title">No hackathons yet</h3>
+          <p className="pv-empty__text">Create an event before managing participants.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="participant-manager">
-      <div className="table-header">
-        <h2>Participants</h2>
-        <div className="table-header-actions">
-          {myHackathons.length > 1 && (
-            <select
-              value={currentHack || ''}
-              onChange={(e) => setSelectedHackathon(e.target.value)}
-              className="filter-select"
-            >
-              <option value="">Select hackathon</option>
-              {myHackathons.map((h) => (
-                <option key={h.id} value={h.id}>
-                  {h.name}
-                </option>
-              ))}
-            </select>
-          )}
-          <input
-            type="text"
-            placeholder="Search by name, team, track, or wallet..."
-            className="search-input"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+    <div className="pv-card">
+      <div className="pv-card__header">
+        <div>
+          <h3 className="pv-card__title">{currentHackathon?.name || 'Select an event'}</h3>
+          <p className="pv-card__subtitle">
+            {counts.all} registered &middot; {counts.shortlisted} shortlisted &middot;{' '}
+            {counts.winner} winner{counts.winner === 1 ? '' : 's'}
+          </p>
+        </div>
+        {myHackathons.length > 1 ? (
+          <div className="pv-card__actions">
+            <label style={{ minWidth: 220 }}>
+              <span className="pv-sr-only">Choose hackathon</span>
+              <select
+                className="pv-select"
+                value={currentId}
+                onChange={(e) => setSelectedId(e.target.value)}
+              >
+                {myHackathons.map((h) => (
+                  <option key={h.id} value={h.id}>
+                    {h.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="pv-card__body pv-card__body--tight">
+        <div className="pv-toolbar">
+          <div className="pv-search">
+            <span className="pv-search__icon">
+              <Icon name="search" size={14} />
+            </span>
+            <input
+              type="search"
+              className="pv-input"
+              placeholder="Search name, team, track or wallet"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Search participants"
+            />
+          </div>
+          <div className="pv-segmented" role="group" aria-label="Filter by status">
+            {FILTERS.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                className="pv-segmented__item"
+                aria-pressed={statusFilter === f.id}
+                onClick={() => setStatusFilter(f.id)}
+              >
+                {f.label} <span className="pv-dim">{counts[f.id]}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {currentHackathon && (
-        <div className="participant-summary" style={{ marginBottom: '1rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-          <span className="muted">
-            Total: <strong style={{ color: '#f1f5f9' }}>{currentHackathon.participants?.length || 0}</strong>
+      {participants.length === 0 ? (
+        <div className="pv-empty">
+          <span className="pv-empty__icon">
+            <Icon name="users" size={20} />
           </span>
-          <span className="muted">
-            Registered: <strong style={{ color: '#f59e0b' }}>{(currentHackathon.participants || []).filter((p) => p.status === 'registered').length}</strong>
-          </span>
-          <span className="muted">
-            Shortlisted: <strong style={{ color: '#10b981' }}>{(currentHackathon.participants || []).filter((p) => p.status === 'shortlisted').length}</strong>
-          </span>
-          <span className="muted">
-            Winners: <strong style={{ color: '#3b82f6' }}>{(currentHackathon.participants || []).filter((p) => p.status === 'winner').length}</strong>
-          </span>
+          <h4 className="pv-empty__title">
+            {all.length === 0 ? 'No participants yet' : 'No matches'}
+          </h4>
+          <p className="pv-empty__text">
+            {all.length === 0
+              ? 'Participants appear here once they register from the escrow wallet.'
+              : 'Try a different search term or status filter.'}
+          </p>
+        </div>
+      ) : (
+        <div className="pv-card__body pv-card__body--flush">
+          <div className="pv-table-wrap">
+            <table className="pv-table pv-table--hover">
+              <thead>
+                <tr>
+                  <th scope="col">Participant</th>
+                  <th scope="col">Project</th>
+                  <th scope="col">Track</th>
+                  <th scope="col">Payout address</th>
+                  <th scope="col">Registered</th>
+                  <th scope="col">Status</th>
+                  <th scope="col" className="pv-table__actions">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {participants.map((p) => {
+                  const badge = STATUS_BADGE[p.status] || STATUS_BADGE.registered
+                  return (
+                    <tr key={p.id}>
+                      <td>
+                        <span className="pv-table__primary">{p.name}</span>
+                        {p.team ? <span className="pv-table__sub">{p.team}</span> : null}
+                      </td>
+                      <td>{p.project || <span className="pv-dim">--</span>}</td>
+                      <td>{p.track || <span className="pv-dim">--</span>}</td>
+                      <td>
+                        {p.payoutAddress ? (
+                          <AddressChip address={p.payoutAddress} label="payout address" />
+                        ) : (
+                          <span className="pv-dim">Not provided</span>
+                        )}
+                      </td>
+                      <td>{p.registeredAt ? formatDate(p.registeredAt) : <span className="pv-dim">--</span>}</td>
+                      <td>
+                        <span className={`pv-badge ${badge.className}`.trim()}>{badge.label}</span>
+                      </td>
+                      <td className="pv-table__actions">
+                        {p.status === 'registered' ? (
+                          <button
+                            type="button"
+                            className="pv-btn pv-btn--secondary pv-btn--xs"
+                            onClick={() => setStatus(p.id, 'shortlisted')}
+                          >
+                            Shortlist
+                          </button>
+                        ) : p.status === 'shortlisted' ? (
+                          <span className="pv-btn-group">
+                            <button
+                              type="button"
+                              className="pv-btn pv-btn--soft pv-btn--xs"
+                              onClick={() => onNavigate?.('winners', currentId)}
+                            >
+                              Mark winner
+                            </button>
+                            <button
+                              type="button"
+                              className="pv-btn pv-btn--ghost pv-btn--xs"
+                              onClick={() => setStatus(p.id, 'registered')}
+                            >
+                              Undo
+                            </button>
+                          </span>
+                        ) : (
+                          <span className="pv-dim">--</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
-
-      <div className="table-wrapper">
-        <table className="student-table">
-          <thead>
-            <tr>
-              <th>Name / Team</th>
-              <th>Project</th>
-              <th>Track</th>
-              <th>Wallet Address</th>
-              <th>Registration Date</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {participants.length === 0 ? (
-              <tr>
-                <td colSpan="7" className="empty-row">
-                  {currentHackathon
-                    ? 'No participants registered yet. They will appear here once they register from the Holder Wallet.'
-                    : 'Select a hackathon to view its participants.'}
-                </td>
-              </tr>
-            ) : (
-              participants.map((p) => (
-                <tr key={p.id}>
-                  <td>
-                    <strong>{p.name}</strong>
-                    {p.team && <div className="muted">{p.team}</div>}
-                  </td>
-                  <td>{p.project || '-'}</td>
-                  <td>{p.track || '-'}</td>
-                  <td className="wallet-cell">
-                    {p.payoutAddress && p.payoutAddress.length >= 10
-                      ? <code title={p.payoutAddress} style={{ fontSize: '0.8rem', cursor: 'pointer' }} onClick={() => { navigator.clipboard?.writeText(p.payoutAddress); }}>{p.payoutAddress.slice(0, 8)}…{p.payoutAddress.slice(-6)}</code>
-                      : <span className="muted">-</span>}
-                  </td>
-                  <td>
-                    {p.registeredAt
-                      ? new Date(p.registeredAt).toLocaleDateString()
-                      : '-'}
-                  </td>
-                  <td>{getStatusBadge(p.status)}</td>
-                  <td>
-                    {p.status === 'registered' && (
-                      <button
-                        type="button"
-                        className="btn-small"
-                        onClick={() => handleStatusChange(p.id, 'shortlisted')}
-                      >
-                        Shortlist
-                      </button>
-                    )}
-                    {p.status === 'shortlisted' && (
-                      <button
-                        type="button"
-                        className="btn-small"
-                        onClick={() => onNavigate?.('winners', currentHack)}
-                      >
-                        Mark Winner
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
     </div>
   )
 }

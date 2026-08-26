@@ -1,122 +1,161 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
+import Icon from '../../components/Icon'
+import AddressChip from '../../components/AddressChip'
 import { deleteHackathonById } from '../../holder/utils/roleDetection'
 import { hackathonBelongsToOrganizerPortal } from '../../utils/organizerPortalFilter'
+import { useHackathons } from '../../hooks/useHackathons'
+import {
+  STATUS_META,
+  deriveStatus,
+  eventCover,
+  formatDateRange,
+  formatXlm,
+  participantCount,
+  prizeCurrency,
+  prizeTotal,
+} from '../../utils/format'
 
-const STORAGE_KEY = 'prize_vault_hackathons'
+function HackathonCard({ hackathon, onNavigate }) {
+  const status = deriveStatus(hackathon)
+  const meta = STATUS_META[status]
+  const cover = eventCover(hackathon.name)
 
-function loadHackathons() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    const parsed = stored ? JSON.parse(stored) : []
-    return parsed.filter((h) => !(h.id === 'hack_001' && h.name === "RIFT '26"))
-  } catch (_) {
-    return []
+  const handleDelete = () => {
+    const ok = window.confirm(
+      `Delete hackathon "${hackathon.name}"? This removes it for sponsors and participants and deletes related proposals.`,
+    )
+    if (ok) deleteHackathonById(hackathon.id)
   }
+
+  return (
+    <article className="pv-card pv-card--interactive" style={{ overflow: 'hidden' }}>
+      <div
+        className="pv-event__cover"
+        style={{ background: cover.background, aspectRatio: '16 / 5' }}
+      >
+        <span className="pv-event__cover-initials">{cover.initials}</span>
+        <span className={`pv-badge ${meta.badge} pv-event__cover-badge`.trim()}>
+          {status === 'live' ? <span className="pv-badge__dot pv-badge__dot--pulse" /> : null}
+          {meta.label}
+        </span>
+      </div>
+
+      <div className="pv-card__body pv-card__body--tight">
+        <h3 className="pv-card__title" style={{ marginBottom: 'var(--pv-space-5)' }}>
+          {hackathon.name || 'Untitled event'}
+        </h3>
+
+        <div className="pv-stack pv-stack--sm">
+          <div className="pv-kv-row">
+            <span className="pv-kv-row__key">Dates</span>
+            <span className="pv-kv-row__val">
+              {formatDateRange(hackathon.startDate, hackathon.endDate)}
+            </span>
+          </div>
+          <div className="pv-kv-row">
+            <span className="pv-kv-row__key">Prize pool</span>
+            <span className="pv-kv-row__val pv-tnum">
+              {formatXlm(prizeTotal(hackathon))} {prizeCurrency(hackathon)}
+            </span>
+          </div>
+          <div className="pv-kv-row">
+            <span className="pv-kv-row__key">Registered</span>
+            <span className="pv-kv-row__val pv-tnum">{participantCount(hackathon)}</span>
+          </div>
+          <div className="pv-kv-row">
+            <span className="pv-kv-row__key">Escrow</span>
+            <span className="pv-kv-row__val">
+              {hackathon.escrowAddress ? (
+                <AddressChip address={hackathon.escrowAddress} label="escrow address" />
+              ) : (
+                <span className="pv-dim">Not set</span>
+              )}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="pv-card__footer" style={{ justifyContent: 'space-between' }}>
+        <span className="pv-btn-group">
+          <button
+            type="button"
+            className="pv-btn pv-btn--secondary pv-btn--xs"
+            onClick={() => onNavigate?.('participants', hackathon.id)}
+          >
+            Participants
+          </button>
+          <button
+            type="button"
+            className="pv-btn pv-btn--secondary pv-btn--xs"
+            onClick={() => onNavigate?.('winners', hackathon.id)}
+          >
+            Winners
+          </button>
+          <button
+            type="button"
+            className="pv-btn pv-btn--secondary pv-btn--xs"
+            onClick={() => onNavigate?.('payouts', hackathon.id)}
+          >
+            Payout
+          </button>
+        </span>
+        <button
+          type="button"
+          className="pv-btn pv-btn--ghost pv-btn--xs pv-btn--icon"
+          onClick={handleDelete}
+          aria-label={`Delete ${hackathon.name}`}
+          title="Delete hackathon"
+        >
+          <Icon name="trash" size={13} />
+        </button>
+      </div>
+    </article>
+  )
 }
 
 export default function OrganizerHackathonList({ sessionWallet, onNavigate }) {
-  const [hackathons, setHackathons] = useState(() => loadHackathons())
-
-  useEffect(() => {
-    const refresh = () => setHackathons(loadHackathons())
-    refresh()
-    const onStorage = (e) => {
-      if (e.key === STORAGE_KEY || e.key === null) refresh()
-    }
-    window.addEventListener('prize_vault_hackathons_changed', refresh)
-    window.addEventListener('storage', onStorage)
-    return () => {
-      window.removeEventListener('prize_vault_hackathons_changed', refresh)
-      window.removeEventListener('storage', onStorage)
-    }
-  }, [])
-
-  const myHackathons = hackathons.filter((h) =>
-    hackathonBelongsToOrganizerPortal(h, sessionWallet),
-  )
+  const { hackathons } = useHackathons((h) => hackathonBelongsToOrganizerPortal(h, sessionWallet))
 
   return (
-    <div className="organizer-hackathon-list">
-      <div className="table-header">
-        <h2>My Hackathons</h2>
+    <div className="pv-stack pv-stack--lg">
+      <div className="pv-row pv-row--between">
+        <span className="pv-muted">
+          {hackathons.length} event{hackathons.length === 1 ? '' : 's'}
+        </span>
         <button
           type="button"
-          className="btn-primary"
+          className="pv-btn pv-btn--primary"
           onClick={() => onNavigate?.('create-hackathon')}
         >
-          Create Hackathon
+          <Icon name="plus" size={15} />
+          Create hackathon
         </button>
       </div>
 
-      {myHackathons.length === 0 ? (
-        <p className="muted">No hackathons yet. Create one to get started.</p>
+      {hackathons.length === 0 ? (
+        <div className="pv-card">
+          <div className="pv-empty">
+            <span className="pv-empty__icon">
+              <Icon name="calendar" size={20} />
+            </span>
+            <h3 className="pv-empty__title">No hackathons yet</h3>
+            <p className="pv-empty__text">
+              Create your first event to set a prize pool and start accepting registrations.
+            </p>
+            <button
+              type="button"
+              className="pv-btn pv-btn--primary pv-btn--sm"
+              onClick={() => onNavigate?.('create-hackathon')}
+            >
+              <Icon name="plus" size={14} />
+              Create hackathon
+            </button>
+          </div>
+        </div>
       ) : (
-        <div className="hackathon-cards">
-          {myHackathons.map((h) => (
-            <div key={h.id} className="hackathon-card">
-              <div className="hackathon-card-header">
-                <h4>{h.name}</h4>
-                <span className={`status-badge badge-${h.status}`}>{h.status}</span>
-              </div>
-              <div className="hackathon-card-body">
-                <p>
-                  <strong>Dates:</strong> {h.startDate} – {h.endDate}
-                </p>
-                <p>
-                  <strong>Prize pool:</strong> {h.prizePool?.total || 0} {h.prizePool?.currency || 'XLM'}
-                </p>
-                <p className="escrow-row">
-                  <strong>Escrow:</strong>{' '}
-                  <code className="did-cell-small escrow-address" title={h.escrowAddress}>
-                    {h.escrowAddress && h.escrowAddress.length > 24
-                      ? `${h.escrowAddress.slice(0, 12)}…${h.escrowAddress.slice(-10)}`
-                      : h.escrowAddress}
-                  </code>
-                </p>
-                <p>
-                  <strong>Participants:</strong> {h.participants?.length || 0}
-                </p>
-              </div>
-              <div className="hackathon-card-actions">
-                <button
-                  type="button"
-                  className="btn-small"
-                  onClick={() => onNavigate?.('participants', h.id)}
-                >
-                  Manage Participants
-                </button>
-                <button
-                  type="button"
-                  className="btn-small"
-                  onClick={() => onNavigate?.('winners', h.id)}
-                >
-                  Select Winners
-                </button>
-                <button
-                  type="button"
-                  className="btn-small"
-                  onClick={() => onNavigate?.('payouts', h.id)}
-                >
-                  Create Payout
-                </button>
-                <button
-                  type="button"
-                  className="btn-small btn-danger"
-                  onClick={() => {
-                    if (
-                      !window.confirm(
-                        `Delete hackathon "${h.name}"? This removes it for sponsors and participants and deletes related proposals.`,
-                      )
-                    ) {
-                      return
-                    }
-                    deleteHackathonById(h.id)
-                  }}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
+        <div className="pv-grid pv-grid--cards">
+          {hackathons.map((h) => (
+            <HackathonCard key={h.id} hackathon={h} onNavigate={onNavigate} />
           ))}
         </div>
       )}

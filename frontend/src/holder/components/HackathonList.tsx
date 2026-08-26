@@ -1,244 +1,247 @@
-import React, { useState, useMemo, useEffect } from 'react'
-import { Hackathon, Participant } from '../../types/hackathon'
+import { useMemo, useState } from 'react'
+import Icon from '../../components/Icon'
+import { Hackathon } from '../../types/hackathon'
 import { UserRole } from '../../types/holder'
-import { getHackathonsFromStorage } from '../utils/roleDetection'
-import { getProfileForWallet } from '../utils/userProfileStorage'
+import { useHackathons } from '../../hooks/useHackathons'
+import { isRegistered, registerForHackathon } from '../utils/registration'
 import {
-  broadcastHackathonsDatasetChanged,
-  REGISTERED_HACKATHONS_KEY,
-  subscribeHackathonsDatasetChanged,
-} from '../../utils/hackathonSync'
-
-const REGISTERED_KEY = REGISTERED_HACKATHONS_KEY
+  EventStatus,
+  STATUS_META,
+  deriveStatus,
+  eventCover,
+  formatDateRange,
+  formatRelative,
+  formatXlm,
+  participantCount,
+  prizeCurrency,
+  prizeTotal,
+} from '../../utils/format'
 
 interface HackathonListProps {
   userWallet: string | null
   userRole: UserRole
-  onNavigate?: (view: string, params?: any) => void
+  onNavigate?: (view: string, params?: unknown) => void
 }
 
+const FILTERS: { id: 'all' | EventStatus; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'live', label: 'Live' },
+  { id: 'upcoming', label: 'Upcoming' },
+  { id: 'completed', label: 'Completed' },
+]
+
 export default function HackathonList({ userWallet, userRole, onNavigate }: HackathonListProps) {
-  const [hackathons, setHackathons] = useState<Hackathon[]>([])
-  const [filter, setFilter] = useState<'all' | 'upcoming' | 'live' | 'completed'>('all')
+  const { hackathons, reload } = useHackathons()
+  const [filter, setFilter] = useState<'all' | EventStatus>('all')
   const [registeringId, setRegisteringId] = useState<string | null>(null)
-  const [registeredIds, setRegisteredIds] = useState<string[]>([])
+  const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null)
 
-  const loadLists = () => {
-    setHackathons(getHackathonsFromStorage())
-    try {
-      const reg = localStorage.getItem(REGISTERED_KEY)
-      if (reg) setRegisteredIds(JSON.parse(reg))
-    } catch {
-      // ignore
+  const withStatus = useMemo(
+    () => hackathons.map((h) => ({ hackathon: h, status: deriveStatus(h) })),
+    [hackathons],
+  )
+
+  const counts = useMemo(() => {
+    const base = { all: withStatus.length, live: 0, upcoming: 0, completed: 0 }
+    for (const { status } of withStatus) base[status] += 1
+    return base
+  }, [withStatus])
+
+  const visible = useMemo(
+    () => (filter === 'all' ? withStatus : withStatus.filter((x) => x.status === filter)),
+    [withStatus, filter],
+  )
+
+  const handleRegister = (hackathon: Hackathon) => {
+    setRegisteringId(hackathon.id)
+    setNotice(null)
+    const result = registerForHackathon(hackathon.id, userWallet)
+    if (result.ok) {
+      setNotice({ tone: 'success', text: `Registered for ${hackathon.name}.` })
+      reload()
+    } else {
+      setNotice({ tone: 'danger', text: result.reason })
     }
+    setRegisteringId(null)
   }
 
-  useEffect(() => {
-    loadLists()
-    return subscribeHackathonsDatasetChanged(loadLists)
-  }, [])
-
-  const filteredHackathons = useMemo(() => {
-    if (filter === 'all') return hackathons
-    return hackathons.filter((h) => h.status === filter)
-  }, [hackathons, filter])
-
-  const handleRegister = async (hackathonId: string) => {
-    if (!userWallet) {
-      alert('Please connect your wallet first')
-      return
-    }
-    setRegisteringId(hackathonId)
-    try {
-      const profileName = getProfileForWallet(userWallet)?.name ?? 'You'
-      const newParticipant: Participant = {
-        id: `p_${userWallet.slice(0, 8)}`,
-        name: profileName,
-        registeredAt: new Date().toISOString().split('T')[0],
-        status: 'registered',
-        payoutAddress: userWallet,
-      }
-      const updated = hackathons.map((h) => {
-        if (h.id === hackathonId) {
-          return {
-            ...h,
-            participants: [...(h.participants ?? []), newParticipant],
-            participantCount: (h.participantCount ?? 0) + 1,
-          }
-        }
-        return h
-      })
-      const storageKey = 'prize_vault_hackathons'
-      localStorage.setItem(storageKey, JSON.stringify(updated))
-      window.dispatchEvent(new CustomEvent('prize_vault_hackathons_changed'))
-      broadcastHackathonsDatasetChanged()
-      setHackathons(updated)
-      const newRegistered = [...registeredIds, hackathonId]
-      setRegisteredIds(newRegistered)
-      localStorage.setItem(REGISTERED_KEY, JSON.stringify(newRegistered))
-      alert('Successfully registered for hackathon!')
-    } catch (error) {
-      console.error('Registration failed:', error)
-      alert('Registration failed. Please try again.')
-    } finally {
-      setRegisteringId(null)
-    }
-  }
-
-  const getActionButton = (hackathon: Hackathon) => {
+  const renderAction = (hackathon: Hackathon, status: EventStatus) => {
     if (!userWallet) return null
+    const openDetail = () => onNavigate?.('event', { hackathonId: hackathon.id })
 
-    switch (userRole) {
-      case 'sponsor':
-        if (hackathon.sponsorAddress?.toLowerCase() === userWallet.toLowerCase()) {
-          return (
-            <button
-              type="button"
-              className="btn btn-small"
-              onClick={() => onNavigate?.('sponsor', { hackathonId: hackathon.id })}
-            >
-              View Details
-            </button>
-          )
-        }
+    if (userRole === 'participant') {
+      if (isRegistered(hackathon, userWallet)) {
         return (
-          <button
-            type="button"
-            className="btn btn-small btn-primary"
-            onClick={() => onNavigate?.('sponsor', { hackathonId: hackathon.id })}
-          >
-            Contribute
+          <button type="button" className="pv-btn pv-btn--secondary pv-btn--sm" onClick={openDetail}>
+            View status
           </button>
         )
-      
-      case 'organizer':
-        if (hackathon.organizerAddress?.toLowerCase() === userWallet.toLowerCase()) {
-          return (
-            <button
-              type="button"
-              className="btn btn-small"
-              onClick={() => onNavigate?.('organizer', { hackathonId: hackathon.id })}
-            >
-              Manage
-            </button>
-          )
-        }
-        return null
-      
-      case 'participant': {
-        const isRegistered =
-          hackathon.participants?.some(
-            (p) => p.payoutAddress?.toLowerCase() === userWallet.toLowerCase()
-          ) || registeredIds.includes(hackathon.id)
-        if (isRegistered) {
-          return (
-            <button
-              type="button"
-              className="btn btn-small btn-view-status"
-              onClick={() => onNavigate?.('participant', { hackathonId: hackathon.id })}
-            >
-              View Status
-            </button>
-          )
-        }
-        if (hackathon.status === 'upcoming' || hackathon.status === 'live') {
-          const busy = registeringId === hackathon.id
-          return (
-            <button
-              type="button"
-              className="btn btn-small btn-register"
-              disabled={busy}
-              onClick={() => handleRegister(hackathon.id)}
-            >
-              {busy ? 'Registering…' : 'Register'}
-            </button>
-          )
-        }
-        return null
       }
-      
-      default:
-        return null
+      if (status !== 'completed') {
+        const busy = registeringId === hackathon.id
+        return (
+          <span className="pv-btn-group">
+            <button
+              type="button"
+              className="pv-btn pv-btn--primary pv-btn--sm"
+              disabled={busy}
+              onClick={() => handleRegister(hackathon)}
+            >
+              {busy ? <span className="pv-btn__spinner" /> : null}
+              Register
+            </button>
+            <button type="button" className="pv-btn pv-btn--ghost pv-btn--sm" onClick={openDetail}>
+              Details
+            </button>
+          </span>
+        )
+      }
+      return (
+        <button type="button" className="pv-btn pv-btn--ghost pv-btn--sm" onClick={openDetail}>
+          View results
+        </button>
+      )
     }
+
+    if (userRole === 'sponsor') {
+      const mine = hackathon.sponsorAddress?.toLowerCase() === userWallet.toLowerCase()
+      return (
+        <button
+          type="button"
+          className={`pv-btn pv-btn--sm ${mine ? 'pv-btn--secondary' : 'pv-btn--primary'}`}
+          onClick={() => onNavigate?.('sponsor', { hackathonId: hackathon.id })}
+        >
+          {mine ? 'Manage sponsorship' : 'Contribute'}
+        </button>
+      )
+    }
+
+    if (userRole === 'organizer') {
+      const mine = hackathon.organizerAddress?.toLowerCase() === userWallet.toLowerCase()
+      if (!mine) return null
+      return (
+        <a href="/issuer" className="pv-btn pv-btn--secondary pv-btn--sm">
+          Manage
+        </a>
+      )
+    }
+
+    return (
+      <button type="button" className="pv-btn pv-btn--ghost pv-btn--sm" onClick={openDetail}>
+        Details
+      </button>
+    )
   }
 
   return (
-    <div className="hackathon-list">
-      <div className="dashboard-header">
-        <h1>Upcoming Hackathons</h1>
-        <p className="muted">Discover and participate in hackathons</p>
+    <div className="pv-stack pv-stack--lg">
+      {notice ? (
+        <div className={`pv-alert pv-alert--${notice.tone}`} role="status" aria-live="polite">
+          <span className="pv-alert__icon">
+            <Icon name={notice.tone === 'success' ? 'checkCircle' : 'alert'} size={16} />
+          </span>
+          <div className="pv-alert__content">
+            <p className="pv-alert__text">{notice.text}</p>
+          </div>
+          <button
+            type="button"
+            className="pv-btn pv-btn--ghost pv-btn--xs pv-btn--icon"
+            onClick={() => setNotice(null)}
+            aria-label="Dismiss"
+          >
+            <Icon name="x" size={14} />
+          </button>
+        </div>
+      ) : null}
+
+      <div className="pv-segmented" role="group" aria-label="Filter events by status">
+        {FILTERS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            className="pv-segmented__item"
+            aria-pressed={filter === f.id}
+            onClick={() => setFilter(f.id)}
+          >
+            {f.label} <span className="pv-dim">{counts[f.id]}</span>
+          </button>
+        ))}
       </div>
 
-      {/* Filter Tabs - interactive All / Upcoming / Live / Completed */}
-      <div className="filter-tabs" role="tablist" aria-label="Filter hackathons by status">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={filter === 'all'}
-          aria-pressed={filter === 'all'}
-          className={`filter-tab ${filter === 'all' ? 'active' : ''}`}
-          onClick={() => setFilter('all')}
-        >
-          All
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={filter === 'upcoming'}
-          aria-pressed={filter === 'upcoming'}
-          className={`filter-tab ${filter === 'upcoming' ? 'active' : ''}`}
-          onClick={() => setFilter('upcoming')}
-        >
-          Upcoming
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={filter === 'live'}
-          aria-pressed={filter === 'live'}
-          className={`filter-tab ${filter === 'live' ? 'active' : ''}`}
-          onClick={() => setFilter('live')}
-        >
-          Live
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={filter === 'completed'}
-          aria-pressed={filter === 'completed'}
-          className={`filter-tab ${filter === 'completed' ? 'active' : ''}`}
-          onClick={() => setFilter('completed')}
-        >
-          Completed
-        </button>
-      </div>
-
-      {/* Hackathon Cards */}
-      {filteredHackathons.length === 0 ? (
-        <p className="muted">No hackathons found.</p>
+      {visible.length === 0 ? (
+        <div className="pv-card">
+          <div className="pv-empty">
+            <span className="pv-empty__icon">
+              <Icon name="calendar" size={20} />
+            </span>
+            <h3 className="pv-empty__title">
+              {counts.all === 0 ? 'No events yet' : `No ${filter} events`}
+            </h3>
+            <p className="pv-empty__text">
+              {counts.all === 0
+                ? 'Events appear here as soon as an organizer publishes one.'
+                : 'Try a different filter to see other events.'}
+            </p>
+          </div>
+        </div>
       ) : (
-        <div className="hackathon-cards">
-          {filteredHackathons.map((hackathon) => (
-            <div key={hackathon.id} className="hackathon-card">
-              <div className="card-header">
-                <h3>{hackathon.name}</h3>
-                <span className={`badge badge-${hackathon.status}`}>
-                  {hackathon.status}
-                </span>
-              </div>
-              <div className="card-body">
-                <p><strong>Prize Pool:</strong> {hackathon.prizePool.total} {hackathon.prizePool.currency}</p>
-                <p><strong>Participants:</strong> {hackathon.participants?.length || 0}</p>
-                <p><strong>Dates:</strong> {hackathon.startDate} to {hackathon.endDate}</p>
-                {hackathon.description && <p className="description">{hackathon.description}</p>}
-                <div
-                  className={`card-actions${userRole === 'participant' ? ' card-actions--participant' : ''}`}
-                >
-                  {getActionButton(hackathon)}
+        <div className="pv-events">
+          {visible.map(({ hackathon, status }) => {
+            const meta = STATUS_META[status]
+            const cover = eventCover(hackathon.name)
+            const registered = isRegistered(hackathon, userWallet)
+
+            return (
+              <article className="pv-event" key={hackathon.id} style={{ cursor: 'default' }}>
+                <div className="pv-event__cover" style={{ background: cover.background }}>
+                  <span className="pv-event__cover-initials">{cover.initials}</span>
+                  <span className={`pv-badge ${meta.badge} pv-event__cover-badge`.trim()}>
+                    {status === 'live' ? (
+                      <span className="pv-badge__dot pv-badge__dot--pulse" />
+                    ) : null}
+                    {meta.label}
+                  </span>
                 </div>
-              </div>
-            </div>
-          ))}
+                <div className="pv-event__body">
+                  <span className="pv-event__date">
+                    <Icon name="calendar" size={13} />
+                    {formatDateRange(hackathon.startDate, hackathon.endDate)}
+                    {status === 'upcoming' && hackathon.startDate ? (
+                      <span className="pv-dim">· {formatRelative(hackathon.startDate)}</span>
+                    ) : null}
+                  </span>
+                  <h3 className="pv-event__title">{hackathon.name || 'Untitled event'}</h3>
+                  {hackathon.description ? (
+                    <p className="pv-event__desc">{hackathon.description}</p>
+                  ) : null}
+
+                  {registered ? (
+                    <span className="pv-badge pv-badge--success" style={{ alignSelf: 'flex-start' }}>
+                      <Icon name="check" size={12} />
+                      Registered
+                    </span>
+                  ) : null}
+
+                  <div className="pv-event__meta">
+                    <span className="pv-event__meta-item">
+                      <Icon name="trophy" size={13} />
+                      <span className="pv-event__prize">
+                        {formatXlm(prizeTotal(hackathon))} {prizeCurrency(hackathon)}
+                      </span>
+                    </span>
+                    <span className="pv-event__meta-item">
+                      <Icon name="users" size={13} />
+                      {participantCount(hackathon)}
+                    </span>
+                  </div>
+
+                  <div style={{ marginTop: 'var(--pv-space-5)' }}>
+                    {renderAction(hackathon, status)}
+                  </div>
+                </div>
+              </article>
+            )
+          })}
         </div>
       )}
     </div>
