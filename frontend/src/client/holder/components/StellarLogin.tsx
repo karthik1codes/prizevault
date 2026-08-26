@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import Icon from '../../components/Icon'
-import stellarWallet, { isWalletConnectConfigured } from '../stellarWallet'
+import stellarWallet, {
+  isWalletConnectConfigured,
+  openFreighterMobile,
+} from '../stellarWallet'
 import organizerWalletQr from '../../assets/organizer-wallet-qr.png'
 import sponsorWalletQr from '../../assets/sponsor-wallet-qr.png'
 import participantWalletQr from '../../assets/participant-wallet-qr.png'
@@ -113,7 +116,7 @@ export default function StellarLogin({
           <p className="pv-alert__text">
             {mobile
               ? wcReady
-                ? 'A Freighter Mobile prompt will open (WalletConnect). Approve in the Freighter app — the signature only confirms your account and moves no funds.'
+                ? 'PrizeVault will try to open Freighter Mobile automatically. If you only see a QR code, ignore it and tap Open Freighter app below — then Approve in Freighter (Testnet).'
                 : 'Mobile needs WalletConnect. Set NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID in Vercel (free at dashboard.walletconnect.com), redeploy, then tap Connect again.'
               : 'Freighter will open and ask you to sign a short testnet message. That signature only confirms which account you control — it moves no funds.'}
           </p>
@@ -138,6 +141,28 @@ export default function StellarLogin({
           </>
         )}
       </button>
+
+      {isConnecting && mobile && wcReady ? (
+        <>
+          <button
+            type="button"
+            className="pv-btn pv-btn--secondary pv-btn--lg pv-btn--block"
+            onClick={() => {
+              if (!openFreighterMobile()) {
+                setConnectError(
+                  'Connection link not ready yet — wait 1 second and tap Open Freighter app again.',
+                )
+              }
+            }}
+          >
+            Open Freighter app
+          </button>
+          <p className="pv-muted" style={{ fontSize: 'var(--pv-text-sm)', textAlign: 'center' }}>
+            Ignore the QR on this phone. Tap <strong>Open Freighter app</strong>, then Approve
+            (use Testnet in Freighter).
+          </p>
+        </>
+      ) : null}
 
       {connectError ? (
         <div className="pv-alert pv-alert--danger" role="alert" aria-live="assertive">

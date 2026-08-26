@@ -4,6 +4,9 @@ import { CONNECT_CHALLENGE } from './freighterExtension'
 export const FREIGHTER_WALLET_ID =
   '997a355c8f682468706a76cff1b004a7115f505fb962dac54b6e9b442dd1c380'
 
+/** From WalletConnect Explorer — opens Freighter Mobile with a WC pairing URI. */
+export const FREIGHTER_MOBILE_NATIVE = 'freighterwallet://wc-redirect'
+
 /** PrizeVault runs on Stellar Testnet. */
 export const STELLAR_CHAIN = 'stellar:testnet'
 
@@ -25,6 +28,9 @@ type WcSession = {
 
 type WcProvider = {
   session?: WcSession | null
+  on: (event: string, listener: (...args: unknown[]) => void) => void
+  off?: (event: string, listener: (...args: unknown[]) => void) => void
+  removeListener?: (event: string, listener: (...args: unknown[]) => void) => void
   connect: (args: {
     namespaces: {
       stellar: {
@@ -41,6 +47,7 @@ type WcProvider = {
 let providerSingleton: WcProvider | null = null
 let modalSingleton: AppKitModal | null = null
 let initPromise: Promise<{ provider: WcProvider; modal: AppKitModal }> | null = null
+let lastDisplayUri: string | null = null
 
 export function getWalletConnectProjectId(): string {
   return (process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '').trim()
@@ -48,6 +55,11 @@ export function getWalletConnectProjectId(): string {
 
 export function isWalletConnectConfigured(): boolean {
   return getWalletConnectProjectId().length > 0
+}
+
+export function isLikelyMobileDevice(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
 }
 
 function parseStellarAccount(account: string): string | null {
@@ -63,6 +75,28 @@ export function addressFromSession(session: WcSession | null | undefined): strin
     if (address) return address
   }
   return null
+}
+
+/** Build Freighter Mobile deep link for a WalletConnect pairing URI. */
+export function freighterDeepLink(wcUri: string): string {
+  return `${FREIGHTER_MOBILE_NATIVE}?uri=${encodeURIComponent(wcUri)}`
+}
+
+/**
+ * Open Freighter Mobile with the current (or provided) WalletConnect URI.
+ * Call from a user tap when auto-open is blocked.
+ */
+export function openFreighterMobile(wcUri?: string): boolean {
+  const uri = wcUri || lastDisplayUri
+  if (!uri || typeof window === 'undefined') return false
+  const deepLink = freighterDeepLink(uri)
+  // Prefer assign so iOS/Android hand off to the installed app.
+  window.location.assign(deepLink)
+  return true
+}
+
+export function getLastWalletConnectUri(): string | null {
+  return lastDisplayUri
 }
 
 async function initWalletConnect(): Promise<{
@@ -106,7 +140,13 @@ async function initWalletConnect(): Promise<{
       universalProvider: provider as never,
       manualWCControl: true,
       featuredWalletIds: [FREIGHTER_WALLET_ID],
+      includeWalletIds: [FREIGHTER_WALLET_ID],
     }) as AppKitModal
+
+    provider.on('display_uri', (...args: unknown[]) => {
+      const uri = typeof args[0] === 'string' ? args[0] : null
+      if (uri) lastDisplayUri = uri
+    })
 
     providerSingleton = provider
     modalSingleton = modal
@@ -123,8 +163,21 @@ async function initWalletConnect(): Promise<{
 
 export async function connectWalletConnect(): Promise<string> {
   const { provider, modal } = await initWalletConnect()
+  lastDisplayUri = null
 
+  const onDisplayUri = (...args: unknown[]) => {
+    const uri = typeof args[0] === 'string' ? args[0] : null
+    if (!uri) return
+    lastDisplayUri = uri
+    // Same-phone: skip QR — jump straight into Freighter Mobile.
+    if (isLikelyMobileDevice()) {
+      openFreighterMobile(uri)
+    }
+  }
+
+  provider.on('display_uri', onDisplayUri)
   modal.open()
+
   try {
     const session = await provider.connect({
       namespaces: {
@@ -159,6 +212,12 @@ export async function connectWalletConnect(): Promise<string> {
 
     return address
   } finally {
+    try {
+      provider.off?.('display_uri', onDisplayUri)
+      provider.removeListener?.('display_uri', onDisplayUri)
+    } catch {
+      // ignore
+    }
     try {
       modal.close()
     } catch {
