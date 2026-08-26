@@ -11,4 +11,4 @@ export {
   isWalletConnectConfigured,
   getWalletConnectProjectId,
 } from '../wallet'
-export { openFreighterMobile, getLastWalletConnectUri, isLikelyMobileDevice } from '../wallet/walletConnect'
+export { openFreighterMobile, getLastWalletConnectUri, isLikelyMobileDevice, onWalletConnectUri } from '../wallet/walletConnect'

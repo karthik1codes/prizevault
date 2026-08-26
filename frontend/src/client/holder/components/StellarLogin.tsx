@@ -4,6 +4,7 @@ import Icon from '../../components/Icon'
 import stellarWallet, {
   isWalletConnectConfigured,
   openFreighterMobile,
+  onWalletConnectUri,
 } from '../stellarWallet'
 import organizerWalletQr from '../../assets/organizer-wallet-qr.png'
 import sponsorWalletQr from '../../assets/sponsor-wallet-qr.png'
@@ -38,6 +39,8 @@ export default function StellarLogin({
   desiredRole = null,
 }: StellarLoginProps) {
   const [isConnecting, setIsConnecting] = useState(false)
+  const [openingFreighter, setOpeningFreighter] = useState(false)
+  const [uriReady, setUriReady] = useState(false)
   const [generatedQr, setGeneratedQr] = useState('')
   const [connectError, setConnectError] = useState('')
   const mobile = isLikelyMobile()
@@ -65,8 +68,17 @@ export default function StellarLogin({
     }
   }, [walletExplorerUrl])
 
+  useEffect(() => {
+    if (!isConnecting || !mobile) {
+      setUriReady(false)
+      return
+    }
+    return onWalletConnectUri(() => setUriReady(true))
+  }, [isConnecting, mobile])
+
   const handleConnect = async () => {
     setConnectError('')
+    setUriReady(false)
     setIsConnecting(true)
     const timeoutMs = mobile || wcReady ? 120_000 : 20_000
     try {
@@ -79,7 +91,7 @@ export default function StellarLogin({
               reject(
                 new Error(
                   mobile
-                    ? 'Wallet connect timed out. Open Freighter Mobile, approve the request, and try again.'
+                    ? 'Wallet connect timed out. Tap Open Freighter app, approve in Freighter (Testnet), and try again.'
                     : 'Wallet connect request timed out. Open Freighter and try again.',
                 ),
               ),
@@ -101,10 +113,28 @@ export default function StellarLogin({
       console.error('Stellar wallet connection error:', err)
     } finally {
       setIsConnecting(false)
+      setOpeningFreighter(false)
+    }
+  }
+
+  const handleOpenFreighter = async () => {
+    setConnectError('')
+    setOpeningFreighter(true)
+    try {
+      const ok = await openFreighterMobile(25_000)
+      if (!ok) {
+        setConnectError(
+          'Still waiting for WalletConnect. Keep this tab open, tap Connect again, then tap Open Freighter app as soon as it says Ready.',
+        )
+      }
+    } finally {
+      setOpeningFreighter(false)
     }
   }
 
   const qrSrc = ROLE_QR[role] || generatedQr
+  // Hide the unrelated Stellar Expert QR while pairing — it looks like a WC QR and confuses mobile users.
+  const showRoleQr = !isConnecting
 
   return (
     <div className="pv-stack pv-stack--lg">
@@ -116,7 +146,7 @@ export default function StellarLogin({
           <p className="pv-alert__text">
             {mobile
               ? wcReady
-                ? 'PrizeVault will try to open Freighter Mobile automatically. If you only see a QR code, ignore it and tap Open Freighter app below — then Approve in Freighter (Testnet).'
+                ? 'Tap Connect, wait until Open Freighter says Ready, then tap it and Approve in Freighter (Testnet). Do not scan any QR on this same phone.'
                 : 'Mobile needs WalletConnect. Set NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID in Vercel (free at dashboard.walletconnect.com), redeploy, then tap Connect again.'
               : 'Freighter will open and ask you to sign a short testnet message. That signature only confirms which account you control — it moves no funds.'}
           </p>
@@ -147,19 +177,24 @@ export default function StellarLogin({
           <button
             type="button"
             className="pv-btn pv-btn--secondary pv-btn--lg pv-btn--block"
-            onClick={() => {
-              if (!openFreighterMobile()) {
-                setConnectError(
-                  'Connection link not ready yet — wait 1 second and tap Open Freighter app again.',
-                )
-              }
-            }}
+            onClick={() => void handleOpenFreighter()}
+            disabled={openingFreighter}
           >
-            Open Freighter app
+            {openingFreighter ? (
+              <>
+                <span className="pv-btn__spinner" />
+                Opening Freighter…
+              </>
+            ) : uriReady ? (
+              'Open Freighter app (Ready)'
+            ) : (
+              'Open Freighter app (waiting for link…)'
+            )}
           </button>
           <p className="pv-muted" style={{ fontSize: 'var(--pv-text-sm)', textAlign: 'center' }}>
-            Ignore the QR on this phone. Tap <strong>Open Freighter app</strong>, then Approve
-            (use Testnet in Freighter).
+            {uriReady
+              ? 'Link ready — tap the button above, then Approve in Freighter.'
+              : 'Preparing WalletConnect link… keep this tab open.'}
           </p>
         </>
       ) : null}
@@ -176,7 +211,7 @@ export default function StellarLogin({
         </div>
       ) : null}
 
-      {qrSrc ? (
+      {showRoleQr && qrSrc ? (
         <div className="pv-card pv-card--flat">
           <div className="pv-card__body pv-card__body--tight">
             <div className="pv-row" style={{ alignItems: 'center', gap: 'var(--pv-space-7)' }}>
@@ -194,9 +229,9 @@ export default function StellarLogin({
                 }}
               />
               <div style={{ minWidth: 0 }}>
-                <p style={{ fontWeight: 'var(--pv-weight-semibold)' }}>Continue on your phone</p>
+                <p style={{ fontWeight: 'var(--pv-weight-semibold)' }}>Account QR (optional)</p>
                 <p className="pv-muted" style={{ fontSize: 'var(--pv-text-sm)', marginTop: 4 }}>
-                  Scan to open the {role} wallet address on Stellar Expert.
+                  Stellar Expert link for the {role} address — not used for Freighter connect.
                 </p>
               </div>
             </div>
