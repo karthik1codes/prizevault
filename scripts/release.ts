@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import "./load-env.js";
 /**
  * Release prize from Stellar escrow to winner.
  * Escrow account is configured as 2-of-2 multisig.

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import "./load-env.js";
 /**
  * Sponsor deposits lumens (XLM) into Stellar escrow.
  * Usage: npm run deposit [-- --amount=25.0]

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import "./load-env.js";
 /**
  * Create a Stellar escrow account and enforce 2-of-2 signer approvals.
  * Escrow account signer weights:

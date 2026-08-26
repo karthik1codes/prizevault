@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import "./load-env.js";
 /**
  * Simple Stellar orchestration helper:
  * waits for dual approval flags and triggers payout release.

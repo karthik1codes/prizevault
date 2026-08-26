@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import "./load-env.js";
 /**
  * Placeholder helper for Soroban deployment workflow.
  * Compile/deploy is done via `stellar contract` CLI.

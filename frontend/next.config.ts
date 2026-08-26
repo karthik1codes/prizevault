@@ -8,9 +8,9 @@ const require = createRequire(import.meta.url);
 const repoRoot = path.resolve(process.cwd(), "..");
 loadEnv({ path: path.resolve(repoRoot, ".env") });
 loadEnv({ path: path.resolve(process.cwd(), ".env") });
+loadEnv({ path: path.resolve(process.cwd(), ".env.local") });
 
 const clientSrc = path.resolve(process.cwd(), "src/client");
-const backendSrc = path.resolve(repoRoot, "src");
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: repoRoot,
@@ -18,27 +18,21 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_SOROBAN_CONTRACT_ID: process.env.SOROBAN_CONTRACT_ID || "",
   },
   eslint: {
-    // Shared MPA-style client uses <a href> and loose types; don't block deploy.
     ignoreDuringBuilds: true,
   },
   typescript: {
     ignoreBuildErrors: false,
   },
-  experimental: {
-    externalDir: true,
-  },
   serverExternalPackages: ["@stellar/stellar-sdk"],
   turbopack: {
     resolveAlias: {
       "@frontend": clientSrc,
-      "@backend": backendSrc,
     },
   },
   webpack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,
       "@frontend": clientSrc,
-      "@backend": backendSrc,
       buffer: require.resolve("buffer/"),
       "ipfs-http-client": path.resolve(process.cwd(), "src/lib/ipfs-http-client-stub.js"),
     };
@@ -46,7 +40,6 @@ const nextConfig: NextConfig = {
       ".js": [".ts", ".tsx", ".js", ".jsx"],
       ".mjs": [".mts", ".mjs"],
     };
-    config.resolve.modules = [path.resolve(process.cwd(), "node_modules"), "node_modules"];
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,

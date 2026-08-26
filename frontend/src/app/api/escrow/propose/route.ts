@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { handlePropose } from "@backend/api/escrowHandlers";
+import { handlePropose } from "@/lib/backend/escrowHandlers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
