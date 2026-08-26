@@ -24,11 +24,20 @@ Set in Vercel → Settings → Environment Variables:
 - `SPONSOR_SECRET_KEY`
 - `ORGANIZER_SECRET_KEY`
 - `STELLAR_RPC_URL` (optional)
+- **`NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`** — required for **Freighter Mobile** (phone). Free ID from [Reown Cloud](https://dashboard.walletconnect.com/). Without it, only the desktop Freighter extension works.
+
+## Wallet connect
+
+| Device | How |
+|--------|-----|
+| Desktop | [Freighter browser extension](https://www.freighter.app/) |
+| Phone | Freighter Mobile app + WalletConnect Project ID above → tap **Connect Stellar wallet** → approve in Freighter |
 
 ## Local
 
 ```bash
-# from prizevault/
+# from prizevault/frontend
+echo NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id >> .env.local
 npm run dev
 # → http://localhost:3000
 ```

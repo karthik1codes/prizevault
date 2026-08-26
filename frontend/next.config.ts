@@ -16,7 +16,12 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: repoRoot,
   env: {
     NEXT_PUBLIC_SOROBAN_CONTRACT_ID: process.env.SOROBAN_CONTRACT_ID || "",
+    NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID:
+      process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ||
+      process.env.WALLETCONNECT_PROJECT_ID ||
+      "",
   },
+  transpilePackages: ["@reown/appkit", "@walletconnect/universal-provider"],
   eslint: {
     ignoreDuringBuilds: true,
   },

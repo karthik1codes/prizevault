@@ -8,6 +8,7 @@ import {
   getActiveSession,
   requireManualConnect,
 } from '../utils/authSession'
+import { disconnectWallet } from '../wallet'
 
 interface Tab {
   id: string
@@ -73,6 +74,7 @@ export default function SharedHeader({
   const tabs = visibleTabs(activeTab, session)
 
   const handleDisconnect = () => {
+    void disconnectWallet()
     clearActiveSession()
     requireManualConnect()
     window.location.href = '/'

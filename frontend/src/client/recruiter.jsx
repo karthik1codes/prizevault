@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { requestAccess } from '@stellar/freighter-api'
+import { ensureWalletAddress } from './wallet'
 import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from './constants/escrow'
 import SharedHeader from './components/SharedHeader'
 import Icon from './components/Icon'
@@ -206,10 +206,7 @@ function SponsorConsole() {
     setFundingError('')
     setIsFunding(true)
     try {
-      const access = await requestAccess()
-      if (access.error) {
-        throw new Error(access.error)
-      }
+      await ensureWalletAddress()
 
       const { txHash } = await fundEscrowContractWithFreighter({
         sponsorAddress: senderAddress,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import Icon from '../../components/Icon'
-import stellarWallet from '../stellarWallet'
+import stellarWallet, { isWalletConnectConfigured } from '../stellarWallet'
 import organizerWalletQr from '../../assets/organizer-wallet-qr.png'
 import sponsorWalletQr from '../../assets/sponsor-wallet-qr.png'
 import participantWalletQr from '../../assets/participant-wallet-qr.png'
@@ -24,6 +24,11 @@ const ROLE_QR: Partial<Record<AppRole, string>> = {
   participant: assetUrl(participantWalletQr as string | { src: string }),
 }
 
+function isLikelyMobile(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+}
+
 export default function StellarLogin({
   onConnect,
   onError,
@@ -32,6 +37,8 @@ export default function StellarLogin({
   const [isConnecting, setIsConnecting] = useState(false)
   const [generatedQr, setGeneratedQr] = useState('')
   const [connectError, setConnectError] = useState('')
+  const mobile = isLikelyMobile()
+  const wcReady = isWalletConnectConfigured()
 
   const role: AppRole = desiredRole || 'participant'
   const walletForRole = ROLE_WALLET_MAP[role] || ROLE_WALLET_MAP.participant || ''
@@ -42,7 +49,6 @@ export default function StellarLogin({
   useEffect(() => {
     if (!walletExplorerUrl) return
     let cancelled = false
-    // Encode a browser URL so a phone camera opens the Stellar account page.
     QRCode.toDataURL(walletExplorerUrl, { width: 200, margin: 1 })
       .then((qr) => {
         if (!cancelled) setGeneratedQr(qr)
@@ -59,6 +65,7 @@ export default function StellarLogin({
   const handleConnect = async () => {
     setConnectError('')
     setIsConnecting(true)
+    const timeoutMs = mobile || wcReady ? 120_000 : 20_000
     try {
       clearManualConnectRequirement()
       const accounts = await Promise.race([
@@ -66,8 +73,14 @@ export default function StellarLogin({
         new Promise<never>((_, reject) =>
           setTimeout(
             () =>
-              reject(new Error('Wallet connect request timed out. Open Freighter and try again.')),
-            20000,
+              reject(
+                new Error(
+                  mobile
+                    ? 'Wallet connect timed out. Open Freighter Mobile, approve the request, and try again.'
+                    : 'Wallet connect request timed out. Open Freighter and try again.',
+                ),
+              ),
+            timeoutMs,
           ),
         ),
       ])
@@ -98,8 +111,11 @@ export default function StellarLogin({
         </span>
         <div className="pv-alert__content">
           <p className="pv-alert__text">
-            Freighter will open and ask you to sign a short testnet message. That signature only
-            confirms which account you control — it moves no funds.
+            {mobile
+              ? wcReady
+                ? 'A Freighter Mobile prompt will open (WalletConnect). Approve in the Freighter app — the signature only confirms your account and moves no funds.'
+                : 'Mobile needs WalletConnect. Set NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID in Vercel (free at dashboard.walletconnect.com), redeploy, then tap Connect again.'
+              : 'Freighter will open and ask you to sign a short testnet message. That signature only confirms which account you control — it moves no funds.'}
           </p>
         </div>
       </div>
@@ -107,13 +123,13 @@ export default function StellarLogin({
       <button
         type="button"
         onClick={handleConnect}
-        disabled={isConnecting}
+        disabled={isConnecting || (mobile && !wcReady)}
         className="pv-btn pv-btn--primary pv-btn--lg pv-btn--block"
       >
         {isConnecting ? (
           <>
             <span className="pv-btn__spinner" />
-            Waiting for Freighter
+            {mobile ? 'Waiting for Freighter Mobile' : 'Waiting for Freighter'}
           </>
         ) : (
           <>
@@ -169,6 +185,7 @@ export default function StellarLogin({
           Install Freighter
           <Icon name="external" size={12} />
         </a>
+        {mobile ? ' (iOS / Android app)' : ' (browser extension)'}
       </p>
     </div>
   )

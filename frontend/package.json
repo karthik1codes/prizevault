@@ -9,8 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@reown/appkit": "^1.8.23",
     "@stellar/freighter-api": "^6.0.1",
     "@stellar/stellar-sdk": "^15.1.0",
+    "@walletconnect/universal-provider": "^2.23.10",
     "buffer": "^6.0.3",
     "dotenv": "^17.4.2",
     "ipfs-http-client": "^60.0.1",

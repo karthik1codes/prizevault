@@ -9,11 +9,11 @@ import {
   rpc,
   scValToNative,
 } from '@stellar/stellar-sdk'
-import { signTransaction } from '@stellar/freighter-api'
 import {
   ESCROW_APP_ID,
   SOROBAN_TESTNET_XLM_TOKEN_CONTRACT_ID,
 } from '../constants/escrow'
+import { signTransactionXdr } from '../wallet'
 
 const RPC_URL = 'https://soroban-testnet.stellar.org'
 const NETWORK = Networks.TESTNET
@@ -120,16 +120,12 @@ export async function fundEscrowContractWithFreighter(options: {
     .build()
 
   const prepared = await server.prepareTransaction(built)
-  const signed = await signTransaction(prepared.toXDR(), {
+  const signedTxXdr = await signTransactionXdr(prepared.toXDR(), {
     networkPassphrase: NETWORK,
     address: options.sponsorAddress,
   })
 
-  if (signed.error || !signed.signedTxXdr) {
-    throw new Error(signed.error || 'Failed to sign Soroban transfer in Freighter')
-  }
-
-  const signedTx = new Transaction(signed.signedTxXdr, NETWORK)
+  const signedTx = new Transaction(signedTxXdr, NETWORK)
   const sent = await server.sendTransaction(signedTx)
   if (sent.status === 'ERROR') {
     throw new Error(
