@@ -1,6 +1,6 @@
 ## Backend Overview (Stellar)
 
-The Next.js app (`web/`, `npm run dev`) holds organizer/sponsor secret keys for **testnet** and invokes the Soroban escrow contract via App Router handlers under `/api/escrow/*`. Classic CLI scripts remain available for the 2-of-2 account flow.
+The Next.js app (`frontend/`, `npm run dev`) holds organizer/sponsor secret keys for **testnet** and invokes the Soroban escrow contract via App Router handlers under `/api/escrow/*`. Classic CLI scripts remain available for the 2-of-2 account flow.
 
 ### HTTP API (Soroban)
 

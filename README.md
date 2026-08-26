@@ -10,7 +10,7 @@ Sponsors worry prize money will be misused or delayed; organizers don't want to 
 
 - **Classic Stellar escrow account** — 2-of-2 multisig (sponsor + organizer) for script-driven flows.
 - **Soroban smart contract** (`contracts/stellar-escrow`) — on-chain propose → approve → execute release logic.
-- **Next.js app** (`web/`) — UI + `/api/escrow/*` in one process; server-held testnet keys invoke the contract.
+- **Next.js app** (`frontend/`) — UI + `/api/escrow/*` in one process; server-held testnet keys invoke the contract.
 - **TypeScript scripts** — create escrow, deposit, release, and approval-gated agent runner.
 
 ## Payout proposal cycle (Soroban)
@@ -28,8 +28,8 @@ Classic account flow (scripts): create escrow → deposit → dual-signed releas
 | Path | Description |
 |------|-------------|
 | `contracts/stellar-escrow/` | Soroban escrow contract (Rust) |
-| `web/` | Next.js app (pages + `/api/escrow/*`) |
-| `web/src/client/` | React UI (organizer, sponsor, participant) |
+| `frontend/` | Next.js app (pages + `/api/escrow/*`) — **Vercel Root Directory** |
+| `frontend/src/client/` | React UI (organizer, sponsor, participant) |
 | `src/soroban/escrowClient.ts` | Soroban invoke helpers (stellar-sdk) |
 | `src/api/escrowHandlers.ts` | Shared propose/approve/execute handlers |
 | `scripts/` | Classic escrow CLI scripts |
@@ -42,7 +42,7 @@ Classic account flow (scripts): create escrow → deposit → dual-signed releas
 
 ```bash
 npm install
-cd web && npm install
+cd frontend && npm install
 ```
 
 ### 2. Configure environment
@@ -138,7 +138,7 @@ stellar contract invoke --id $CONTRACT_ID --source organiser --network testnet -
 - `init` cannot be run twice on the same contract — redeploy if addresses were wrong.
 - `--sponsor` / `--organizer` must match the G-addresses of your CLI keys (`stellar keys address sponsor` / `organiser`).
 - Pass `amount` in payout JSON as a **string**, not a number.
-- After deploy, update `web/src/client/constants/escrow.ts` (`ESCROW_APP_ID`) and `SOROBAN_CONTRACT_ID` in `.env`.
+- After deploy, update `frontend/src/client/constants/escrow.ts` (`ESCROW_APP_ID`) and `SOROBAN_CONTRACT_ID` in `.env`.
 
 Save the deployed contract id:
 

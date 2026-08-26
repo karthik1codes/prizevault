@@ -3,7 +3,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { Keypair, Horizon, Networks } from "@stellar/stellar-sdk";
 
-// Next.js runs with cwd=web/; CLI scripts run from repo root. Load both.
+// Next.js runs with cwd=frontend/; CLI scripts run from repo root. Load both.
 loadEnv({ path: resolve(process.cwd(), ".env") });
 loadEnv({ path: resolve(process.cwd(), "../.env") });
 

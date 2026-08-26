@@ -122,7 +122,6 @@ export async function fundEscrowContractWithFreighter(options: {
   const prepared = await server.prepareTransaction(built)
   const signed = await signTransaction(prepared.toXDR(), {
     networkPassphrase: NETWORK,
-    network: 'TESTNET',
     address: options.sponsorAddress,
   })
 

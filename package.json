@@ -4,15 +4,15 @@
   "description": "AI-Agent-Managed Hackathon Prize Escrow on Stellar",
   "type": "module",
   "scripts": {
-    "dev": "npm run --prefix web dev",
-    "dev:web": "npm run --prefix web dev",
+    "dev": "npm run --prefix frontend dev",
+    "dev:web": "npm run --prefix frontend dev",
     "create-escrow": "tsx scripts/create-escrow.ts",
     "deposit": "tsx scripts/deposit.ts",
     "release": "tsx scripts/release.ts",
     "agent": "tsx scripts/agent.ts",
     "deploy-contract": "tsx scripts/deploy-contract.ts",
     "build": "tsc --noEmit",
-    "build:web": "npm run --prefix web build"
+    "build:web": "npm run --prefix frontend build"
   },
   "dependencies": {
     "@stellar/freighter-api": "^6.0.1",
