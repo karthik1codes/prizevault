@@ -4,12 +4,17 @@ import {
   getNetworkPassphrase,
   getSorobanRpcUrl,
 } from "@/lib/backend/config";
-import { isSupabaseConfigured } from "@/lib/supabase/env";
+import {
+  getSupabaseConfigSource,
+  getSupabaseUrl,
+  isSupabaseConfigured,
+} from "@/lib/supabase/env";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const configured = isSupabaseConfigured();
   return NextResponse.json({
     ok: true,
     networkPassphrase: getNetworkPassphrase(),
@@ -17,6 +22,9 @@ export async function GET() {
     contractId: getContractId(),
     hasSponsorKey: Boolean(process.env.SPONSOR_SECRET_KEY),
     hasOrganizerKey: Boolean(process.env.ORGANIZER_SECRET_KEY),
-    supabaseConfigured: isSupabaseConfigured(),
+    supabaseConfigured: configured,
+    supabaseUrl: configured ? getSupabaseUrl() : null,
+    supabaseConfigSource: getSupabaseConfigSource(),
+    hasSupabaseServiceRole: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
   });
 }

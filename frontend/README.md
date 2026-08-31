@@ -18,7 +18,28 @@ If Output Directory is still `dist` from the old Vite app, the build will succee
 
 ## Env vars
 
-Set in Vercel → Settings → Environment Variables:
+Set in Vercel → Settings → Environment Variables (Production + Preview):
+
+### Supabase (required for hackathons, registration, payouts)
+
+These are **also baked into `vercel.json` and project defaults** so production works even if you skip the dashboard — override only for a different Supabase project.
+
+| Variable | Value |
+|----------|--------|
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://mjlbcskcsrxkjycjpdyh.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Your publishable key from Supabase → Settings → API |
+
+Optional server-only (tighter RLS later):
+
+| Variable | Notes |
+|----------|--------|
+| `SUPABASE_SERVICE_ROLE_KEY` | Never expose to the client |
+
+Run SQL migrations once on the Supabase project: see `../supabase/README.md`.
+
+After deploy, confirm: `GET /api/health` → `"supabaseConfigured": true`.
+
+### Stellar / escrow
 
 - `SOROBAN_CONTRACT_ID`
 - `SPONSOR_SECRET_KEY`

@@ -6,7 +6,8 @@
     "clean": "node scripts/clean-next.mjs",
     "dev": "next dev",
     "dev:clean": "node scripts/clean-next.mjs && next dev",
-    "build": "next build",
+    "build": "node scripts/verify-supabase-env.mjs && next build",
+    "build:verify": "node scripts/verify-supabase-env.mjs && next build",
     "build:clean": "node scripts/clean-next.mjs && next build",
     "start": "next start",
     "lint": "eslint"

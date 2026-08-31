@@ -11,16 +11,18 @@ Project: **https://mjlbcskcsrxkjycjpdyh.supabase.co**
 
 ## 2. Environment variables
 
-Already in `frontend/.env.local`:
+**Local:** copy `frontend/.env.example` → `frontend/.env.local`
+
+**Production (Vercel):** Root Directory = `frontend`. Supabase public vars are in `frontend/vercel.json` and resolved at build time via `src/lib/supabase/constants.ts`. You can still override in Vercel → Environment Variables.
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://mjlbcskcsrxkjycjpdyh.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_jM9a3lNktIjheG6joFKvYw_G8PcKjPx
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable key from Supabase dashboard>
 ```
 
-Add the same to **Vercel → Environment Variables** and redeploy.
-
 Optional (production): `SUPABASE_SERVICE_ROLE_KEY` for server-only admin access with tighter RLS.
+
+Verify after deploy: `GET https://your-app.vercel.app/api/health` should return `"supabaseConfigured": true`.
 
 ## 3. API routes
 

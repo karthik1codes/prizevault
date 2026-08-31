@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 import { config as loadEnv } from "dotenv";
 import path from "node:path";
 import { createRequire } from "node:module";
+import {
+  resolveSupabasePublishableKey,
+  resolveSupabaseUrl,
+} from "./src/lib/supabase/constants";
 
 const require = createRequire(import.meta.url);
 
@@ -11,6 +15,8 @@ loadEnv({ path: path.resolve(process.cwd(), ".env") });
 loadEnv({ path: path.resolve(process.cwd(), ".env.local") });
 
 const clientSrc = path.resolve(process.cwd(), "src/client");
+const supabaseUrl = resolveSupabaseUrl();
+const supabasePublishableKey = resolveSupabasePublishableKey();
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: repoRoot,
@@ -20,11 +26,8 @@ const nextConfig: NextConfig = {
       process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ||
       process.env.WALLETCONNECT_PROJECT_ID ||
       "",
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-      "",
+    NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: supabasePublishableKey,
   },
   transpilePackages: ["@reown/appkit", "@walletconnect/universal-provider"],
   eslint: {
