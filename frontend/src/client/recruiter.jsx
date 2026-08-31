@@ -315,7 +315,7 @@ function SponsorConsole() {
       <SharedHeader activeTab="recruiter" subtitle="Sponsor" />
 
       <div className="pv-container pv-container--wide" style={{ paddingTop: 'var(--pv-space-8)' }}>
-        <div className="pv-page-header">
+        <div className="pv-page-header pv-console-header">
           <div className="pv-page-header__text">
             <h1 className="pv-page-header__title">Sponsor console</h1>
             <p className="pv-page-header__desc">
@@ -359,7 +359,7 @@ function SponsorConsole() {
             />
           </section>
 
-          <div id="workspace" className="pv-responsive-grid">
+          <div id="workspace" className="pv-responsive-grid pv-sponsor-grid">
             <EscrowOverviewPanel
               escrows={escrows}
               selectedEscrowId={selectedEscrowId}

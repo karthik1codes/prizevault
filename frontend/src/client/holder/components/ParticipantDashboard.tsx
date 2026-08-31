@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import Icon from '../../components/Icon'
 import { Hackathon } from '../../types/hackathon'
 import { useHackathons } from '../../hooks/useHackathons'
+import { celebrateWinnerOnce } from '../../hooks/useWinnerCelebration'
 import { isRegistered, registerForHackathon } from '../utils/registration'
 import {
   STATUS_META,
@@ -53,6 +54,13 @@ export default function ParticipantDashboard({
   }, [mine, userWallet])
 
   const totalWon = myWinnings.reduce((sum, x) => sum + (Number(x.win?.prizeAmount) || 0), 0)
+
+  useEffect(() => {
+    if (!userWallet) return
+    for (const { hackathon } of myWinnings) {
+      celebrateWinnerOnce(`participant_${hackathon.id}_${userWallet}`)
+    }
+  }, [myWinnings, userWallet])
 
   const handleRegister = async (hackathon: Hackathon) => {
     setRegisteringId(hackathon.id)
@@ -179,13 +187,13 @@ export default function ParticipantDashboard({
                     )
                     return (
                       <tr key={h.id}>
-                        <td>
+                        <td data-label="Event">
                           <span className="pv-table__primary">{h.name}</span>
                           <span className="pv-table__sub">
                             {formatDateRange(h.startDate, h.endDate)}
                           </span>
                         </td>
-                        <td>
+                        <td data-label="Status">
                           <span className={`pv-badge ${meta.badge}`.trim()}>
                             {status === 'live' ? (
                               <span className="pv-badge__dot pv-badge__dot--pulse" />
@@ -193,7 +201,7 @@ export default function ParticipantDashboard({
                             {meta.label}
                           </span>
                         </td>
-                        <td>
+                        <td data-label="My standing">
                           {win ? (
                             <span className="pv-badge pv-badge--success">
                               <Icon name="trophy" size={12} />
@@ -203,7 +211,7 @@ export default function ParticipantDashboard({
                             <span className="pv-badge">{participant?.status ?? 'registered'}</span>
                           )}
                         </td>
-                        <td className="pv-table__num">
+                        <td className="pv-table__num" data-label="Prize">
                           {win ? (
                             <strong>
                               {formatXlm(win.prizeAmount)} {prizeCurrency(h)}
@@ -212,7 +220,7 @@ export default function ParticipantDashboard({
                             <span className="pv-dim">--</span>
                           )}
                         </td>
-                        <td className="pv-table__actions">
+                        <td className="pv-table__actions" data-label="Actions">
                           <button
                             type="button"
                             className="pv-btn pv-btn--secondary pv-btn--xs"

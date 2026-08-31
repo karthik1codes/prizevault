@@ -4,6 +4,7 @@ import { hackathonBelongsToOrganizerPortal } from '../../utils/organizerPortalFi
 import { updateHackathon } from '../../services/hackathonApi'
 import { useHackathons } from '../../hooks/useHackathons'
 import { appendIssuerAuditLog } from '../../utils/issuerAuditLog'
+import { celebrateWinnersNow } from '../../hooks/useWinnerCelebration'
 import { formatXlm, prizeCurrency, prizeTotal } from '../../utils/format'
 
 const PRIZE_TIERS = [
@@ -150,6 +151,7 @@ export default function WinnerSelection({ hackathonId, sessionWallet, onSave }) 
       })
       reload()
       setSaved(true)
+      celebrateWinnersNow()
       onSave?.(hackathon.id)
     } catch (_) {
       // Storage failures surface through the unchanged UI state.
@@ -183,7 +185,7 @@ export default function WinnerSelection({ hackathonId, sessionWallet, onSave }) 
           </div>
           {myHackathons.length > 1 ? (
             <div className="pv-card__actions">
-              <label className="pv-field" style={{ minWidth: 0, width: '100%', maxWidth: 320 }}>
+              <label className="pv-field pv-field--grow">
                 <span className="pv-sr-only">Choose hackathon</span>
                 <select
                   className="pv-select"
@@ -315,7 +317,7 @@ export default function WinnerSelection({ hackathonId, sessionWallet, onSave }) 
         )}
 
         {participants.length > 0 ? (
-          <div className="pv-card__footer" style={{ justifyContent: 'space-between' }}>
+          <div className="pv-card__footer">
             <div className="pv-row pv-row--sm">
               <span className="pv-muted">
                 {selectedIds.length} winner{selectedIds.length === 1 ? '' : 's'} &middot; allocated{' '}

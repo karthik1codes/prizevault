@@ -20,6 +20,7 @@
     "@supabase/supabase-js": "^2.112.4",
     "@walletconnect/universal-provider": "^2.23.10",
     "buffer": "^6.0.3",
+    "canvas-confetti": "^1.9.4",
     "cobe": "^2.0.1",
     "dotenv": "^17.4.2",
     "ipfs-http-client": "^60.0.1",
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^20",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",

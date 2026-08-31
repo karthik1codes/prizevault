@@ -4,6 +4,7 @@ import AddressChip from '../../components/AddressChip'
 import { Hackathon } from '../../types/hackathon'
 import { UserRole } from '../../types/holder'
 import { useHackathons } from '../../hooks/useHackathons'
+import { useWinnerCelebration } from '../../hooks/useWinnerCelebration'
 import { isRegistered, registerForHackathon } from '../utils/registration'
 import {
   STATUS_META,
@@ -62,6 +63,20 @@ export default function EventDetail({
 
   const timeline = useMemo(() => (hackathonId ? getTimeline(hackathonId) : []), [hackathonId])
 
+  const myWinner = useMemo(() => {
+    if (!hackathon || !userWallet) return null
+    return (
+      (hackathon.winners || []).find(
+        (w) => w.payoutAddress?.toLowerCase() === userWallet.toLowerCase(),
+      ) || null
+    )
+  }, [hackathon, userWallet])
+
+  useWinnerCelebration(
+    Boolean(myWinner && userWallet && hackathonId),
+    myWinner && userWallet && hackathonId ? `event_${hackathonId}_${userWallet}` : null,
+  )
+
   if (!hackathon) {
     return (
       <div className="pv-card">
@@ -86,9 +101,6 @@ export default function EventDetail({
   const cover = eventCover(hackathon.name)
   const registered = isRegistered(hackathon, userWallet)
   const open = status !== 'completed'
-  const myWinner = (hackathon.winners || []).find(
-    (w) => w.payoutAddress?.toLowerCase() === userWallet?.toLowerCase(),
-  )
 
   const handleRegister = async () => {
     setBusy(true)
@@ -229,16 +241,18 @@ export default function EventDetail({
       ) : null}
 
       {myWinner ? (
-        <div className="pv-card pv-card--accent">
+        <div className="pv-card pv-card--accent pv-winner-banner">
           <div className="pv-card__body">
             <div className="pv-row pv-row--between">
               <div>
-                <h3 className="pv-card__title">You won {myWinner.prizeTier}</h3>
+                <h3 className="pv-card__title pv-winner-banner__title">
+                  You won {myWinner.prizeTier} 🎉
+                </h3>
                 <p className="pv-card__subtitle">
                   Payout goes to your registered address once both parties approve.
                 </p>
               </div>
-              <span className="pv-stat__value" style={{ fontSize: 'var(--pv-text-2xl)' }}>
+              <span className="pv-stat__value pv-winner-banner__amount">
                 {formatXlm(myWinner.prizeAmount)}
                 <span className="pv-stat__unit">{prizeCurrency(hackathon)}</span>
               </span>

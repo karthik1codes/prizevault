@@ -14,7 +14,7 @@ export default function Header({ organizerName, walletAddress, stats, onDisconne
     <>
       <SharedHeader activeTab="issuer" subtitle="Organizer" />
 
-      <div className="pv-container pv-container--wide" style={{ paddingTop: 'var(--pv-space-8)' }}>
+      <div className="pv-container pv-container--wide pv-console-header" style={{ paddingTop: 'var(--pv-space-8)' }}>
         <div className="pv-page-header" style={{ marginBottom: 0 }}>
           <div className="pv-page-header__text">
             <h1 className="pv-page-header__title">{organizerName || 'Organizer'}</h1>
