@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Icon from './Icon'
 import ThemeToggle from './ThemeToggle'
+import LandingNavigationMenu from './LandingNavigationMenu'
 import { truncateAddress } from './AddressChip'
 import {
   AppRole,
@@ -94,23 +95,32 @@ export default function SharedHeader({
         <nav
           className={`pv-topbar__nav ${navOpen ? 'is-open' : ''}`.trim()}
           aria-label="Primary"
-          onClick={() => setNavOpen(false)}
+          onClick={(event) => {
+            const target = event.target as HTMLElement
+            if (target.closest('a, button')) setNavOpen(false)
+          }}
         >
-          {navLinks.map((link) => (
-            <a key={link.href} href={link.href} className="pv-navlink">
-              {link.label}
-            </a>
-          ))}
-          {tabs.map((tab) => (
-            <a
-              key={tab.id}
-              href={tab.href}
-              className={`pv-navlink ${activeTab === tab.id ? 'is-active' : ''}`.trim()}
-              aria-current={activeTab === tab.id ? 'page' : undefined}
-            >
-              {tab.label}
-            </a>
-          ))}
+          {activeTab === 'landing' ? (
+            <LandingNavigationMenu />
+          ) : (
+            <>
+              {navLinks.map((link) => (
+                <a key={link.href} href={link.href} className="pv-navlink">
+                  {link.label}
+                </a>
+              ))}
+              {tabs.map((tab) => (
+                <a
+                  key={tab.id}
+                  href={tab.href}
+                  className={`pv-navlink ${activeTab === tab.id ? 'is-active' : ''}`.trim()}
+                  aria-current={activeTab === tab.id ? 'page' : undefined}
+                >
+                  {tab.label}
+                </a>
+              ))}
+            </>
+          )}
         </nav>
 
         <div className="pv-topbar__actions">

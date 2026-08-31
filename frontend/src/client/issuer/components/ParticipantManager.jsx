@@ -2,11 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react'
 import Icon from '../../components/Icon'
 import AddressChip from '../../components/AddressChip'
 import { hackathonBelongsToOrganizerPortal } from '../../utils/organizerPortalFilter'
-import { broadcastHackathonsDatasetChanged } from '../../utils/hackathonSync'
+import { updateHackathon } from '../../services/hackathonApi'
 import { useHackathons } from '../../hooks/useHackathons'
 import { formatDate } from '../../utils/format'
-
-const STORAGE_KEY = 'prize_vault_hackathons'
 
 const STATUS_BADGE = {
   registered: { label: 'Registered', className: '' },
@@ -69,24 +67,16 @@ export default function ParticipantManager({ hackathonId, sessionWallet, onNavig
     )
   }, [all, statusFilter, searchTerm])
 
-  const setStatus = (participantId, newStatus) => {
+  const setStatus = async (participantId, newStatus) => {
+    if (!currentHackathon) return
+
+    const nextParticipants = (currentHackathon.participants || []).map((p) =>
+      p.id === participantId ? { ...p, status: newStatus } : p,
+    )
+
     try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      const stored = raw ? JSON.parse(raw) : []
-      const updated = stored.map((h) =>
-        h.id !== currentId
-          ? h
-          : {
-              ...h,
-              participants: (h.participants || []).map((p) =>
-                p.id === participantId ? { ...p, status: newStatus } : p,
-              ),
-            },
-      )
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
-      window.dispatchEvent(new CustomEvent('prize_vault_hackathons_changed'))
-      broadcastHackathonsDatasetChanged()
-      reload()
+      const result = await updateHackathon(currentId, { participants: nextParticipants })
+      if (result.success) reload()
     } catch (_) {
       // Leave the UI unchanged if the write fails.
     }
@@ -203,24 +193,24 @@ export default function ParticipantManager({ hackathonId, sessionWallet, onNavig
                   const badge = STATUS_BADGE[p.status] || STATUS_BADGE.registered
                   return (
                     <tr key={p.id}>
-                      <td>
+                      <td data-label="Participant">
                         <span className="pv-table__primary">{p.name}</span>
                         {p.team ? <span className="pv-table__sub">{p.team}</span> : null}
                       </td>
-                      <td>{p.project || <span className="pv-dim">--</span>}</td>
-                      <td>{p.track || <span className="pv-dim">--</span>}</td>
-                      <td>
+                      <td data-label="Project">{p.project || <span className="pv-dim">--</span>}</td>
+                      <td data-label="Track">{p.track || <span className="pv-dim">--</span>}</td>
+                      <td data-label="Payout address">
                         {p.payoutAddress ? (
                           <AddressChip address={p.payoutAddress} label="payout address" />
                         ) : (
                           <span className="pv-dim">Not provided</span>
                         )}
                       </td>
-                      <td>{p.registeredAt ? formatDate(p.registeredAt) : <span className="pv-dim">--</span>}</td>
-                      <td>
+                      <td data-label="Registered">{p.registeredAt ? formatDate(p.registeredAt) : <span className="pv-dim">--</span>}</td>
+                      <td data-label="Status">
                         <span className={`pv-badge ${badge.className}`.trim()}>{badge.label}</span>
                       </td>
-                      <td className="pv-table__actions">
+                      <td className="pv-table__actions" data-label="Actions">
                         {p.status === 'registered' ? (
                           <button
                             type="button"

@@ -11,6 +11,8 @@ import {
   setActiveSession,
 } from '../utils/authSession'
 import { resolveSessionWithQrBootstrap } from '../utils/qrSession'
+import { disconnectWallet } from '../wallet'
+import { syncWalletSession } from '../services/sessionApi'
 import ProfileForm from './components/ProfileForm'
 
 // Stellar wallet SDK loads after the profile step (Freighter + QR in StellarLogin).
@@ -48,6 +50,13 @@ export default function HolderApp() {
     setUserWallet(session.wallet)
     setUserRole(session.role)
     setWalletConnected(true)
+    if (session.role) {
+      void syncWalletSession({
+        wallet: session.wallet,
+        role: session.role,
+        name: getProfileForWallet(session.wallet)?.name,
+      })
+    }
 
     if (session.role === 'participant') {
       setActiveView('participant')
@@ -77,15 +86,18 @@ export default function HolderApp() {
     setWalletConnected(true)
     // Prefer the profile just submitted so a sponsor choice redirects correctly.
     let role: UserRole
+    let profileName: string | undefined
     if (pendingProfile) {
       setProfileForWallet(address, pendingProfile)
       role = pendingProfile.role
+      profileName = pendingProfile.name
       setUserRole(role)
       setPendingProfile(null)
     } else {
       const saved = getProfileForWallet(address)
       if (saved) {
         role = saved.role
+        profileName = saved.name
         setUserRole(role)
       } else {
         role = detectUserRole(address)
@@ -94,6 +106,7 @@ export default function HolderApp() {
     }
     if (role) {
       setActiveSession(address, role)
+      void syncWalletSession({ wallet: address, role, name: profileName })
     }
     if (role === 'sponsor') {
       window.location.href = '/verifier'
@@ -142,6 +155,7 @@ export default function HolderApp() {
   }
 
   const handleDisconnect = () => {
+    void disconnectWallet()
     clearActiveSession()
     requireManualConnect()
     setWalletConnected(false)

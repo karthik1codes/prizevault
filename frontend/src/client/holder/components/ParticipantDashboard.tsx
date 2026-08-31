@@ -54,10 +54,10 @@ export default function ParticipantDashboard({
 
   const totalWon = myWinnings.reduce((sum, x) => sum + (Number(x.win?.prizeAmount) || 0), 0)
 
-  const handleRegister = (hackathon: Hackathon) => {
+  const handleRegister = async (hackathon: Hackathon) => {
     setRegisteringId(hackathon.id)
     setNotice(null)
-    const result = registerForHackathon(hackathon.id, userWallet)
+    const result = await registerForHackathon(hackathon.id, userWallet)
     if (result.ok) {
       setNotice({ tone: 'success', text: `Registered for ${hackathon.name}.` })
       reload()

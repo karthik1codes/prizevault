@@ -2,23 +2,12 @@ import React, { useMemo, useState } from 'react'
 import Icon from '../../components/Icon'
 import AddressChip from '../../components/AddressChip'
 import { savePayoutProposals } from '../../utils/payoutProposalsStorage'
-import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../../constants/escrow'
+import { saveAllHackathons } from '../../services/hackathonApi'
 import { hackathonBelongsToOrganizerPortal } from '../../utils/organizerPortalFilter'
-import { broadcastHackathonsDatasetChanged } from '../../utils/hackathonSync'
 import { appendIssuerAuditLog } from '../../utils/issuerAuditLog'
 import { useHackathons, usePayoutProposals } from '../../hooks/useHackathons'
 import { useEscrow } from '../../hooks/useEscrow'
 import { formatDate, formatXlm, stellarTxUrl } from '../../utils/format'
-
-const STORAGE_KEY = 'prize_vault_hackathons'
-
-function getHackathons() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) return JSON.parse(stored)
-  } catch (_) {}
-  return []
-}
 
 function winnersTotal(proposal) {
   return (proposal.winners || []).reduce((s, w) => s + (Number(w.prizeAmount) || 0), 0)
@@ -96,16 +85,13 @@ export default function PayoutProposal({ hackathonId, sessionWallet, onExecute }
         winners: h.winners || [],
         eventEndDate: h.endDate,
       }
-      savePayoutProposals([proposal, ...proposals])
+      await savePayoutProposals([proposal, ...proposals])
 
       try {
-        const stored = getHackathons()
-        const updatedHackathons = stored.map((x) =>
+        const updatedHackathons = hackathons.map((x) =>
           x.id === h.id ? { ...x, payoutProposed: true } : x,
         )
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedHackathons))
-        window.dispatchEvent(new CustomEvent('prize_vault_hackathons_changed'))
-        broadcastHackathonsDatasetChanged()
+        await saveAllHackathons(updatedHackathons)
         appendIssuerAuditLog({
           action: 'create_payout',
           hackathonId: h.id,
@@ -154,7 +140,7 @@ export default function PayoutProposal({ hackathonId, sessionWallet, onExecute }
             }
           : p,
       )
-      savePayoutProposals(updated)
+      await savePayoutProposals(updated)
       reloadProposals()
       appendIssuerAuditLog({
         action: 'execute',
@@ -301,7 +287,9 @@ export default function PayoutProposal({ hackathonId, sessionWallet, onExecute }
           displayProposals.map((p) => {
             const hackForProposal = hackathons.find((h) => h.id === p.hackathonId)
             const organizerHint =
-              (hackForProposal?.organizerAddress || '').trim() || DEFAULT_ORGANIZER_ESCROW_ADDRESS
+              (hackForProposal?.organizerAddress || '').trim() ||
+              (sessionWallet || '').trim() ||
+              'Connect organizer wallet'
             const bothApproved = p.organizerApproved && p.sponsorApproved
             const total = winnersTotal(p)
 

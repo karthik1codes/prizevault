@@ -1,7 +1,12 @@
+/**
+ * QR / deep-link helpers. No hardcoded personal wallets —
+ * each browser session uses the connected or entered G-address.
+ */
 import { AppRole } from '../utils/authSession'
 
-export const ROLE_WALLET_MAP: Partial<Record<AppRole, string>> = {
-  participant: 'GBCXILQFWSIWZGLEUSCLPQJNBZ2GILW3WMGSALDYN4PBL5VPQOBRXAQ6',
-  sponsor: 'GDZEOLYUIF4SHIV2LAN6SDNTN5WIIB4T2436S4E5QOY4XMNSVTGRLAOL',
-  organizer: 'GBQTXTNRLKN7JOXQ72AAG73JS2RGIUEYY6ALGN3BXQKWNVMS5WW3E7J2',
+/** Build a holder deep-link for an explicit wallet + role (e.g. share with a teammate). */
+export function holderSessionUrl(role: AppRole, wallet: string, origin?: string): string {
+  const base = origin || (typeof window !== 'undefined' ? window.location.origin : '')
+  const params = new URLSearchParams({ role, wallet: wallet.trim() })
+  return `${base}/holder?${params.toString()}`
 }

@@ -1,8 +1,8 @@
-import React from 'react'
+import React, { useState } from 'react'
 import Icon from '../../components/Icon'
 import AddressChip from '../../components/AddressChip'
-import { deleteHackathonById } from '../../holder/utils/roleDetection'
 import { hackathonBelongsToOrganizerPortal } from '../../utils/organizerPortalFilter'
+import { deleteHackathon } from '../../services/hackathonApi'
 import { useHackathons } from '../../hooks/useHackathons'
 import {
   STATUS_META,
@@ -15,16 +15,27 @@ import {
   prizeTotal,
 } from '../../utils/format'
 
-function HackathonCard({ hackathon, onNavigate }) {
+function HackathonCard({ hackathon, sessionWallet, onNavigate, onDeleted }) {
   const status = deriveStatus(hackathon)
   const meta = STATUS_META[status]
   const cover = eventCover(hackathon.name)
+  const [deleting, setDeleting] = useState(false)
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     const ok = window.confirm(
       `Delete hackathon "${hackathon.name}"? This removes it for sponsors and participants and deletes related proposals.`,
     )
-    if (ok) deleteHackathonById(hackathon.id)
+    if (!ok) return
+
+    setDeleting(true)
+    const result = await deleteHackathon(hackathon.id, sessionWallet)
+    setDeleting(false)
+
+    if (!result.success) {
+      window.alert(result.error || 'Could not delete hackathon.')
+      return
+    }
+    onDeleted?.()
   }
 
   return (
@@ -103,10 +114,11 @@ function HackathonCard({ hackathon, onNavigate }) {
           type="button"
           className="pv-btn pv-btn--ghost pv-btn--xs pv-btn--icon"
           onClick={handleDelete}
+          disabled={deleting}
           aria-label={`Delete ${hackathon.name}`}
           title="Delete hackathon"
         >
-          <Icon name="trash" size={13} />
+          {deleting ? <span className="pv-btn__spinner" /> : <Icon name="trash" size={13} />}
         </button>
       </div>
     </article>
@@ -114,7 +126,7 @@ function HackathonCard({ hackathon, onNavigate }) {
 }
 
 export default function OrganizerHackathonList({ sessionWallet, onNavigate }) {
-  const { hackathons } = useHackathons((h) => hackathonBelongsToOrganizerPortal(h, sessionWallet))
+  const { hackathons, reload } = useHackathons((h) => hackathonBelongsToOrganizerPortal(h, sessionWallet))
 
   return (
     <div className="pv-stack pv-stack--lg">
@@ -155,7 +167,13 @@ export default function OrganizerHackathonList({ sessionWallet, onNavigate }) {
       ) : (
         <div className="pv-grid pv-grid--cards">
           {hackathons.map((h) => (
-            <HackathonCard key={h.id} hackathon={h} onNavigate={onNavigate} />
+            <HackathonCard
+              key={h.id}
+              hackathon={h}
+              sessionWallet={sessionWallet}
+              onNavigate={onNavigate}
+              onDeleted={reload}
+            />
           ))}
         </div>
       )}

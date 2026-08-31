@@ -20,6 +20,11 @@ const nextConfig: NextConfig = {
       process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ||
       process.env.WALLETCONNECT_PROJECT_ID ||
       "",
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      "",
   },
   transpilePackages: ["@reown/appkit", "@walletconnect/universal-provider"],
   eslint: {
@@ -34,7 +39,11 @@ const nextConfig: NextConfig = {
       "@frontend": clientSrc,
     },
   },
-  webpack: (config) => {
+  webpack: (config, { dev }) => {
+    // Avoid corrupted chunk caches on Windows when dev/build overlap.
+    if (dev) {
+      config.cache = { type: "memory" };
+    }
     config.resolve.alias = {
       ...config.resolve.alias,
       "@frontend": clientSrc,

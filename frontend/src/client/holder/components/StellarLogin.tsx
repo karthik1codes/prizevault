@@ -6,26 +6,14 @@ import stellarWallet, {
   openFreighterMobile,
   onWalletConnectUri,
 } from '../stellarWallet'
-import organizerWalletQr from '../../assets/organizer-wallet-qr.png'
-import sponsorWalletQr from '../../assets/sponsor-wallet-qr.png'
-import participantWalletQr from '../../assets/participant-wallet-qr.png'
 import { AppRole, clearManualConnectRequirement } from '../../utils/authSession'
-import { ROLE_WALLET_MAP } from '../../constants/qrWallets'
+import { holderSessionUrl } from '../../constants/qrWallets'
+import { isValidStellarAddress } from '../../constants/escrow'
 
 interface StellarLoginProps {
   onConnect: (address: string) => void
   onError?: (error: string) => void
   desiredRole?: AppRole | null
-}
-
-function assetUrl(mod: string | { src: string }): string {
-  return typeof mod === 'string' ? mod : mod.src
-}
-
-const ROLE_QR: Partial<Record<AppRole, string>> = {
-  organizer: assetUrl(organizerWalletQr as string | { src: string }),
-  sponsor: assetUrl(sponsorWalletQr as string | { src: string }),
-  participant: assetUrl(participantWalletQr as string | { src: string }),
 }
 
 function isLikelyMobile(): boolean {
@@ -41,32 +29,12 @@ export default function StellarLogin({
   const [isConnecting, setIsConnecting] = useState(false)
   const [openingFreighter, setOpeningFreighter] = useState(false)
   const [uriReady, setUriReady] = useState(false)
-  const [generatedQr, setGeneratedQr] = useState('')
   const [connectError, setConnectError] = useState('')
+  const [manualAddress, setManualAddress] = useState('')
+  const [sessionQr, setSessionQr] = useState('')
   const mobile = isLikelyMobile()
   const wcReady = isWalletConnectConfigured()
-
   const role: AppRole = desiredRole || 'participant'
-  const walletForRole = ROLE_WALLET_MAP[role] || ROLE_WALLET_MAP.participant || ''
-  const walletExplorerUrl = walletForRole
-    ? `https://stellar.expert/explorer/public/account/${walletForRole}`
-    : ''
-
-  useEffect(() => {
-    if (!walletExplorerUrl) return
-    let cancelled = false
-    QRCode.toDataURL(walletExplorerUrl, { width: 200, margin: 1 })
-      .then((qr) => {
-        if (!cancelled) setGeneratedQr(qr)
-      })
-      .catch((err) => {
-        // eslint-disable-next-line no-console
-        console.error('Failed to render QR code:', err)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [walletExplorerUrl])
 
   useEffect(() => {
     if (!isConnecting || !mobile) {
@@ -75,6 +43,26 @@ export default function StellarLogin({
     }
     return onWalletConnectUri(() => setUriReady(true))
   }, [isConnecting, mobile])
+
+  useEffect(() => {
+    const addr = manualAddress.trim().toUpperCase()
+    if (!isValidStellarAddress(addr)) {
+      setSessionQr('')
+      return
+    }
+    let cancelled = false
+    const url = holderSessionUrl(role, addr)
+    QRCode.toDataURL(url, { width: 200, margin: 1 })
+      .then((qr) => {
+        if (!cancelled) setSessionQr(qr)
+      })
+      .catch(() => {
+        if (!cancelled) setSessionQr('')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [manualAddress, role])
 
   const handleConnect = async () => {
     setConnectError('')
@@ -132,9 +120,18 @@ export default function StellarLogin({
     }
   }
 
-  const qrSrc = ROLE_QR[role] || generatedQr
-  // Hide the unrelated Stellar Expert QR while pairing — it looks like a WC QR and confuses mobile users.
-  const showRoleQr = !isConnecting
+  const handleManualContinue = () => {
+    setConnectError('')
+    const addr = manualAddress.trim().toUpperCase()
+    if (!isValidStellarAddress(addr)) {
+      const msg = 'Enter a valid Stellar G-address (56 characters starting with G).'
+      setConnectError(msg)
+      onError?.(msg)
+      return
+    }
+    clearManualConnectRequirement()
+    onConnect(addr)
+  }
 
   return (
     <div className="pv-stack pv-stack--lg">
@@ -146,9 +143,9 @@ export default function StellarLogin({
           <p className="pv-alert__text">
             {mobile
               ? wcReady
-                ? 'Tap Connect, wait until Open Freighter says Ready, then tap it and Approve in Freighter (Testnet). Do not scan any QR on this same phone.'
-                : 'Mobile needs WalletConnect. Set NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID in Vercel (free at dashboard.walletconnect.com), redeploy, then tap Connect again.'
-              : 'Freighter will open and ask you to sign a short testnet message. That signature only confirms which account you control — it moves no funds.'}
+                ? 'This session uses whatever wallet you connect. Tap Connect, wait until Open Freighter says Ready, then Approve in Freighter (Testnet).'
+                : 'Mobile needs WalletConnect. Set NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID, redeploy, then connect again.'
+              : 'Connect Freighter to use your own address for this browser session. No demo wallets are hard-coded.'}
           </p>
         </div>
       </div>
@@ -199,27 +196,38 @@ export default function StellarLogin({
         </>
       ) : null}
 
-      {connectError ? (
-        <div className="pv-alert pv-alert--danger" role="alert" aria-live="assertive">
-          <span className="pv-alert__icon">
-            <Icon name="alert" size={16} />
-          </span>
-          <div className="pv-alert__content">
-            <p className="pv-alert__title">Could not connect</p>
-            <p className="pv-alert__text">{connectError}</p>
-          </div>
-        </div>
-      ) : null}
-
-      {showRoleQr && qrSrc ? (
-        <div className="pv-card pv-card--flat">
-          <div className="pv-card__body pv-card__body--tight">
+      <div className="pv-card pv-card--flat">
+        <div className="pv-card__body pv-stack">
+          <p style={{ fontWeight: 'var(--pv-weight-semibold)' }}>Or use an address for this session</p>
+          <p className="pv-muted" style={{ fontSize: 'var(--pv-text-sm)' }}>
+            Paste your Stellar G-address to browse as that account without Freighter (UI session
+            only — on-chain escrow API still uses server keys).
+          </p>
+          <input
+            type="text"
+            className="pv-input"
+            placeholder="G..."
+            value={manualAddress}
+            onChange={(e) => setManualAddress(e.target.value.trim())}
+            autoComplete="off"
+            spellCheck={false}
+            aria-label="Stellar wallet address"
+          />
+          <button
+            type="button"
+            className="pv-btn pv-btn--secondary pv-btn--block"
+            onClick={handleManualContinue}
+            disabled={isConnecting}
+          >
+            Continue with this address
+          </button>
+          {sessionQr ? (
             <div className="pv-row" style={{ alignItems: 'center', gap: 'var(--pv-space-7)' }}>
               <img
-                src={qrSrc}
-                alt={`QR code for the ${role} Stellar wallet address`}
-                width={132}
-                height={132}
+                src={sessionQr}
+                alt="QR deep link for this session wallet"
+                width={120}
+                height={120}
                 style={{
                   borderRadius: 'var(--pv-radius-md)',
                   background: '#fff',
@@ -228,13 +236,22 @@ export default function StellarLogin({
                   flex: 'none',
                 }}
               />
-              <div style={{ minWidth: 0 }}>
-                <p style={{ fontWeight: 'var(--pv-weight-semibold)' }}>Account QR (optional)</p>
-                <p className="pv-muted" style={{ fontSize: 'var(--pv-text-sm)', marginTop: 4 }}>
-                  Stellar Expert link for the {role} address — not used for Freighter connect.
-                </p>
-              </div>
+              <p className="pv-muted" style={{ fontSize: 'var(--pv-text-sm)' }}>
+                Scan on another device to open the same role + wallet session link.
+              </p>
             </div>
+          ) : null}
+        </div>
+      </div>
+
+      {connectError ? (
+        <div className="pv-alert pv-alert--danger" role="alert" aria-live="assertive">
+          <span className="pv-alert__icon">
+            <Icon name="alert" size={16} />
+          </span>
+          <div className="pv-alert__content">
+            <p className="pv-alert__title">Could not connect</p>
+            <p className="pv-alert__text">{connectError}</p>
           </div>
         </div>
       ) : null}

@@ -1,7 +1,7 @@
-import React from 'react'
+import React, { useState } from 'react'
 import Icon from '../../components/Icon'
-import { deleteHackathonById } from '../../holder/utils/roleDetection'
 import { hackathonBelongsToOrganizerPortal } from '../../utils/organizerPortalFilter'
+import { deleteHackathon } from '../../services/hackathonApi'
 import { useHackathons } from '../../hooks/useHackathons'
 import {
   STATUS_META,
@@ -13,38 +13,49 @@ import {
   prizeTotal,
 } from '../../utils/format'
 
-function HackathonRow({ hackathon, onNavigate }) {
+function HackathonRow({ hackathon, sessionWallet, onNavigate, onDeleted }) {
   const status = deriveStatus(hackathon)
   const meta = STATUS_META[status]
   const winners = hackathon.winners?.length || 0
+  const [deleting, setDeleting] = useState(false)
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     const ok = window.confirm(
       `Delete hackathon "${hackathon.name}"? This removes it for sponsors and participants and deletes related proposals.`,
     )
-    if (ok) deleteHackathonById(hackathon.id)
+    if (!ok) return
+
+    setDeleting(true)
+    const result = await deleteHackathon(hackathon.id, sessionWallet)
+    setDeleting(false)
+
+    if (!result.success) {
+      window.alert(result.error || 'Could not delete hackathon.')
+      return
+    }
+    onDeleted?.()
   }
 
   return (
     <tr>
-      <td>
+      <td data-label="Event">
         <span className="pv-table__primary">{hackathon.name || 'Untitled'}</span>
         <span className="pv-table__sub">
           {formatDateRange(hackathon.startDate, hackathon.endDate)}
         </span>
       </td>
-      <td>
+      <td data-label="Status">
         <span className={`pv-badge ${meta.badge}`.trim()}>
           {status === 'live' ? <span className="pv-badge__dot pv-badge__dot--pulse" /> : null}
           {meta.label}
         </span>
       </td>
-      <td className="pv-table__num">
+      <td className="pv-table__num" data-label="Prize pool">
         {formatXlm(prizeTotal(hackathon))}{' '}
         <span className="pv-dim">{prizeCurrency(hackathon)}</span>
       </td>
-      <td className="pv-table__num">{participantCount(hackathon)}</td>
-      <td>
+      <td className="pv-table__num" data-label="Registered">{participantCount(hackathon)}</td>
+      <td data-label="Payout stage">
         {hackathon.payoutProposed ? (
           <span className="pv-badge pv-badge--accent">Payout proposed</span>
         ) : hackathon.winnersSelected ? (
@@ -55,7 +66,7 @@ function HackathonRow({ hackathon, onNavigate }) {
           <span className="pv-badge">No winners yet</span>
         )}
       </td>
-      <td className="pv-table__actions">
+      <td className="pv-table__actions" data-label="Actions">
         <span className="pv-btn-group">
           <button
             type="button"
@@ -82,10 +93,11 @@ function HackathonRow({ hackathon, onNavigate }) {
             type="button"
             className="pv-btn pv-btn--ghost pv-btn--xs pv-btn--icon"
             onClick={handleDelete}
+            disabled={deleting}
             aria-label={`Delete ${hackathon.name}`}
             title="Delete hackathon"
           >
-            <Icon name="trash" size={13} />
+            {deleting ? <span className="pv-btn__spinner" /> : <Icon name="trash" size={13} />}
           </button>
         </span>
       </td>
@@ -94,7 +106,7 @@ function HackathonRow({ hackathon, onNavigate }) {
 }
 
 export default function OrganizerDashboard({ sessionWallet, onNavigate }) {
-  const { hackathons } = useHackathons((h) => hackathonBelongsToOrganizerPortal(h, sessionWallet))
+  const { hackathons, reload } = useHackathons((h) => hackathonBelongsToOrganizerPortal(h, sessionWallet))
 
   // A completed event with no winners chosen is the thing that actually needs
   // action. The original tested `winnersSelected && !payoutProposed`, which is
@@ -250,7 +262,13 @@ export default function OrganizerDashboard({ sessionWallet, onNavigate }) {
                 </thead>
                 <tbody>
                   {hackathons.map((h) => (
-                    <HackathonRow key={h.id} hackathon={h} onNavigate={onNavigate} />
+                    <HackathonRow
+                      key={h.id}
+                      hackathon={h}
+                      sessionWallet={sessionWallet}
+                      onNavigate={onNavigate}
+                      onDeleted={reload}
+                    />
                   ))}
                 </tbody>
               </table>

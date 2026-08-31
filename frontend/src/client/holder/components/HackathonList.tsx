@@ -52,10 +52,10 @@ export default function HackathonList({ userWallet, userRole, onNavigate }: Hack
     [withStatus, filter],
   )
 
-  const handleRegister = (hackathon: Hackathon) => {
+  const handleRegister = async (hackathon: Hackathon) => {
     setRegisteringId(hackathon.id)
     setNotice(null)
-    const result = registerForHackathon(hackathon.id, userWallet)
+    const result = await registerForHackathon(hackathon.id, userWallet)
     if (result.ok) {
       setNotice({ tone: 'success', text: `Registered for ${hackathon.name}.` })
       reload()

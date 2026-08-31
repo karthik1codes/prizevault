@@ -1,11 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../constants/escrow'
+  import React, { useEffect, useMemo, useState } from 'react'
 import { hackathonBelongsToOrganizerPortal } from '../utils/organizerPortalFilter'
 import { clearActiveSession, hasRequiredRole, requireManualConnect } from '../utils/authSession'
 import { resolveSessionWithQrBootstrap } from '../utils/qrSession'
+import { disconnectWallet } from '../wallet'
 import { prizeTotal } from '../utils/format'
 import { useHackathons } from '../hooks/useHackathons'
 import { broadcastHackathonsDatasetChanged } from '../utils/hackathonSync'
+import { saveHackathonsToStorage } from '../holder/utils/roleDetection'
+import { syncWalletSession } from '../services/sessionApi'
 import { getIssuerAuditLogs } from '../utils/issuerAuditLog'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
@@ -30,8 +32,7 @@ function initHackathonData() {
   try {
     const existing = localStorage.getItem(HACKATHON_STORAGE_KEY)
     if (!existing) {
-      localStorage.setItem(HACKATHON_STORAGE_KEY, JSON.stringify([]))
-      broadcastHackathonsDatasetChanged()
+      saveHackathonsToStorage([], { broadcast: false })
       return
     }
     const parsed = JSON.parse(existing)
@@ -75,8 +76,12 @@ export default function IssuerApp() {
 
   useEffect(() => {
     initHackathonData()
-    setSession(resolveSessionWithQrBootstrap())
+    const resolved = resolveSessionWithQrBootstrap()
+    setSession(resolved)
     setSessionReady(true)
+    if (resolved?.wallet && resolved?.role === 'organizer') {
+      void syncWalletSession({ wallet: resolved.wallet, role: 'organizer' })
+    }
   }, [])
 
   useEffect(() => {
@@ -91,8 +96,7 @@ export default function IssuerApp() {
   const [auditLogs, setAuditLogs] = useState([])
 
   const sessionWallet = session?.wallet ?? null
-  /** Always show the canonical organizer G-address, not the session wallet. */
-  const organizerDisplayAddress = DEFAULT_ORGANIZER_ESCROW_ADDRESS
+  const organizerDisplayAddress = sessionWallet || ''
 
   const { hackathons: myHackathons } = useHackathons((h) =>
     hackathonBelongsToOrganizerPortal(h, sessionWallet),
@@ -166,6 +170,7 @@ export default function IssuerApp() {
   const meta = VIEW_META[activeView] || VIEW_META.dashboard
 
   const handleDisconnect = () => {
+    void disconnectWallet()
     clearActiveSession()
     requireManualConnect()
     window.location.href = '/holder'

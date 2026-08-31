@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { GlobalWorkerOptions, getDocument, version as pdfjsVersion } from 'pdfjs-dist'
 import Icon from '../../components/Icon'
-import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../../constants/escrow'
 import { appendIssuerAuditLog } from '../../utils/issuerAuditLog'
 import { hackathonBelongsToOrganizerPortal } from '../../utils/organizerPortalFilter'
 import { useHackathons } from '../../hooks/useHackathons'
@@ -52,7 +51,7 @@ export default function Timeline({ sessionWallet }) {
   const [pdfError, setPdfError] = useState('')
   const [dirty, setDirty] = useState(false)
 
-  const auditWallet = sessionWallet || DEFAULT_ORGANIZER_ESCROW_ADDRESS
+  const auditWallet = sessionWallet || ''
   const myHackathons = useMemo(
     () => hackathons.filter((h) => hackathonBelongsToOrganizerPortal(h, sessionWallet)),
     [hackathons, sessionWallet],

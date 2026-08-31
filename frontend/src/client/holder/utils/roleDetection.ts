@@ -81,13 +81,22 @@ export function getHackathonsFromStorage(): Hackathon[] {
   return []
 }
 
+export type SaveHackathonsOptions = {
+  /** When false, skip cross-tab / hook reload signals (e.g. silent API cache writes). */
+  broadcast?: boolean
+}
+
 /**
  * Saves hackathons to localStorage
  */
-export function saveHackathonsToStorage(hackathons: Hackathon[]): void {
+export function saveHackathonsToStorage(
+  hackathons: Hackathon[],
+  options: SaveHackathonsOptions = {},
+): void {
+  const shouldBroadcast = options.broadcast !== false
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(hackathons))
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && shouldBroadcast) {
       window.dispatchEvent(new CustomEvent('prize_vault_hackathons_changed'))
       broadcastHackathonsDatasetChanged()
     }

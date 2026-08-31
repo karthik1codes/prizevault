@@ -47,7 +47,7 @@ export default function EscrowOverviewPanel({ escrows, selectedEscrowId, onSelec
                     background: active ? 'var(--pv-accent-soft)' : 'var(--pv-surface)',
                   }}
                 >
-                  <span className="pv-row pv-row--between" style={{ flexWrap: 'nowrap' }}>
+                  <span className="pv-row pv-row--between">
                     <span style={{ minWidth: 0 }}>
                       <span
                         className="pv-truncate"

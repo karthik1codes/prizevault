@@ -3,17 +3,23 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "clean": "node scripts/clean-next.mjs",
     "dev": "next dev",
+    "dev:clean": "node scripts/clean-next.mjs && next dev",
     "build": "next build",
+    "build:clean": "node scripts/clean-next.mjs && next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
+    "@base-ui/react": "^1.7.0",
     "@reown/appkit": "^1.8.23",
     "@stellar/freighter-api": "^6.0.1",
     "@stellar/stellar-sdk": "^15.1.0",
+    "@supabase/supabase-js": "^2.112.4",
     "@walletconnect/universal-provider": "^2.23.10",
     "buffer": "^6.0.3",
+    "cobe": "^2.0.1",
     "dotenv": "^17.4.2",
     "ipfs-http-client": "^60.0.1",
     "next": "15.5.24",

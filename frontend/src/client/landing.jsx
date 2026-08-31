@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import SharedHeader from './components/SharedHeader'
 import Icon from './components/Icon'
+import HackathonGlobe from '@/components/ui/usage'
 import { getHackathonsFromStorage } from './holder/utils/roleDetection'
 import { subscribeHackathonsDatasetChanged } from './utils/hackathonSync'
+import { fetchHackathons } from './services/hackathonApi'
 import {
   STATUS_META,
   deriveStatus,
@@ -25,35 +27,6 @@ const SPONSORS = [
   { name: 'Urban Company', src: '/logos/urban-company.png' },
   { name: 'Cursor', src: '/logos/cursor.png' },
   { name: 'IDFC First Bank', src: '/logos/idfc-first.png' },
-]
-
-const ESCROW_STEPS = [
-  {
-    title: 'Sponsor locks the prize pool',
-    text: 'Funds move into a Stellar escrow the sponsor no longer solely controls.',
-  },
-  {
-    title: 'Organizer configures the event',
-    text: 'Prize tiers, tracks and timeline are set; participants register.',
-    key: true,
-  },
-  {
-    title: 'Judging closes, winners proposed',
-    text: 'The organizer submits winner addresses and amounts on-chain.',
-  },
-  {
-    title: 'Sponsor co-approves',
-    text: 'Both parties have now explicitly agreed on who gets paid what.',
-    key: true,
-  },
-  {
-    title: 'Atomic release',
-    text: 'One all-or-nothing transaction pays every winner at once.',
-  },
-  {
-    title: 'Permanent audit trail',
-    text: 'Every deposit and payout stays verifiable on Stellar forever.',
-  },
 ]
 
 const FEATURES = [
@@ -132,7 +105,11 @@ function EventCard({ hackathon }) {
   const total = prizeTotal(hackathon)
 
   return (
-    <a className="pv-event" href={`/holder?event=${encodeURIComponent(hackathon.id)}`}>
+    <a
+      id={`event-${hackathon.id}`}
+      className="pv-event"
+      href={`/holder?event=${encodeURIComponent(hackathon.id)}`}
+    >
       <div className="pv-event__cover" style={{ background: cover.background }}>
         <span className="pv-event__cover-initials">{cover.initials}</span>
         <span className={`pv-badge ${meta.badge} pv-event__cover-badge`.trim()}>
@@ -174,17 +151,27 @@ function Landing() {
 
   useEffect(() => {
     if (window.location.hash) {
-      const frame = window.requestAnimationFrame(() => scrollToHash(window.location.hash))
-      return () => window.cancelAnimationFrame(frame)
+      scrollToHash(window.location.hash)
+    } else {
+      window.scrollTo({ top: 0, behavior: 'auto' })
     }
-    window.scrollTo({ top: 0, behavior: 'auto' })
-    return undefined
+    const onHashChange = () => scrollToHash(window.location.hash)
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
 
   useEffect(
     () => subscribeHackathonsDatasetChanged(() => setHackathons(getHackathonsFromStorage())),
     [],
   )
+
+  useEffect(() => {
+    fetchHackathons()
+      .then((list) => {
+        if (Array.isArray(list) && list.length > 0) setHackathons(list)
+      })
+      .catch(() => {})
+  }, [])
 
   const { openEvents, stats } = useMemo(() => {
     const withStatus = hackathons.map((h) => ({ ...h, _status: deriveStatus(h) }))
@@ -207,14 +194,7 @@ function Landing() {
         Skip to content
       </a>
 
-      <SharedHeader
-        activeTab="landing"
-        navLinks={[
-          { label: 'Events', href: '#events' },
-          { label: 'How it works', href: '#how' },
-          { label: 'Roles', href: '#roles' },
-        ]}
-      />
+      <SharedHeader activeTab="landing" />
 
       <main id="main">
         <section className="pv-container">
@@ -259,25 +239,8 @@ function Landing() {
               </div>
             </div>
 
-            <div className="pv-flowcard">
-              <div className="pv-flowcard__head">
-                <h2 className="pv-flowcard__title">Escrow lifecycle</h2>
-                <span className="pv-badge pv-badge--accent">2-of-2</span>
-              </div>
-              <div className="pv-flowcard__body">
-                {ESCROW_STEPS.map((step, i) => (
-                  <div
-                    key={step.title}
-                    className={`pv-flowstep ${step.key ? 'pv-flowstep--key' : ''}`.trim()}
-                  >
-                    <span className="pv-flowstep__marker">{i + 1}</span>
-                    <div>
-                      <h3 className="pv-flowstep__title">{step.title}</h3>
-                      <p className="pv-flowstep__text">{step.text}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="pv-hero__globe">
+              <HackathonGlobe hackathons={openEvents} />
             </div>
           </div>
         </section>

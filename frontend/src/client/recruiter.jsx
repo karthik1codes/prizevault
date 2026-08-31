@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { ensureWalletAddress } from './wallet'
-import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from './constants/escrow'
+import { ensureWalletAddress, disconnectWallet } from './wallet'
 import SharedHeader from './components/SharedHeader'
 import Icon from './components/Icon'
 import {
@@ -15,6 +14,8 @@ import {
   broadcastHackathonsDatasetChanged,
   subscribeHackathonsDatasetChanged,
 } from './utils/hackathonSync'
+import { fetchHackathons, fetchProposals, saveAllHackathons } from './services/hackathonApi'
+import { syncWalletSession } from './services/sessionApi'
 import { useEscrow } from './hooks/useEscrow'
 import {
   fundEscrowContractWithFreighter,
@@ -40,17 +41,12 @@ function getHackathonsFromStorage() {
   }
 }
 
-function saveHackathonsToStorage(hackathons) {
-  try {
-    localStorage.setItem(HACKATHON_STORAGE_KEY, JSON.stringify(hackathons))
-    window.dispatchEvent(new CustomEvent('prize_vault_hackathons_changed'))
-    broadcastHackathonsDatasetChanged()
-  } catch (_) {}
-}
-
 function SponsorConsole() {
   useEffect(() => {
-    resolveSessionWithQrBootstrap()
+    const session = resolveSessionWithQrBootstrap()
+    if (session?.wallet && session?.role === 'sponsor') {
+      void syncWalletSession({ wallet: session.wallet, role: 'sponsor' })
+    }
   }, [])
 
   useEffect(() => {
@@ -60,10 +56,10 @@ function SponsorConsole() {
   }, [])
 
   const activeSession = getActiveSession()
-  const senderAddress =
-    activeSession?.wallet || 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF'
+  const senderAddress = (activeSession?.wallet || '').trim()
 
   const handleDisconnect = () => {
+    void disconnectWallet()
     clearActiveSession()
     requireManualConnect()
     window.location.href = '/holder'
@@ -85,12 +81,15 @@ function SponsorConsole() {
   // savePayoutProposals now announces its own writes, so the 2-second poll the
   // original ran forever is no longer needed to notice cross-surface approvals.
   useEffect(() => {
-    const refresh = () => {
-      setHackathons(getHackathonsFromStorage())
-      setProposals(getPayoutProposals())
+    const refresh = async () => {
+      const [list, propList] = await Promise.all([fetchHackathons(), fetchProposals()])
+      setHackathons(list)
+      setProposals(propList)
     }
     refresh()
-    return subscribeHackathonsDatasetChanged(refresh, ['prize_vault_payout_proposals'])
+    return subscribeHackathonsDatasetChanged(() => {
+      void refresh()
+    }, ['prize_vault_payout_proposals'])
   }, [])
 
   const escrows = useMemo(
@@ -171,7 +170,8 @@ function SponsorConsole() {
   const syncEscrowOnChainState = async (escrowId) => {
     const hack = hackathons.find((h) => h.id === escrowId)
     if (!hack) return
-    const simulator = senderAddress || DEFAULT_ORGANIZER_ESCROW_ADDRESS
+    const simulator = senderAddress
+    if (!simulator) return
     try {
       const onChainBalanceXlm = await getContractXlmBalanceXlm(simulator)
       const updatedHackathons = hackathons.map((h) =>
@@ -179,7 +179,7 @@ function SponsorConsole() {
           ? { ...h, onChainBalanceXlm, escrowAddress: getEscrowContractId() }
           : h,
       )
-      saveHackathonsToStorage(updatedHackathons)
+      saveAllHackathons(updatedHackathons)
       setHackathons(updatedHackathons)
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -221,12 +221,12 @@ function SponsorConsole() {
               sponsorFundingXlm: Number(h.sponsorFundingXlm || 0) + numericAmount,
               sponsorAddress: senderAddress,
               organizerAddress:
-                hackRow.organizerAddress?.trim() || DEFAULT_ORGANIZER_ESCROW_ADDRESS,
+                hackRow.organizerAddress?.trim() || '',
               escrowAddress: contractId,
             }
           : h,
       )
-      saveHackathonsToStorage(updatedHackathons)
+      saveAllHackathons(updatedHackathons)
       setHackathons(updatedHackathons)
       await syncEscrowOnChainState(escrowId)
 

@@ -108,18 +108,18 @@ export default function ReleaseApprovalsPanel({
                     <tbody>
                       {item.winners.map((w, i) => (
                         <tr key={`${item.id}-${i}`}>
-                          <td className="pv-table__primary">{w.name || 'Winner'}</td>
-                          <td>
+                          <td className="pv-table__primary" data-label="Winner">{w.name || 'Winner'}</td>
+                          <td data-label="Tier">
                             <span className="pv-badge">{w.prizeTier || '--'}</span>
                           </td>
-                          <td>
+                          <td data-label="Payout address">
                             {w.payoutAddress ? (
                               <AddressChip address={w.payoutAddress} label="payout address" />
                             ) : (
                               <span className="pv-dim">Not specified</span>
                             )}
                           </td>
-                          <td className="pv-table__num">{formatXlm(w.prizeAmount)}</td>
+                          <td className="pv-table__num" data-label="Amount">{formatXlm(w.prizeAmount)}</td>
                         </tr>
                       ))}
                     </tbody>

@@ -411,18 +411,15 @@
     position: static;
     top: auto;
     flex-direction: row;
+    flex-wrap: wrap;
     gap: var(--pv-space-2);
-    overflow-x: auto;
-    padding: var(--pv-space-5) 0 0;
-    scrollbar-width: none;
+    overflow-x: visible;
+    padding: var(--pv-space-5) 0 var(--pv-space-5);
     border-bottom: 1px solid var(--pv-border);
   }
 
-  .pv-sidebar::-webkit-scrollbar { display: none; }
-
   .pv-sidebar__section {
-    flex-direction: row;
-    gap: var(--pv-space-2);
+    display: contents;
   }
 
   .pv-sidebar__label { display: none; }
@@ -430,6 +427,7 @@
   .pv-sidebar__link {
     white-space: nowrap;
     width: auto;
+    flex: 0 1 auto;
   }
 }
 
@@ -468,5 +466,21 @@
     flex-direction: column;
     align-items: flex-start;
     gap: var(--pv-space-5);
+  }
+
+  .pv-section__header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--pv-space-4);
+  }
+
+  .pv-section__header .pv-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .pv-content {
+    padding-top: var(--pv-space-6);
+    padding-bottom: var(--pv-space-11);
   }
 }

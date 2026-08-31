@@ -4,11 +4,7 @@ import {
   getActiveSession,
   setActiveSession,
 } from './authSession'
-import { ROLE_WALLET_MAP } from '../constants/qrWallets'
-
-function isValidStellarAddress(value: string): boolean {
-  return /^G[A-Z2-7]{55}$/.test(value)
-}
+import { isValidStellarAddress } from '../constants/escrow'
 
 function normalizeRole(roleRaw: string | null): AppRole | null {
   if (!roleRaw) return null
@@ -21,8 +17,8 @@ function normalizeRole(roleRaw: string | null): AppRole | null {
 
 /**
  * Accepts QR deep-link query params and stores session:
- * - role: participant | sponsor | organizer
- * - wallet: Stellar public key (G...)
+ * - role: participant | sponsor | organizer (required)
+ * - wallet / address: Stellar public key G... (required — no hardcoded fallback)
  *
  * Example:
  * /holder?role=participant&wallet=G...
@@ -32,14 +28,12 @@ export function bootstrapSessionFromQrParams(): { role: AppRole; wallet: string 
 
   const params = new URLSearchParams(window.location.search)
   const role = normalizeRole(params.get('role'))
-  const fallbackByRole = role ? ROLE_WALLET_MAP[role] || '' : ''
-  const wallet = (params.get('wallet') || params.get('address') || fallbackByRole || '').trim()
+  const wallet = (params.get('wallet') || params.get('address') || '').trim()
   if (!role || !wallet || !isValidStellarAddress(wallet)) return null
 
   setActiveSession(wallet, role)
   clearManualConnectRequirement()
 
-  // Keep URL clean after bootstrap.
   const cleanUrl = `${window.location.pathname}${window.location.hash || ''}`
   window.history.replaceState({}, '', cleanUrl)
 

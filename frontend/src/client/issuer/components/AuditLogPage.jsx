@@ -173,16 +173,16 @@ export default function AuditLogPage({ logs = [] }) {
               <tbody>
                 {filteredLogs.map((log, index) => (
                   <tr key={`${log.timestamp}-${index}`}>
-                    <td style={{ whiteSpace: 'nowrap' }}>{formatDateTime(log.timestamp)}</td>
-                    <td>
+                    <td data-label="When">{formatDateTime(log.timestamp)}</td>
+                    <td data-label="Action">
                       <span className="pv-badge">
                         <Icon name={ACTION_ICON[log.action] || 'list'} size={12} />
                         {ACTION_LABEL[log.action] || log.action || 'Update'}
                       </span>
                     </td>
-                    <td>{log.user || 'System'}</td>
-                    <td>{log.details || <span className="pv-dim">--</span>}</td>
-                    <td>
+                    <td data-label="By">{log.user || 'System'}</td>
+                    <td data-label="Details">{log.details || <span className="pv-dim">--</span>}</td>
+                    <td data-label="Transaction">
                       {log.txHash ? (
                         <a
                           href={stellarTxUrl(log.txHash)}

@@ -42,6 +42,11 @@ export interface Hackathon {
   winnersSelected: boolean
   payoutProposed: boolean
   description?: string
+  /** City or venue label shown on the landing globe */
+  venueCity?: string
+  /** Precise map coordinates (WGS84). Auto-filled from venueCity when known. */
+  latitude?: number
+  longitude?: number
 }
 
 export type HackathonStatus = 'upcoming' | 'live' | 'completed'

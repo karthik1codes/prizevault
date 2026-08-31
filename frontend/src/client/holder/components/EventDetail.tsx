@@ -90,10 +90,10 @@ export default function EventDetail({
     (w) => w.payoutAddress?.toLowerCase() === userWallet?.toLowerCase(),
   )
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     setBusy(true)
     setNotice(null)
-    const result = registerForHackathon(hackathon.id, userWallet)
+    const result = await registerForHackathon(hackathon.id, userWallet)
     if (result.ok) {
       setNotice({ tone: 'success', text: `You are registered for ${hackathon.name}.` })
       reload()
@@ -271,10 +271,10 @@ export default function EventDetail({
                 <tbody>
                   {timeline.map((evt) => (
                     <tr key={evt.id}>
-                      <td className="pv-mono" style={{ whiteSpace: 'nowrap' }}>
+                      <td className="pv-mono" data-label="Time">
                         {evt.time || '--'}
                       </td>
-                      <td>
+                      <td data-label="What happens">
                         <span className="pv-table__primary">{evt.title || 'Untitled'}</span>
                         {evt.details ? <span className="pv-table__sub">{evt.details}</span> : null}
                       </td>
@@ -310,14 +310,14 @@ export default function EventDetail({
                 <tbody>
                   {(hackathon.winners || []).map((w, i) => (
                     <tr key={w.id || i}>
-                      <td>
+                      <td data-label="Winner">
                         <span className="pv-table__primary">{w.name || 'Winner'}</span>
                         {w.team ? <span className="pv-table__sub">{w.team}</span> : null}
                       </td>
-                      <td>
+                      <td data-label="Tier">
                         <span className="pv-badge">{w.prizeTier || '--'}</span>
                       </td>
-                      <td className="pv-table__num">{formatXlm(w.prizeAmount)}</td>
+                      <td className="pv-table__num" data-label={`Prize (${prizeCurrency(hackathon)})`}>{formatXlm(w.prizeAmount)}</td>
                     </tr>
                   ))}
                 </tbody>

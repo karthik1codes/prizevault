@@ -1,12 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import Icon from '../../components/Icon'
 import { hackathonBelongsToOrganizerPortal } from '../../utils/organizerPortalFilter'
-import { broadcastHackathonsDatasetChanged } from '../../utils/hackathonSync'
+import { updateHackathon } from '../../services/hackathonApi'
 import { useHackathons } from '../../hooks/useHackathons'
 import { appendIssuerAuditLog } from '../../utils/issuerAuditLog'
 import { formatXlm, prizeCurrency, prizeTotal } from '../../utils/format'
-
-const STORAGE_KEY = 'prize_vault_hackathons'
 
 const PRIZE_TIERS = [
   { value: '1st', label: '1st place' },
@@ -114,7 +112,7 @@ export default function WinnerSelection({ hackathonId, sessionWallet, onSave }) 
 
   const canSave = selectedIds.length > 0 && errors.length === 0
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setTouched(true)
     if (!canSave || !hackathon) return
 
@@ -132,23 +130,18 @@ export default function WinnerSelection({ hackathonId, sessionWallet, onSave }) 
     })
 
     try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      const stored = raw ? JSON.parse(raw) : []
-      const updated = stored.map((h) =>
-        h.id === hackathon.id
-          ? {
-              ...h,
-              winners: winnerList,
-              winnersSelected: winnerList.length > 0,
-              participants: (h.participants || []).map((p) =>
-                winnerList.some((w) => w.id === p.id) ? { ...p, status: 'winner' } : p,
-              ),
-            }
-          : h,
+      const nextParticipants = (hackathon.participants || []).map((p) =>
+        winnerList.some((w) => w.id === p.id) ? { ...p, status: 'winner' } : p,
       )
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
-      window.dispatchEvent(new CustomEvent('prize_vault_hackathons_changed'))
-      broadcastHackathonsDatasetChanged()
+
+      const result = await updateHackathon(hackathon.id, {
+        winners: winnerList,
+        winnersSelected: winnerList.length > 0,
+        participants: nextParticipants,
+      })
+
+      if (!result.success) return
+
       appendIssuerAuditLog({
         action: 'select_winners',
         hackathonId: hackathon.id,
@@ -229,13 +222,9 @@ export default function WinnerSelection({ hackathonId, sessionWallet, onSave }) 
                     </th>
                     <th scope="col">Participant</th>
                     <th scope="col">Project</th>
-                    <th scope="col" style={{ minWidth: 150 }}>
-                      Prize tier
-                    </th>
-                    <th scope="col" style={{ minWidth: 220 }}>
-                      Payout address
-                    </th>
-                    <th scope="col" className="pv-table__num" style={{ minWidth: 130 }}>
+                    <th scope="col">Prize tier</th>
+                    <th scope="col">Payout address</th>
+                    <th scope="col" className="pv-table__num">
                       Prize ({currency})
                     </th>
                   </tr>
@@ -247,7 +236,7 @@ export default function WinnerSelection({ hackathonId, sessionWallet, onSave }) 
                       touched && win && !STELLAR_ADDRESS.test(String(win.payoutAddress || '').trim())
                     return (
                       <tr key={p.id}>
-                        <td>
+                        <td data-label="Winner">
                           <input
                             type="checkbox"
                             checked={!!win}
@@ -255,12 +244,12 @@ export default function WinnerSelection({ hackathonId, sessionWallet, onSave }) 
                             aria-label={`Mark ${p.name} as a winner`}
                           />
                         </td>
-                        <td>
+                        <td data-label="Participant">
                           <span className="pv-table__primary">{p.name}</span>
                           {p.team ? <span className="pv-table__sub">{p.team}</span> : null}
                         </td>
-                        <td>{p.project || <span className="pv-dim">--</span>}</td>
-                        <td>
+                        <td data-label="Project">{p.project || <span className="pv-dim">--</span>}</td>
+                        <td data-label="Prize tier">
                           {win ? (
                             <select
                               className="pv-select"
@@ -280,7 +269,7 @@ export default function WinnerSelection({ hackathonId, sessionWallet, onSave }) 
                             <span className="pv-dim">--</span>
                           )}
                         </td>
-                        <td>
+                        <td data-label="Payout address">
                           {win ? (
                             <input
                               type="text"
@@ -296,7 +285,7 @@ export default function WinnerSelection({ hackathonId, sessionWallet, onSave }) 
                             <span className="pv-dim">--</span>
                           )}
                         </td>
-                        <td className="pv-table__num">
+                        <td className="pv-table__num" data-label={`Prize (${currency})`}>
                           {win ? (
                             <input
                               type="number"

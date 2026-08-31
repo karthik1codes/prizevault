@@ -1,31 +1,14 @@
 import React, { useState } from 'react'
 import Icon from '../../components/Icon'
 import AddressChip from '../../components/AddressChip'
-import { DEFAULT_ORGANIZER_ESCROW_ADDRESS } from '../../constants/escrow'
-import { broadcastHackathonsDatasetChanged } from '../../utils/hackathonSync'
+import { isValidStellarAddress } from '../../constants/escrow'
+import { ESCROW_APP_ID } from '../../constants/escrow'
 import { appendIssuerAuditLog } from '../../utils/issuerAuditLog'
-
-const STORAGE_KEY = 'prize_vault_hackathons'
-
-function getStoredHackathons() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) return JSON.parse(stored)
-  } catch (_) {}
-  return []
-}
-
-function saveHackathons(hackathons) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(hackathons))
-    return true
-  } catch (_) {
-    return false
-  }
-}
+import { createHackathon } from '../../services/hackathonApi'
+import { lookupCityCoordinates } from '../../utils/hackathonGlobe'
 
 /** Field-level errors so each message renders next to the input it belongs to. */
-function validate({ name, startDate, endDate, prizeTotal }) {
+function validate({ name, startDate, endDate, prizeTotal, venueCity, latitude, longitude }) {
   const errors = {}
   if (!name.trim()) errors.name = 'Give the event a name.'
   if (!startDate) errors.startDate = 'Pick a start date.'
@@ -37,12 +20,21 @@ function validate({ name, startDate, endDate, prizeTotal }) {
   if (prizeTotal === '' || Number.isNaN(total) || total < 0) {
     errors.prizeTotal = 'Enter a prize pool of 0 or more.'
   }
+  if (!venueCity.trim()) errors.venueCity = 'Enter the host city so the event appears on the globe.'
+  const lat = latitude === '' ? NaN : Number(latitude)
+  const lng = longitude === '' ? NaN : Number(longitude)
+  if (latitude !== '' && (Number.isNaN(lat) || lat < -90 || lat > 90)) {
+    errors.latitude = 'Latitude must be between -90 and 90.'
+  }
+  if (longitude !== '' && (Number.isNaN(lng) || lng < -180 || lng > 180)) {
+    errors.longitude = 'Longitude must be between -180 and 180.'
+  }
   return errors
 }
 
-export default function CreateHackathonForm({ userWallet: _userWallet, onSave, onCancel }) {
-  /** Locked to the organizer/escrow destination -- never the connected wallet. */
-  const organizerEscrowAddress = DEFAULT_ORGANIZER_ESCROW_ADDRESS
+export default function CreateHackathonForm({ userWallet, onSave, onCancel }) {
+  /** Locked to the connected organizer wallet for this browser session. */
+  const organizerEscrowAddress = (userWallet || '').trim()
 
   const [values, setValues] = useState({
     name: '',
@@ -51,14 +43,28 @@ export default function CreateHackathonForm({ userWallet: _userWallet, onSave, o
     prizeTotal: '',
     prizeCurrency: 'XLM',
     description: '',
+    venueCity: '',
+    latitude: '',
+    longitude: '',
   })
   const [errors, setErrors] = useState({})
   const [submitted, setSubmitted] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [saving, setSaving] = useState(false)
 
   const set = (field) => (e) => {
     const value = e.target.value
-    setValues((prev) => ({ ...prev, [field]: value }))
+    setValues((prev) => {
+      const next = { ...prev, [field]: value }
+      if (field === 'venueCity') {
+        const coords = lookupCityCoordinates(value)
+        if (coords) {
+          next.latitude = String(coords[0])
+          next.longitude = String(coords[1])
+        }
+      }
+      return next
+    })
     if (submitted) {
       setErrors(validate({ ...values, [field]: value }))
     }
@@ -66,7 +72,7 @@ export default function CreateHackathonForm({ userWallet: _userWallet, onSave, o
 
   const showError = (field) => (submitted && errors[field] ? errors[field] : '')
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setSubmitted(true)
     setSaveError('')
@@ -76,6 +82,16 @@ export default function CreateHackathonForm({ userWallet: _userWallet, onSave, o
     if (Object.keys(found).length > 0) return
 
     const organizerEscrow = organizerEscrowAddress.trim()
+    if (!isValidStellarAddress(organizerEscrow)) {
+      setSaveError('Connect an organizer wallet before creating a hackathon.')
+      return
+    }
+    const coords = lookupCityCoordinates(values.venueCity.trim())
+    const latInput = values.latitude.trim()
+    const lngInput = values.longitude.trim()
+    const latitude = latInput !== '' ? Number(latInput) : coords?.[0]
+    const longitude = lngInput !== '' ? Number(lngInput) : coords?.[1]
+
     const newHackathon = {
       id: `hack_${Date.now()}`,
       name: values.name.trim(),
@@ -88,29 +104,33 @@ export default function CreateHackathonForm({ userWallet: _userWallet, onSave, o
       },
       organizerAddress: organizerEscrow,
       sponsorAddress: '',
-      escrowAddress: organizerEscrow,
+      escrowAddress: ESCROW_APP_ID,
       status: 'upcoming',
       participantCount: 0,
       participants: [],
       winnersSelected: false,
       payoutProposed: false,
       description: values.description.trim() || undefined,
+      venueCity: values.venueCity.trim(),
+      latitude,
+      longitude,
     }
 
-    const ok = saveHackathons([...getStoredHackathons(), newHackathon])
-    if (!ok) {
-      setSaveError('Could not save. Browser storage may be full or blocked.')
+    setSaving(true)
+    const result = await createHackathon(newHackathon)
+    setSaving(false)
+
+    if (!result.success || !result.hackathon) {
+      setSaveError(result.error || 'Could not save hackathon.')
       return
     }
 
-    window.dispatchEvent(new CustomEvent('prize_vault_hackathons_changed'))
-    broadcastHackathonsDatasetChanged()
     appendIssuerAuditLog({
       action: 'create',
-      hackathonId: newHackathon.id,
-      details: `Created hackathon ${newHackathon.name} with a ${newHackathon.prizePool.total} ${newHackathon.prizePool.currency} prize pool.`,
+      hackathonId: result.hackathon.id,
+      details: `Created hackathon ${result.hackathon.name} with a ${result.hackathon.prizePool.total} ${result.hackathon.prizePool.currency} prize pool.`,
     })
-    onSave?.(newHackathon.id)
+    onSave?.(result.hackathon.id)
   }
 
   const errorCount = submitted ? Object.keys(errors).length : 0
@@ -245,6 +265,86 @@ export default function CreateHackathonForm({ userWallet: _userWallet, onSave, o
           </div>
 
           <div className="pv-field">
+            <label className="pv-field__label" htmlFor="create-hack-venue">
+              Host city <span className="pv-field__required">*</span>
+            </label>
+            <input
+              id="create-hack-venue"
+              type="text"
+              className="pv-input"
+              value={values.venueCity}
+              onChange={set('venueCity')}
+              placeholder="e.g. Bengaluru, London, Singapore"
+              maxLength={80}
+              aria-invalid={showError('venueCity') ? 'true' : undefined}
+              aria-describedby={showError('venueCity') ? 'err-venue' : 'hint-venue'}
+            />
+            {showError('venueCity') ? (
+              <span className="pv-field__error" id="err-venue" role="alert">
+                <Icon name="alert" size={12} />
+                {showError('venueCity')}
+              </span>
+            ) : (
+              <span className="pv-field__hint" id="hint-venue">
+                Shown on the landing-page globe. Known cities auto-fill coordinates below.
+              </span>
+            )}
+          </div>
+
+          <div className="pv-form-grid">
+            <div className="pv-field">
+              <label className="pv-field__label" htmlFor="create-hack-lat">
+                Latitude
+              </label>
+              <input
+                id="create-hack-lat"
+                type="number"
+                step="any"
+                min="-90"
+                max="90"
+                className="pv-input"
+                value={values.latitude}
+                onChange={set('latitude')}
+                placeholder="12.9716"
+                aria-invalid={showError('latitude') ? 'true' : undefined}
+              />
+              {showError('latitude') ? (
+                <span className="pv-field__error" role="alert">
+                  <Icon name="alert" size={12} />
+                  {showError('latitude')}
+                </span>
+              ) : (
+                <span className="pv-field__hint">Optional override (WGS84).</span>
+              )}
+            </div>
+            <div className="pv-field">
+              <label className="pv-field__label" htmlFor="create-hack-lng">
+                Longitude
+              </label>
+              <input
+                id="create-hack-lng"
+                type="number"
+                step="any"
+                min="-180"
+                max="180"
+                className="pv-input"
+                value={values.longitude}
+                onChange={set('longitude')}
+                placeholder="77.5946"
+                aria-invalid={showError('longitude') ? 'true' : undefined}
+              />
+              {showError('longitude') ? (
+                <span className="pv-field__error" role="alert">
+                  <Icon name="alert" size={12} />
+                  {showError('longitude')}
+                </span>
+              ) : (
+                <span className="pv-field__hint">Optional override (WGS84).</span>
+              )}
+            </div>
+          </div>
+
+          <div className="pv-field">
             <label className="pv-field__label" htmlFor="create-hack-desc">
               Description
             </label>
@@ -272,8 +372,8 @@ export default function CreateHackathonForm({ userWallet: _userWallet, onSave, o
               />
             </div>
             <span className="pv-field__hint">
-              Locked to the organizer wallet so a sponsor cannot accidentally fund their own
-              account.
+              Locked to your connected organizer wallet for this browser session so sponsors fund
+              the correct escrow destination.
             </span>
           </div>
         </div>
