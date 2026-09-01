@@ -14,6 +14,9 @@ export type GlobeLocationGroup = {
   location: GlobeCoords
   label: string
   hackathons: GlobeLocationHackathon[]
+  /** Screen-space px offset so nearby city capsules do not stack. */
+  labelDx?: number
+  labelDy?: number
 }
 
 /** Normalized city name → precise coordinates */
@@ -118,7 +121,78 @@ export function hackathonsToGlobeData(hackathons: Hackathon[]): {
     })
   }
 
-  return { locations: Array.from(groups.values()), unmapped }
+  return { locations: spreadNearbyGlobeLabels(Array.from(groups.values())), unmapped }
+}
+
+/**
+ * Nearby cities (Bengaluru / Chennai, Delhi / Noida, …) project on top of each
+ * other on a 480px globe. Fan their HTML labels apart in screen space so every
+ * event stays readable. Marker coordinates stay accurate.
+ */
+export function spreadNearbyGlobeLabels(locations: GlobeLocationGroup[]): GlobeLocationGroup[] {
+  if (locations.length < 2) return locations
+
+  const parent = locations.map((_, index) => index)
+
+  function find(i: number): number {
+    if (parent[i] !== i) parent[i] = find(parent[i])
+    return parent[i]
+  }
+
+  function union(a: number, b: number) {
+    const pa = find(a)
+    const pb = find(b)
+    if (pa !== pb) parent[pb] = pa
+  }
+
+  for (let i = 0; i < locations.length; i += 1) {
+    for (let j = i + 1; j < locations.length; j += 1) {
+      if (approxDegreeDistance(locations[i].location, locations[j].location) <= CLUSTER_DEGREES) {
+        union(i, j)
+      }
+    }
+  }
+
+  const clusters = new Map<number, number[]>()
+  locations.forEach((_, index) => {
+    const root = find(index)
+    const members = clusters.get(root)
+    if (members) members.push(index)
+    else clusters.set(root, [index])
+  })
+
+  const next = locations.map((loc) => ({ ...loc, labelDx: 0, labelDy: 0 }))
+
+  for (const members of clusters.values()) {
+    if (members.length < 2) continue
+
+    members.sort((a, b) => {
+      const lng = locations[a].location[1] - locations[b].location[1]
+      if (Math.abs(lng) > 0.01) return lng
+      return locations[b].location[0] - locations[a].location[0]
+    })
+
+    const slot = LABEL_SLOT_PX
+    const mid = (members.length - 1) / 2
+    members.forEach((index, i) => {
+      next[index].labelDx = Math.round((i - mid) * slot)
+      next[index].labelDy = Math.round((i % 2 === 0 ? 0 : -26) - Math.abs(i - mid) * 8)
+    })
+  }
+
+  return next
+}
+
+/** ~5.5° (~600km): Bengaluru–Chennai cluster; Singapore stays separate. */
+const CLUSTER_DEGREES = 5.5
+/** Capsule width is ~110–140px; this keeps a visible gap between neighbors. */
+const LABEL_SLOT_PX = 148
+
+function approxDegreeDistance(a: GlobeCoords, b: GlobeCoords): number {
+  const midLat = ((a[0] + b[0]) / 2) * (Math.PI / 180)
+  const dLat = a[0] - b[0]
+  const dLng = (a[1] - b[1]) * Math.cos(midLat)
+  return Math.hypot(dLat, dLng)
 }
 
 /** @deprecated use GlobeLocationGroup */

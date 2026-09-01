@@ -158,19 +158,30 @@ export function GlobeCdn({
       {locations.map((loc) => {
         const isOpen = openLocationId === loc.id
         const count = loc.hackathons.length
+        const dx = loc.labelDx ?? 0
+        const dy = loc.labelDy ?? 0
+        const offset = Math.abs(dx) > 4 || Math.abs(dy) > 4
+        const leaderX = dx
+        const leaderY = -14 + dy
+        const leaderLen = Math.hypot(leaderX, leaderY)
+        const leaderAng = (Math.atan2(leaderY, leaderX) * 180) / Math.PI
         return (
           <div
             key={loc.id}
-            className="pv-globe__marker-label"
+            className={`pv-globe__marker-label${offset ? ' is-spread' : ''}${isOpen ? ' is-open' : ''}`}
             style={{
               positionAnchor: `--cobe-${loc.id}`,
               opacity: `var(--cobe-visible-${loc.id}, 0)`,
-              filter: `blur(calc((1 - var(--cobe-visible-${loc.id}, 0)) * 8px))`,
+              ['--label-dx' as string]: String(dx),
+              ['--label-dy' as string]: String(dy),
+              ['--leader-len' as string]: `${leaderLen}px`,
+              ['--leader-ang' as string]: `${leaderAng}deg`,
             } as React.CSSProperties}
           >
             <div className="pv-globe__marker-pin" aria-hidden>
               <span className="pv-globe__marker-dot" />
             </div>
+            {offset ? <span className="pv-globe__leader" aria-hidden /> : null}
             <div className="pv-globe__dropdown-wrap">
               <button
                 type="button"

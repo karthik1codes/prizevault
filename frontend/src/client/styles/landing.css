@@ -613,6 +613,7 @@
   width: 100%;
   max-width: 480px;
   margin-inline: auto;
+  overflow: visible;
 }
 
 @media (min-width: 900px) {
@@ -626,6 +627,7 @@
   aspect-ratio: 1;
   width: 100%;
   user-select: none;
+  overflow: visible;
 }
 
 .pv-globe__canvas {
@@ -642,21 +644,30 @@
   position: absolute;
   bottom: anchor(top);
   left: anchor(center);
+  width: 0;
+  height: 0;
   translate: -50% 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--pv-space-2);
   pointer-events: none;
   transition: opacity 0.3s, filter 0.3s;
   z-index: 2;
+  overflow: visible;
+}
+
+.pv-globe__marker-label.is-open,
+.pv-globe__marker-label:hover,
+.pv-globe__marker-label:focus-within {
+  z-index: 8;
 }
 
 .pv-globe__marker-pin {
+  position: absolute;
+  left: 50%;
+  top: 0;
   display: grid;
   place-items: center;
   width: 10px;
   height: 10px;
+  translate: -50% -50%;
 }
 
 .pv-globe__marker-dot {
@@ -667,8 +678,24 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--pv-accent-fill) 25%, transparent);
 }
 
+.pv-globe__leader {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: var(--leader-len, 0px);
+  height: 2px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--pv-accent-fill) 55%, transparent);
+  transform: rotate(var(--leader-ang, 0deg));
+  transform-origin: 0 50%;
+  pointer-events: none;
+}
+
 .pv-globe__dropdown-wrap {
-  position: relative;
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  translate: calc(-50% + (var(--label-dx, 0) * 1px)) calc(var(--label-dy, 0) * 1px);
   pointer-events: auto;
 }
 
@@ -812,6 +839,10 @@
 
   .pv-globe__canvas {
     touch-action: pan-y pinch-zoom;
+  }
+
+  .pv-globe__dropdown-wrap {
+    translate: calc(-50% + (var(--label-dx, 0) * 0.72px)) calc(var(--label-dy, 0) * 0.72px);
   }
 
   .pv-globe__location-trigger {
