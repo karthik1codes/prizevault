@@ -436,13 +436,13 @@
 }
 
 /* ==========================================================================
-   Sponsor logo row — calm, no marquee, scrollable and reduced-motion safe
+   On-chain settlement rails — real network facts, not a fake logo wall
    ========================================================================== */
-.pv-logos {
+.pv-rails {
   text-align: center;
 }
 
-.pv-logos__label {
+.pv-rails__label {
   font-size: var(--pv-text-sm);
   font-weight: var(--pv-weight-semibold);
   text-transform: uppercase;
@@ -451,58 +451,94 @@
   margin: 0 0 var(--pv-space-8);
 }
 
-.pv-logos__row {
+.pv-rails__row {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
-  gap: var(--pv-space-11);
+  gap: var(--pv-space-6);
   flex-wrap: wrap;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
-.pv-logos__item {
+.pv-rails__item {
+  flex: 1 1 160px;
+  max-width: 220px;
+}
+
+.pv-rails__link {
   display: flex;
+  align-items: flex-start;
+  gap: var(--pv-space-4);
+  height: 100%;
+  padding: var(--pv-space-5) var(--pv-space-5);
+  text-align: left;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid var(--pv-border);
+  border-radius: var(--pv-radius-md);
+  background: var(--pv-bg);
+  transition: border-color var(--pv-duration) var(--pv-ease),
+    background var(--pv-duration) var(--pv-ease);
+}
+
+.pv-rails__link:hover {
+  text-decoration: none;
+  color: inherit;
+  border-color: var(--pv-accent-border);
+}
+
+.pv-rails__link:focus-visible {
+  outline: 2px solid var(--pv-accent-fill);
+  outline-offset: 2px;
+}
+
+.pv-rails__link--static {
+  cursor: default;
+}
+
+.pv-rails__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--pv-radius-md);
+  background: var(--pv-accent-soft);
+  color: var(--pv-accent-text);
+}
+
+.pv-rails__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pv-rails__name {
+  font-size: var(--pv-text-sm);
+  font-weight: var(--pv-weight-semibold);
+  color: var(--pv-text);
+  letter-spacing: var(--pv-tracking-tight);
+}
+
+.pv-rails__name--mono {
+  font-family: var(--pv-font-mono);
+  font-weight: var(--pv-weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.pv-rails__detail {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 4px;
+  font-size: var(--pv-text-xs);
+  color: var(--pv-text-muted);
 }
 
-/*
- * Size the image directly. An earlier version put `height` on the flex/grid
- * parent and `max-height: 100%` + `max-width: 100%` (inherited from base.css)
- * on the image -- a circular constraint, since the parent's width came from the
- * image and the image's limits came from the parent. Browsers resolved that
- * degenerately and collapsed the logos to nothing. A fixed height with auto
- * width and an explicit max-width is deterministic.
- */
-.pv-logos__item img {
-  height: 30px;
-  width: auto;
-  max-width: 132px;
-  object-fit: contain;
-  opacity: 0.7;
-  filter: grayscale(1);
-  transition: opacity var(--pv-duration) var(--pv-ease),
-    filter var(--pv-duration) var(--pv-ease);
-}
-
-.pv-logos__item:hover img {
-  opacity: 1;
-  filter: grayscale(0);
-}
-
-/*
- * Dark theme: these marks are dark-on-transparent, so they need lifting.
- * `grayscale(1) invert(1)` maps dark ink to light while preserving the shape's
- * internal contrast. The previous `brightness(0) invert(1)` crushed every pixel
- * to black first, so each logo came out as a flat white blob with no detail.
- */
-[data-theme='dark'] .pv-logos__item img {
-  filter: grayscale(1) invert(1) brightness(1.1);
-  opacity: 0.72;
-}
-
-[data-theme='dark'] .pv-logos__item:hover img {
-  filter: grayscale(1) invert(1) brightness(1.25);
-  opacity: 1;
+.pv-rails__link[href]:hover .pv-rails__detail {
+  color: var(--pv-accent-text);
 }
 
 /* ==========================================================================
@@ -818,9 +854,13 @@
     gap: var(--pv-space-7);
   }
 
-  .pv-logos__row {
-    gap: var(--pv-space-8);
-    justify-content: flex-start;
+  .pv-rails__row {
+    gap: var(--pv-space-4);
+  }
+
+  .pv-rails__item {
+    flex: 1 1 calc(50% - var(--pv-space-4));
+    max-width: none;
   }
 
   .pv-features,

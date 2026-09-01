@@ -393,6 +393,20 @@
   list-style: none;
 }
 
+.pv-footer__links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  white-space: nowrap;
+}
+
+.pv-footer__links svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  max-width: none;
+}
+
 /* Anchor targets must clear the sticky topbar. */
 [id] {
   scroll-margin-top: calc(var(--pv-header-h) + var(--pv-space-8));

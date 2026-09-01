@@ -5,6 +5,8 @@ import HackathonGlobe from '@/components/ui/usage'
 import { getHackathonsFromStorage } from './holder/utils/roleDetection'
 import { subscribeHackathonsDatasetChanged } from './utils/hackathonSync'
 import { fetchHackathons } from './services/hackathonApi'
+import { truncateAddress } from './components/AddressChip'
+import { ESCROW_APP_ID } from './constants/escrow'
 import {
   STATUS_META,
   deriveStatus,
@@ -18,15 +20,32 @@ import {
 } from './utils/format'
 import './styles/index.css'
 
-const SPONSORS = [
-  { name: 'PW', src: '/logos/pw.png' },
-  { name: 'HDFC Bank', src: '/logos/hdfc.png' },
-  { name: 'Amazon', src: '/logos/amazon.png' },
-  { name: 'Infosys', src: '/logos/infosys.png' },
-  { name: 'SBI', src: '/logos/sbi.png' },
-  { name: 'Urban Company', src: '/logos/urban-company.png' },
-  { name: 'Cursor', src: '/logos/cursor.png' },
-  { name: 'IDFC First Bank', src: '/logos/idfc-first.png' },
+const CONTRACT_EXPLORER_URL = `https://stellar.expert/explorer/testnet/contract/${ESCROW_APP_ID}`
+
+const SETTLEMENT_RAILS = [
+  {
+    icon: 'globe',
+    label: 'Stellar Testnet',
+    detail: 'Public ledger',
+    href: 'https://stellar.org/',
+  },
+  {
+    icon: 'lock',
+    label: truncateAddress(ESCROW_APP_ID, 6, 6),
+    detail: 'Soroban escrow',
+    href: CONTRACT_EXPLORER_URL,
+    mono: true,
+  },
+  {
+    icon: 'users',
+    label: '2-of-2 approval',
+    detail: 'Sponsor + organizer',
+  },
+  {
+    icon: 'send',
+    label: 'Native XLM',
+    detail: 'Atomic payouts',
+  },
 ]
 
 const FEATURES = [
@@ -309,16 +328,40 @@ function Landing() {
           </div>
         </section>
 
-        <section className="pv-band pv-band--surface">
-          <div className="pv-container pv-logos">
-            <p className="pv-logos__label">Trusted by sponsors</p>
-            <div className="pv-logos__row">
-              {SPONSORS.map((s) => (
-                <span className="pv-logos__item" key={s.name}>
-                  <img src={s.src} alt={s.name} loading="lazy" />
-                </span>
-              ))}
-            </div>
+        <section className="pv-band pv-band--surface" aria-label="On-chain settlement">
+          <div className="pv-container pv-rails">
+            <p className="pv-rails__label">On the public ledger</p>
+            <ul className="pv-rails__row">
+              {SETTLEMENT_RAILS.map((rail) => {
+                const body = (
+                  <>
+                    <span className="pv-rails__icon" aria-hidden>
+                      <Icon name={rail.icon} size={16} />
+                    </span>
+                    <span className="pv-rails__copy">
+                      <span className={`pv-rails__name ${rail.mono ? 'pv-rails__name--mono' : ''}`.trim()}>
+                        {rail.label}
+                      </span>
+                      <span className="pv-rails__detail">
+                        {rail.detail}
+                        {rail.href ? <Icon name="external" size={11} /> : null}
+                      </span>
+                    </span>
+                  </>
+                )
+                return (
+                  <li key={rail.label} className="pv-rails__item">
+                    {rail.href ? (
+                      <a href={rail.href} target="_blank" rel="noreferrer" className="pv-rails__link">
+                        {body}
+                      </a>
+                    ) : (
+                      <span className="pv-rails__link pv-rails__link--static">{body}</span>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
           </div>
         </section>
 
