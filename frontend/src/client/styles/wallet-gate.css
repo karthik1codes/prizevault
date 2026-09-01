@@ -149,12 +149,20 @@
   color: var(--gate-red-hot);
 }
 
+.pv-gate h1,
+.pv-gate h2,
+.pv-gate h3,
+.pv-gate h4 {
+  color: var(--gate-ink);
+}
+
 .pv-gate__hello-title {
   margin: 0 0 14px;
   font-size: clamp(1.8rem, 3vw, 2.45rem);
   font-weight: 800;
   letter-spacing: -0.04em;
   line-height: 1.05;
+  color: var(--gate-ink);
   animation: pv-gate-copy 0.45s ease both;
 }
 
@@ -180,6 +188,7 @@
   font-size: 1.65rem;
   font-weight: 800;
   letter-spacing: -0.03em;
+  color: var(--gate-ink);
 }
 
 .pv-gate__subtitle {

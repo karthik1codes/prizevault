@@ -107,7 +107,7 @@ export function GlobeCdn({
             size: 0.035,
             id: loc.id,
           })),
-          opacity: 0.85,
+          opacity: 1,
         }),
       )
 
