@@ -5,10 +5,13 @@ import {
   saveHackathonsToStorage,
 } from '../holder/utils/roleDetection'
 import { broadcastHackathonsDatasetChanged } from '../utils/hackathonSync'
+import { enrichHackathonLocation } from '../utils/hackathonGlobe'
+import { enrichHackathonFunding } from '../utils/format'
 
 type HackathonExtras = Hackathon & {
   sponsorFundingXlm?: number
   onChainBalanceXlm?: number
+  sponsorFunded?: boolean
   dbId?: string
 }
 
@@ -17,6 +20,10 @@ let hackathonsFetchInFlight: Promise<HackathonExtras[]> | null = null
 async function parseJson<T>(res: Response): Promise<T> {
   const data = (await res.json()) as T
   return data
+}
+
+function normalizeHackathons(hackathons: HackathonExtras[]): HackathonExtras[] {
+  return hackathons.map((h) => enrichHackathonFunding(enrichHackathonLocation(h)))
 }
 
 /** Load hackathons from Supabase API, falling back to localStorage. */
@@ -42,13 +49,14 @@ export async function fetchHackathons(filters?: {
         throw new Error(data.error || `Failed to load hackathons (${res.status})`)
       }
       if (data.source === 'supabase' && Array.isArray(data.hackathons)) {
-        cacheHackathonsLocally(data.hackathons)
-        return data.hackathons
+        const normalized = normalizeHackathons(data.hackathons)
+        cacheHackathonsLocally(normalized)
+        return normalized
       }
     } catch {
       // fall through to local cache
     }
-    return getHackathonsFromStorage() as HackathonExtras[]
+    return normalizeHackathons(getHackathonsFromStorage() as HackathonExtras[])
   })().finally(() => {
     hackathonsFetchInFlight = null
   })
@@ -186,22 +194,35 @@ export async function registerParticipantForHackathon(
 
 export async function saveAllHackathons(
   hackathons: HackathonExtras[],
-): Promise<void> {
+): Promise<HackathonExtras[]> {
   saveHackathonsToStorage(hackathons as Hackathon[])
   broadcastHackathonsDatasetChanged()
-  await Promise.all(
+
+  const synced = await Promise.all(
     hackathons.map(async (h) => {
       try {
-        await fetch(`/api/hackathons/${encodeURIComponent(h.id)}`, {
+        const res = await fetch(`/api/hackathons/${encodeURIComponent(h.id)}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(h),
         })
+        if (res.ok) {
+          const data = (await res.json()) as { hackathon?: HackathonExtras }
+          if (data.hackathon) return data.hackathon
+        }
+        if (res.status === 404) {
+          const created = await createHackathon(h)
+          if (created.success && created.hackathon) return created.hackathon
+        }
       } catch {
         // best-effort sync
       }
+      return h
     }),
   )
+
+  cacheHackathonsLocally(synced)
+  return synced
 }
 
 export async function fetchProposals(): Promise<Record<string, unknown>[]> {
@@ -252,5 +273,6 @@ export async function saveAllProposals(proposals: Record<string, unknown>[]): Pr
 }
 
 function cacheHackathonsLocally(hackathons: HackathonExtras[]): void {
-  saveHackathonsToStorage(hackathons as Hackathon[], { broadcast: false })
+  const enriched = normalizeHackathons(hackathons)
+  saveHackathonsToStorage(enriched as Hackathon[], { broadcast: false })
 }

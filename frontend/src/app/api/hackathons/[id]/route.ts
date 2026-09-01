@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isSupabaseConfigured } from '@/lib/supabase/env'
 import { hackathonToRow, rowToHackathon } from '@/lib/supabase/mappers'
 import { syncHackathonParticipantRoster } from '@/lib/supabase/syncParticipantRoster'
+import { findHackathonById } from '@/lib/supabase/registerParticipant'
 import type { Hackathon, Participant } from '@/client/types/hackathon'
 
 export const runtime = 'nodejs'
@@ -11,9 +12,8 @@ export const dynamic = 'force-dynamic'
 type RouteContext = { params: Promise<{ id: string }> }
 
 async function findHackathon(supabase: ReturnType<typeof createSupabaseServerClient>, id: string) {
-  const byLegacy = await supabase.from('hackathons').select('*').eq('legacy_id', id).maybeSingle()
-  if (byLegacy.data) return byLegacy
-  return supabase.from('hackathons').select('*').eq('id', id).maybeSingle()
+  const { data, error } = await findHackathonById(supabase, id)
+  return { data, error }
 }
 
 export async function GET(_request: Request, context: RouteContext) {

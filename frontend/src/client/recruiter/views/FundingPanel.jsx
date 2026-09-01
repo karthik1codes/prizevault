@@ -37,13 +37,20 @@ export default function FundingPanel({
 
   const numeric = Number(amount)
   const canSubmit = !isFunding && amount !== '' && Number.isFinite(numeric) && numeric > 0
+  const prizePool = Number(selectedEscrow.prizePool || 0)
+  const remaining = Math.max(0, prizePool - Number(selectedEscrow.balanceAlgo || 0))
 
   return (
     <section className="pv-card">
       <div className="pv-card__header">
         <div>
           <h3 className="pv-card__title">Fund prize pool</h3>
-          <p className="pv-card__subtitle">{selectedEscrow.name}</p>
+          <p className="pv-card__subtitle">
+            {selectedEscrow.name}
+            {prizePool > 0
+              ? ` · target ${formatXlm(prizePool)} XLM${selectedEscrow.fullyFunded ? ' (fully funded)' : remaining > 0 ? ` (${formatXlm(remaining)} XLM remaining)` : ''}`
+              : ''}
+          </p>
         </div>
         <div className="pv-card__actions">
           <button type="button" className="pv-btn pv-btn--ghost pv-btn--sm" onClick={onSyncOnChain}>
@@ -112,7 +119,8 @@ export default function FundingPanel({
               <span className="pv-input-group__affix">XLM</span>
             </div>
             <span className="pv-field__hint">
-              Freighter signs a SAC transfer into the escrow contract (required for execute_release).
+              Fund the full prize pool before judging or payouts. Freighter signs a SAC transfer into
+              the escrow contract.
             </span>
           </div>
 

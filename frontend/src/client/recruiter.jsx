@@ -14,7 +14,7 @@ import {
   broadcastHackathonsDatasetChanged,
   subscribeHackathonsDatasetChanged,
 } from './utils/hackathonSync'
-import { fetchHackathons, fetchProposals, saveAllHackathons } from './services/hackathonApi'
+import { fetchHackathons, fetchProposals, saveAllHackathons, updateHackathon } from './services/hackathonApi'
 import { syncWalletSession } from './services/sessionApi'
 import { useEscrow } from './hooks/useEscrow'
 import {
@@ -22,6 +22,8 @@ import {
   getContractXlmBalanceXlm,
   getEscrowContractId,
 } from './utils/sorobanFund'
+import { isEscrowFullyFunded, prizeTotal } from './utils/format'
+import { canSponsorApproveProposal } from './utils/payoutWorkflow'
 import EscrowOverviewPanel from './recruiter/views/EscrowOverviewPanel'
 import FundingPanel from './recruiter/views/FundingPanel'
 import ReleaseApprovalsPanel from './recruiter/views/ReleaseApprovalsPanel'
@@ -97,13 +99,18 @@ function SponsorConsole() {
       hackathons.map((h) => {
         const balance = Number(h.onChainBalanceXlm ?? h.sponsorFundingXlm ?? 0)
         const contractId = getEscrowContractId()
+        const pool = prizeTotal(h)
+        const fullyFunded = isEscrowFullyFunded(h)
         return {
           id: h.id,
           name: h.name,
           /** Prize XLM for execute_release is held on the Soroban escrow contract. */
           escrowAddress: contractId,
-          status: balance > 0 ? 'Funded' : 'Awaiting top-up',
+          status: fullyFunded ? 'Fully funded' : balance > 0 ? 'Partially funded' : 'Awaiting top-up',
           balanceAlgo: balance,
+          prizePool: pool,
+          fullyFunded,
+          hackathon: h,
         }
       }),
     [hackathons],
@@ -122,15 +129,19 @@ function SponsorConsole() {
   const pendingReleases = useMemo(() => {
     const approvals = proposals
       .filter((p) => p.organizerApproved && !p.sponsorApproved && p.status !== 'executed')
-      .map((p) => ({
-        id: p.id,
-        hackathon: p.hackathonName,
-        winners: p.winners || [],
-        total: (p.winners || []).reduce((sum, w) => sum + Number(w.prizeAmount || 0), 0),
-        organizerState: 'Organizer approved',
-        sponsorState: 'Waiting on you',
-        canApprove: true,
-      }))
+      .map((p) => {
+        const hackathon = hackathons.find((h) => h.id === p.hackathonId)
+        const canApprove = hackathon ? canSponsorApproveProposal(p, hackathon) : false
+        return {
+          id: p.id,
+          hackathon: p.hackathonName,
+          winners: p.winners || [],
+          total: (p.winners || []).reduce((sum, w) => sum + Number(w.prizeAmount || 0), 0),
+          organizerState: 'Organizer proposed',
+          sponsorState: canApprove ? 'Waiting on you' : 'Awaiting full funding',
+          canApprove,
+        }
+      })
 
     const proposalsByHackathon = new Set(approvals.map((x) => x.hackathon))
     const selectedWinnersOnly = hackathons
@@ -142,7 +153,9 @@ function SponsorConsole() {
         winners: h.winners || [],
         total: (h.winners || []).reduce((sum, w) => sum + Number(w.prizeAmount || 0), 0),
         organizerState: 'Winners selected',
-        sponsorState: 'Proposal pending',
+        sponsorState: isEscrowFullyFunded(h)
+          ? 'Awaiting organizer proposal'
+          : 'Awaiting full funding',
         canApprove: false,
       }))
 
@@ -179,8 +192,8 @@ function SponsorConsole() {
           ? { ...h, onChainBalanceXlm, escrowAddress: getEscrowContractId() }
           : h,
       )
-      saveAllHackathons(updatedHackathons)
-      setHackathons(updatedHackathons)
+      const synced = await saveAllHackathons(updatedHackathons)
+      setHackathons(synced)
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Failed to sync Soroban escrow balance', error)
@@ -214,20 +227,30 @@ function SponsorConsole() {
         contractId,
       })
 
-      const updatedHackathons = hackathons.map((h) =>
-        h.id === escrowId
-          ? {
-              ...h,
-              sponsorFundingXlm: Number(h.sponsorFundingXlm || 0) + numericAmount,
-              sponsorAddress: senderAddress,
-              organizerAddress:
-                hackRow.organizerAddress?.trim() || '',
-              escrowAddress: contractId,
-            }
-          : h,
+      const nextFunding = Number(hackRow.sponsorFundingXlm || 0) + numericAmount
+      const sponsorFunded = isEscrowFullyFunded({
+        ...hackRow,
+        sponsorFundingXlm: nextFunding,
+        sponsorAddress: senderAddress,
+      })
+
+      const patch = {
+        sponsorFundingXlm: nextFunding,
+        sponsorAddress: senderAddress,
+        organizerAddress: hackRow.organizerAddress?.trim() || '',
+        escrowAddress: contractId,
+        sponsorFunded,
+      }
+
+      const result = await updateHackathon(escrowId, patch)
+      if (!result.success || !result.hackathon) {
+        throw new Error(result.error || 'Funding succeeded on-chain but could not save to the database.')
+      }
+
+      const syncedHackathons = hackathons.map((h) =>
+        h.id === escrowId ? { ...h, ...result.hackathon } : h,
       )
-      saveAllHackathons(updatedHackathons)
-      setHackathons(updatedHackathons)
+      setHackathons(syncedHackathons)
       await syncEscrowOnChainState(escrowId)
 
       setActivities((prev) => [
@@ -262,6 +285,11 @@ function SponsorConsole() {
         throw new Error('Payout proposal not found.')
       }
 
+      const hackathon = hackathons.find((h) => h.id === proposal.hackathonId)
+      if (!hackathon || !canSponsorApproveProposal(proposal, hackathon)) {
+        throw new Error('Prize pool must be fully funded before sponsor approval.')
+      }
+
       const onChainId = Number(proposal.onChainProposalId)
       if (!Number.isFinite(onChainId)) {
         throw new Error(
@@ -280,7 +308,7 @@ function SponsorConsole() {
               ...p,
               sponsorApproved: true,
               approveTxHash: chainResult.txHash,
-              status: p.organizerApproved ? 'approved' : p.status,
+              status: 'sponsor_approved',
             }
           : p,
       )
@@ -319,8 +347,9 @@ function SponsorConsole() {
           <div className="pv-page-header__text">
             <h1 className="pv-page-header__title">Sponsor console</h1>
             <p className="pv-page-header__desc">
-              Fund prize pools in XLM and co-approve winner payouts. Nothing is released without both
-              your approval and the organizer&apos;s.
+              Fund prize pools first, then co-approve winner payouts after the organizer proposes
+              them. Nothing is released until both sides approve; the organizer executes the
+              on-chain release (agent automation later).
             </p>
           </div>
           <div className="pv-page-header__actions">

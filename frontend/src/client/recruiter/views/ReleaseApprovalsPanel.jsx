@@ -139,11 +139,11 @@ export default function ReleaseApprovalsPanel({
                   ) : (
                     <Icon name="check" size={14} />
                   )}
-                  Approve release
+                  Approve winners
                 </button>
               ) : (
                 <p className="pv-muted" style={{ fontSize: 'var(--pv-text-sm)' }}>
-                  Winners are chosen. Waiting for the organizer to create the payout proposal.
+                  {item.sponsorState}
                 </p>
               )}
             </div>

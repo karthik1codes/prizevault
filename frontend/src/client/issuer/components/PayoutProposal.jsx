@@ -7,19 +7,22 @@ import { hackathonBelongsToOrganizerPortal } from '../../utils/organizerPortalFi
 import { appendIssuerAuditLog } from '../../utils/issuerAuditLog'
 import { useHackathons, usePayoutProposals } from '../../hooks/useHackathons'
 import { useEscrow } from '../../hooks/useEscrow'
-import { formatDate, formatXlm, stellarTxUrl } from '../../utils/format'
+import { formatDate, formatXlm, isEscrowFullyFunded, stellarTxUrl } from '../../utils/format'
+import {
+  canProposePayout,
+  fundingGapXlm,
+  getPayoutWorkflowStage,
+  workflowSteps,
+  WORKFLOW_STAGE_META,
+} from '../../utils/payoutWorkflow'
 
 function winnersTotal(proposal) {
   return (proposal.winners || []).reduce((s, w) => s + (Number(w.prizeAmount) || 0), 0)
 }
 
-/** propose -> approve -> execute, so the 2-of-2 cycle is legible at a glance. */
-function ProposalSteps({ proposal }) {
-  const steps = [
-    { label: 'Proposed', done: !!proposal.organizerApproved },
-    { label: 'Sponsor approved', done: !!proposal.sponsorApproved },
-    { label: 'Released', done: proposal.status === 'executed' },
-  ]
+/** Funded → organizer propose → sponsor approve → organizer release */
+function ProposalSteps({ hackathon, proposal }) {
+  const steps = workflowSteps(hackathon, proposal)
   const currentIndex = steps.findIndex((s) => !s.done)
 
   return (
@@ -55,8 +58,9 @@ export default function PayoutProposal({ hackathonId, sessionWallet, onExecute }
   )
 
   const eligible = myHackathons.filter((h) => h.winnersSelected && h.winners?.length > 0)
-  const readyToPropose = eligible.filter(
-    (h) => !h.payoutProposed && !proposals.some((p) => p.hackathonId === h.id),
+  const readyToPropose = eligible.filter((h) => canProposePayout(h, proposals))
+  const awaitingFunding = eligible.filter(
+    (h) => !isEscrowFullyFunded(h) && !proposals.some((p) => p.hackathonId === h.id),
   )
   const displayProposals = proposals.filter((p) =>
     myHackathons.some((h) => h.id === p.hackathonId),
@@ -64,6 +68,10 @@ export default function PayoutProposal({ hackathonId, sessionWallet, onExecute }
 
   const handleCreateProposal = async (h) => {
     setExecuteError('')
+    if (!canProposePayout(h, proposals)) {
+      setExecuteError('Prize pool must be fully funded before proposing a payout.')
+      return
+    }
     setIsProposingId(h.id)
     try {
       const chainResult = await proposePayouts(h.winners || [])
@@ -72,26 +80,32 @@ export default function PayoutProposal({ hackathonId, sessionWallet, onExecute }
       }
 
       const now = new Date().toISOString()
+
+      // Ensure hackathon exists in Supabase before linking the proposal.
+      const updatedHackathons = hackathons.map((x) =>
+        x.id === h.id ? { ...x, payoutProposed: true } : x,
+      )
+      const syncedHackathons = await saveAllHackathons(updatedHackathons)
+      const syncedHackathon = syncedHackathons.find((x) => x.id === h.id) || h
+
       const proposal = {
         id: `prop_${h.id}_${Date.now()}`,
         onChainProposalId: chainResult.proposalId,
         proposeTxHash: chainResult.txHash,
-        hackathonId: h.id,
-        hackathonName: h.name,
+        hackathonId: syncedHackathon.id,
+        hackathonDbId: syncedHackathon.dbId,
+        hackathonName: syncedHackathon.name,
         createdAt: now,
+        createdByWallet: sessionWallet,
         status: 'awaiting_sponsor',
         organizerApproved: true,
         sponsorApproved: false,
-        winners: h.winners || [],
-        eventEndDate: h.endDate,
+        winners: syncedHackathon.winners || h.winners || [],
+        eventEndDate: syncedHackathon.endDate,
       }
       await savePayoutProposals([proposal, ...proposals])
 
       try {
-        const updatedHackathons = hackathons.map((x) =>
-          x.id === h.id ? { ...x, payoutProposed: true } : x,
-        )
-        await saveAllHackathons(updatedHackathons)
         appendIssuerAuditLog({
           action: 'create_payout',
           hackathonId: h.id,
@@ -141,6 +155,12 @@ export default function PayoutProposal({ hackathonId, sessionWallet, onExecute }
           : p,
       )
       await savePayoutProposals(updated)
+
+      const updatedHackathons = hackathons.map((x) =>
+        x.id === proposal.hackathonId ? { ...x, payoutExecuted: true } : x,
+      )
+      await saveAllHackathons(updatedHackathons)
+
       reloadProposals()
       appendIssuerAuditLog({
         action: 'execute',
@@ -176,30 +196,50 @@ export default function PayoutProposal({ hackathonId, sessionWallet, onExecute }
     window.setTimeout(() => setCopiedId(null), 1800)
   }
 
-  const statusBadge = (p) => {
-    if (p.status === 'executed') {
-      return (
-        <span className="pv-badge pv-badge--success">
-          <Icon name="check" size={12} />
-          Released
-        </span>
-      )
-    }
-    if (p.organizerApproved && p.sponsorApproved) {
-      return <span className="pv-badge pv-badge--accent">Both approved</span>
-    }
-    return <span className="pv-badge pv-badge--warning">Awaiting sponsor</span>
-  }
-
   return (
     <div className="pv-stack pv-stack--lg">
+      {awaitingFunding.length > 0 ? (
+        <section className="pv-card">
+          <div className="pv-card__header">
+            <div>
+              <h3 className="pv-card__title">Waiting on sponsor funding</h3>
+              <p className="pv-card__subtitle">
+                Winners are chosen, but the escrow must be fully funded before you can propose a
+                payout.
+              </p>
+            </div>
+          </div>
+          <div className="pv-card__body pv-card__body--flush">
+            {awaitingFunding.map((h) => (
+              <div
+                className="pv-row pv-row--between"
+                key={h.id}
+                style={{
+                  padding: 'var(--pv-space-6) var(--pv-space-7)',
+                  borderBottom: '1px solid var(--pv-border-subtle)',
+                }}
+              >
+                <div>
+                  <span className="pv-table__primary">{h.name}</span>
+                  <span className="pv-table__sub">
+                    {formatXlm(fundingGapXlm(h))} XLM still needed in escrow
+                  </span>
+                </div>
+                <span className="pv-badge pv-badge--warning">Awaiting funding</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       {readyToPropose.length > 0 ? (
         <section className="pv-card">
           <div className="pv-card__header">
             <div>
               <h3 className="pv-card__title">Ready to propose</h3>
               <p className="pv-card__subtitle">
-                Winners are chosen. Proposing sends it to the sponsor for co-approval.
+                Escrow is funded and winners are chosen. Proposing is the organizer&apos;s on-chain
+                approval and sends the payout to the sponsor for co-approval.
               </p>
             </div>
           </div>
@@ -286,6 +326,10 @@ export default function PayoutProposal({ hackathonId, sessionWallet, onExecute }
         ) : (
           displayProposals.map((p) => {
             const hackForProposal = hackathons.find((h) => h.id === p.hackathonId)
+            const stage = hackForProposal
+              ? getPayoutWorkflowStage(hackForProposal, [p])
+              : 'awaiting_sponsor'
+            const stageMeta = WORKFLOW_STAGE_META[stage]
             const organizerHint =
               (hackForProposal?.organizerAddress || '').trim() ||
               (sessionWallet || '').trim() ||
@@ -303,11 +347,17 @@ export default function PayoutProposal({ hackathonId, sessionWallet, onExecute }
                       {formatDate(p.createdAt)}
                     </p>
                   </div>
-                  <div className="pv-card__actions">{statusBadge(p)}</div>
+                  <div className="pv-card__actions">
+                    <span className={`pv-badge ${stageMeta.badge}`.trim()}>{stageMeta.label}</span>
+                  </div>
                 </div>
 
                 <div className="pv-card__body">
-                  <ProposalSteps proposal={p} />
+                  {hackForProposal ? (
+                    <ProposalSteps hackathon={hackForProposal} proposal={p} />
+                  ) : (
+                    <ProposalSteps hackathon={{ payoutProposed: true }} proposal={p} />
+                  )}
 
                   <div className="pv-table-wrap" style={{ marginTop: 'var(--pv-space-8)' }}>
                     <table className="pv-table">
@@ -364,7 +414,8 @@ export default function PayoutProposal({ hackathonId, sessionWallet, onExecute }
                         <p className="pv-alert__text">
                           Execute calls the Soroban escrow contract (
                           <code>execute_release</code>) via the backend using the organizer key.
-                          Funds leave the contract to each winner. Organizer account reference:{' '}
+                          Funds leave the contract to each winner. An automated agent may take over
+                          this step later. Organizer account reference:{' '}
                           <AddressChip address={organizerHint} label="organizer account" />.
                         </p>
                       </div>

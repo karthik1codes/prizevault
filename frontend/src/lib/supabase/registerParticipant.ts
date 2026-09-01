@@ -1,5 +1,6 @@
 import type { Hackathon, Participant } from '@/client/types/hackathon'
 import { hackathonToRow, rowToHackathon, type HackathonRow } from './mappers'
+import { isUuid } from './ids'
 import { syncHackathonParticipantRoster } from './syncParticipantRoster'
 
 type SupabaseClient = ReturnType<typeof import('./server').createSupabaseServerClient>
@@ -8,11 +9,17 @@ export async function findHackathonById(
   supabase: SupabaseClient,
   id: string,
 ): Promise<{ data: HackathonRow | null; error: Error | null }> {
-  const byLegacy = await supabase.from('hackathons').select('*').eq('legacy_id', id).maybeSingle()
+  const key = id.trim()
+  if (!key) return { data: null, error: null }
+
+  const byLegacy = await supabase.from('hackathons').select('*').eq('legacy_id', key).maybeSingle()
   if (byLegacy.error) return { data: null, error: byLegacy.error }
   if (byLegacy.data) return { data: byLegacy.data as HackathonRow, error: null }
 
-  const byId = await supabase.from('hackathons').select('*').eq('id', id).maybeSingle()
+  // Legacy ids like `hack_123` are not valid UUIDs — querying `id` with them errors in Postgres.
+  if (!isUuid(key)) return { data: null, error: null }
+
+  const byId = await supabase.from('hackathons').select('*').eq('id', key).maybeSingle()
   if (byId.error) return { data: null, error: byId.error }
   return { data: (byId.data as HackathonRow) || null, error: null }
 }
