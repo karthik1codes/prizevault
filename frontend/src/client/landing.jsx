@@ -219,10 +219,6 @@ function Landing() {
         <section className="pv-container">
           <div className="pv-hero">
             <div className="pv-hero__copy">
-              <span className="pv-eyebrow">
-                <Icon name="lock" size={13} />
-                Hackathon prize escrow on Stellar
-              </span>
               <h1 className="pv-hero__title">
                 Prize money nobody can move alone.
               </h1>

@@ -26,20 +26,6 @@
   min-width: 0;
 }
 
-.pv-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--pv-space-3);
-  margin-bottom: var(--pv-space-6);
-  padding: var(--pv-space-2) var(--pv-space-5);
-  border: 1px solid var(--pv-accent-border);
-  border-radius: var(--pv-radius-pill);
-  background: var(--pv-accent-soft);
-  color: var(--pv-accent-text);
-  font-size: var(--pv-text-sm);
-  font-weight: var(--pv-weight-semibold);
-}
-
 .pv-hero__title {
   font-size: var(--pv-text-display);
   font-weight: var(--pv-weight-bold);

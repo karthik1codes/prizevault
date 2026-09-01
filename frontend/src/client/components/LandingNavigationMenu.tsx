@@ -99,25 +99,7 @@ export default function LandingNavigationMenu({
 
   return (
     <div className="pv-lamp-wrap">
-      <div className="pv-lamp-nav" style={{ ['--i' as string]: String(active) }}>
-        <span className="pv-lamp-nav__rail" aria-hidden="true" />
-        <span className="pv-lamp-nav__indicator" aria-hidden="true">
-          <svg viewBox="0 0 100 24" fill="none">
-            <path
-              d="M0 22 H22 C28 22 32 6 50 6 C68 6 72 22 78 22 H100 V24 H0 Z"
-              fill="var(--lamp-pill)"
-            />
-            <path
-              d="M0 22 H22 C28 22 32 6 50 6 C68 6 72 22 78 22 H100"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <circle cx="50" cy="20" r="2.4" fill="var(--lamp-green-hot)" />
-          </svg>
-        </span>
-
+      <div className="pv-lamp-nav">
         <NavigationMenu>
           <NavigationMenuList>
             <NavigationMenuItem>
