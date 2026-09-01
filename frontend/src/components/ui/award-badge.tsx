@@ -36,7 +36,7 @@ export const AwardBadge = ({ type = 'verified', link, className }: AwardBadgePro
   const uid = useId().replace(/:/g, '')
   const blurId = `pvAwardBlur-${uid}`
   const maskId = `pvAwardMask-${uid}`
-  const ref = useRef<HTMLDivElement | HTMLAnchorElement>(null)
+  const ref = useRef<HTMLElement>(null)
   const [firstOverlayPosition, setFirstOverlayPosition] = useState<number>(0)
   const [matrix, setMatrix] = useState<string>(identityMatrix)
   const [currentMatrix, setCurrentMatrix] = useState<string>(identityMatrix)
@@ -119,7 +119,7 @@ export const AwardBadge = ({ type = 'verified', link, className }: AwardBadgePro
       .join(', ')
   }
 
-  const onMouseEnter = (e: MouseEvent<HTMLDivElement | HTMLAnchorElement>) => {
+  const onMouseEnter = (e: MouseEvent<HTMLElement>) => {
     if (leaveTimeout1.current) clearTimeout(leaveTimeout1.current)
     if (leaveTimeout2.current) clearTimeout(leaveTimeout2.current)
     if (leaveTimeout3.current) clearTimeout(leaveTimeout3.current)
@@ -147,7 +147,7 @@ export const AwardBadge = ({ type = 'verified', link, className }: AwardBadgePro
     }, 200)
   }
 
-  const onMouseMove = (e: MouseEvent<HTMLDivElement | HTMLAnchorElement>) => {
+  const onMouseMove = (e: MouseEvent<HTMLElement>) => {
     const { left, right, top, bottom } = getDimensions()
     const xCenter = (left + right) / 2
     const yCenter = (top + bottom) / 2
@@ -162,7 +162,7 @@ export const AwardBadge = ({ type = 'verified', link, className }: AwardBadgePro
     }
   }
 
-  const onMouseLeave = (e: MouseEvent<HTMLDivElement | HTMLAnchorElement>) => {
+  const onMouseLeave = (e: MouseEvent<HTMLElement>) => {
     const oppositeMatrix = getOppositeMatrix(matrix, e.clientY)
 
     if (enterTimeout.current) clearTimeout(enterTimeout.current)
@@ -208,7 +208,6 @@ export const AwardBadge = ({ type = 'verified', link, className }: AwardBadgePro
     .join(' ')
 
   const sharedProps = {
-    ref,
     className: ['pv-award-badge', className].filter(Boolean).join(' '),
     onMouseMove,
     onMouseLeave,
@@ -294,14 +293,26 @@ export const AwardBadge = ({ type = 'verified', link, className }: AwardBadgePro
 
   if (link) {
     return (
-      <a {...sharedProps} href={link} target="_blank" rel="noreferrer" aria-label="Prize pool funded and verified by PrizeVault">
+      <a
+        {...sharedProps}
+        ref={ref as React.RefObject<HTMLAnchorElement>}
+        href={link}
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Prize pool funded and verified by PrizeVault"
+      >
         {content}
       </a>
     )
   }
 
   return (
-    <div {...sharedProps} role="img" aria-label="Prize pool funded and verified by PrizeVault">
+    <div
+      {...sharedProps}
+      ref={ref as React.RefObject<HTMLDivElement>}
+      role="img"
+      aria-label="Prize pool funded and verified by PrizeVault"
+    >
       {content}
     </div>
   )
