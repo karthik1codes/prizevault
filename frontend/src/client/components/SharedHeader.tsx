@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Icon from './Icon'
 import ThemeToggle from './ThemeToggle'
-import LandingNavigationMenu from './LandingNavigationMenu'
+import LandingNavigationMenu, { itemClass, NavGlyph } from './LandingNavigationMenu'
 import { truncateAddress } from './AddressChip'
 import {
   AppRole,
@@ -85,7 +85,7 @@ export default function SharedHeader({
   }
 
   return (
-    <header className="pv-topbar">
+    <header className={activeTab === 'landing' ? 'pv-topbar pv-topbar--lamp' : 'pv-topbar'}>
       <div className="pv-topbar__inner">
         <a href="/" className="pv-brand">
           <span className="pv-brand__mark" aria-hidden>
@@ -100,11 +100,45 @@ export default function SharedHeader({
           aria-label="Primary"
           onClick={(event) => {
             const target = event.target as HTMLElement
+            if (target.closest('.pv-theme-toggle')) return
             if (target.closest('a, button')) setNavOpen(false)
           }}
         >
           {activeTab === 'landing' ? (
-            <LandingNavigationMenu />
+            <LandingNavigationMenu
+              renderTools={({ active, setActive }) => (
+                <>
+                  <ThemeToggle
+                    caption="Theme"
+                    className={itemClass(active === 4)}
+                    onMouseEnter={() => setActive(4)}
+                    onFocus={() => setActive(4)}
+                  />
+                  {session ? (
+                    <a
+                      href={
+                        ALL_TABS.find((tab) => tab.id === ROLE_TAB[session.role])?.href ?? '/holder'
+                      }
+                      className={itemClass(active === 5)}
+                      title={session.wallet}
+                      onMouseEnter={() => setActive(5)}
+                      onFocus={() => setActive(5)}
+                    >
+                      <NavGlyph icon="wallet" label={ROLE_LABEL[session.role] || 'Wallet'} />
+                    </a>
+                  ) : (
+                    <a
+                      href="/holder"
+                      className={itemClass(active === 5)}
+                      onMouseEnter={() => setActive(5)}
+                      onFocus={() => setActive(5)}
+                    >
+                      <NavGlyph icon="wallet" label="Connect wallet" />
+                    </a>
+                  )}
+                </>
+              )}
+            />
           ) : (
             <>
               {navLinks.map((link) => (
@@ -127,36 +161,50 @@ export default function SharedHeader({
         </nav>
 
         <div className="pv-topbar__actions">
-          <ThemeToggle />
-
-          {session ? (
+          {activeTab !== 'landing' ? (
             <>
-              <span className="pv-session" title={session.wallet}>
-                <span className="pv-avatar pv-avatar--sm" aria-hidden>
-                  {(ROLE_LABEL[session.role] || '?').charAt(0)}
-                </span>
-                <span className="pv-session__text">
-                  <span className="pv-session__role">
-                    {ROLE_LABEL[session.role] || session.role}
+              <ThemeToggle />
+
+              {session ? (
+                <>
+                  <span className="pv-session" title={session.wallet}>
+                    <span className="pv-avatar pv-avatar--sm" aria-hidden>
+                      {(ROLE_LABEL[session.role] || '?').charAt(0)}
+                    </span>
+                    <span className="pv-session__text">
+                      <span className="pv-session__role">
+                        {ROLE_LABEL[session.role] || session.role}
+                      </span>
+                      <span className="pv-session__addr">{truncateAddress(session.wallet, 4, 4)}</span>
+                    </span>
                   </span>
-                  <span className="pv-session__addr">{truncateAddress(session.wallet, 4, 4)}</span>
-                </span>
-              </span>
-              <button
-                type="button"
-                className="pv-btn pv-btn--ghost pv-btn--sm pv-btn--icon"
-                onClick={handleDisconnect}
-                aria-label="Disconnect wallet"
-                title="Disconnect wallet"
-              >
-                <Icon name="logout" />
-              </button>
+                  <button
+                    type="button"
+                    className="pv-btn pv-btn--ghost pv-btn--sm pv-btn--icon"
+                    onClick={handleDisconnect}
+                    aria-label="Disconnect wallet"
+                    title="Disconnect wallet"
+                  >
+                    <Icon name="logout" />
+                  </button>
+                </>
+              ) : (
+                <a href="/holder" className="pv-btn pv-btn--primary pv-btn--sm">
+                  Connect wallet
+                </a>
+              )}
             </>
-          ) : (
-            <a href="/holder" className="pv-btn pv-btn--primary pv-btn--sm">
-              Connect wallet
-            </a>
-          )}
+          ) : session ? (
+            <button
+              type="button"
+              className="pv-btn pv-btn--ghost pv-btn--sm pv-btn--icon"
+              onClick={handleDisconnect}
+              aria-label="Disconnect wallet"
+              title="Disconnect wallet"
+            >
+              <Icon name="logout" />
+            </button>
+          ) : null}
 
           <button
             type="button"

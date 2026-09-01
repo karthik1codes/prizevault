@@ -1,6 +1,5 @@
 import { Suspense, lazy, useEffect, useState } from 'react'
 import SharedHeader from '../components/SharedHeader'
-import Icon from '../components/Icon'
 import { detectUserRole } from './utils/roleDetection'
 import { getProfileForWallet, setProfileForWallet } from './utils/userProfileStorage'
 import { UserProfile, UserRole } from '../types/holder'
@@ -9,15 +8,21 @@ import {
   getActiveSession,
   requireManualConnect,
   setActiveSession,
+  type AppRole,
 } from '../utils/authSession'
 import { resolveSessionWithQrBootstrap } from '../utils/qrSession'
 import { disconnectWallet } from '../wallet'
 import { syncWalletSession } from '../services/sessionApi'
-import ProfileForm from './components/ProfileForm'
+import WalletGate from './components/WalletGate'
 
 // Stellar wallet SDK loads after the profile step (Freighter + QR in StellarLogin).
 const StellarConnectBlock = lazy(() => import('./StellarConnectBlock'))
 const ConnectedHolderView = lazy(() => import('./ConnectedHolderView'))
+
+function parseRoleParam(value: string | null): AppRole | null {
+  if (value === 'organizer' || value === 'sponsor' || value === 'participant') return value
+  return null
+}
 
 export type HolderView = 'list' | 'sponsor' | 'participant' | 'organizer' | 'event'
 
@@ -42,6 +47,7 @@ export default function HolderApp() {
   const [loginStep, setLoginStep] = useState<'profile' | 'connect'>('profile')
   const [pendingProfile, setPendingProfile] = useState<UserProfile | null>(null)
   const [connectError, setConnectError] = useState('')
+  const [gateRole, setGateRole] = useState<AppRole>('participant')
 
   useEffect(() => {
     const session = resolveSessionWithQrBootstrap() || getActiveSession()
@@ -72,8 +78,11 @@ export default function HolderApp() {
   }, [])
 
   // Deep link from the landing page event grid: /holder?event=<id>
+  // Optional /holder?role=organizer|sponsor|participant pre-selects the gate tab.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
+    const role = parseRoleParam(params.get('role'))
+    if (role) setGateRole(role)
     const eventId = params.get('event')
     if (!eventId) return
     setActiveEventId(eventId)
@@ -168,6 +177,38 @@ export default function HolderApp() {
     setConnectError('')
   }
 
+  const handleGateRoleChange = (next: AppRole) => {
+    setGateRole(next)
+    setPendingProfile((current) => (current ? { ...current, role: next } : current))
+  }
+
+  if (!walletConnected) {
+    return (
+      <WalletGate
+        role={gateRole}
+        onRoleChange={handleGateRoleChange}
+        loginStep={loginStep}
+        connectError={connectError}
+        onProfileSubmit={(profile) => {
+          setPendingProfile(profile)
+          setGateRole(profile.role as AppRole)
+          setConnectError('')
+          setLoginStep('connect')
+        }}
+        onBackToProfile={() => setLoginStep('profile')}
+        connectSlot={
+          <Suspense fallback={<Loading label="Loading wallet connection..." />}>
+            <StellarConnectBlock
+              onConnect={handleWalletConnect}
+              onError={handleWalletError}
+              desiredRole={gateRole}
+            />
+          </Suspense>
+        }
+      />
+    )
+  }
+
   return (
     <div className="pv-shell pv-app">
       <a className="pv-skip-link" href="#wallet">
@@ -177,100 +218,21 @@ export default function HolderApp() {
       <SharedHeader activeTab="holder" subtitle="Escrow Wallet" />
 
       <main className="pv-container pv-container--wide" id="wallet">
-        {!walletConnected ? (
-          <div
-            style={{
-              maxWidth: 520,
-              margin: '0 auto',
-              padding: 'var(--pv-space-12) 0 var(--pv-space-13)',
-            }}
-          >
-            <div className="pv-card pv-card--raised">
-              <div className="pv-card__header">
-                <div>
-                  <h1 className="pv-card__title" style={{ fontSize: 'var(--pv-text-xl)' }}>
-                    {loginStep === 'profile' ? 'Tell us who you are' : 'Connect your wallet'}
-                  </h1>
-                  <p className="pv-card__subtitle">
-                    {loginStep === 'profile'
-                      ? 'Step 1 of 2 — this decides which console you land in.'
-                      : 'Step 2 of 2 — confirm the Stellar account you control.'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="pv-card__body">
-                {loginStep === 'profile' ? (
-                  <ProfileForm
-                    onSubmit={(profile) => {
-                      setPendingProfile(profile)
-                      setConnectError('')
-                      setLoginStep('connect')
-                    }}
-                  />
-                ) : (
-                  <div className="pv-stack pv-stack--lg">
-                    <button
-                      type="button"
-                      className="pv-btn pv-btn--ghost pv-btn--sm"
-                      onClick={() => setLoginStep('profile')}
-                      style={{ alignSelf: 'flex-start' }}
-                    >
-                      <Icon name="chevronRight" size={14} style={{ transform: 'rotate(180deg)' }} />
-                      Back to details
-                    </button>
-
-                    {connectError ? (
-                      <div className="pv-alert pv-alert--danger" role="alert">
-                        <span className="pv-alert__icon">
-                          <Icon name="alert" size={16} />
-                        </span>
-                        <div className="pv-alert__content">
-                          <p className="pv-alert__text">{connectError}</p>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    <Suspense fallback={<Loading label="Loading wallet connection..." />}>
-                      <StellarConnectBlock
-                        onConnect={handleWalletConnect}
-                        onError={handleWalletError}
-                        desiredRole={pendingProfile?.role || null}
-                      />
-                    </Suspense>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <p
-              className="pv-muted"
-              style={{
-                textAlign: 'center',
-                marginTop: 'var(--pv-space-8)',
-                fontSize: 'var(--pv-text-sm)',
-              }}
-            >
-              Prizes are held in a 2-of-2 escrow. Neither sponsor nor organizer can move funds alone.
-            </p>
+        {userWallet ? (
+          <div style={{ padding: 'var(--pv-space-8) 0 var(--pv-space-13)' }}>
+            <Suspense fallback={<Loading label="Loading your dashboard..." />}>
+              <ConnectedHolderView
+                userWallet={userWallet}
+                userRole={userRole}
+                activeView={activeView}
+                activeEventId={activeEventId}
+                setActiveView={setActiveView}
+                onDisconnect={handleDisconnect}
+                onNavigate={handleNavigate}
+              />
+            </Suspense>
           </div>
-        ) : (
-          userWallet && (
-            <div style={{ padding: 'var(--pv-space-8) 0 var(--pv-space-13)' }}>
-              <Suspense fallback={<Loading label="Loading your dashboard..." />}>
-                <ConnectedHolderView
-                  userWallet={userWallet}
-                  userRole={userRole}
-                  activeView={activeView}
-                  activeEventId={activeEventId}
-                  setActiveView={setActiveView}
-                  onDisconnect={handleDisconnect}
-                  onNavigate={handleNavigate}
-                />
-              </Suspense>
-            </div>
-          )
-        )}
+        ) : null}
       </main>
 
       <footer className="pv-footer">

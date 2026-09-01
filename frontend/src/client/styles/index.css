@@ -9,6 +9,8 @@
 @import './primitives.css';
 @import './layout.css';
 @import './navigation-menu.css';
+@import './lamp-nav.css';
 @import './landing.css';
 @import './responsive.css';
 @import './portals.css';
+@import './wallet-gate.css';

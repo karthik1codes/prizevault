@@ -87,7 +87,7 @@ export default function IssuerApp() {
   useEffect(() => {
     if (!sessionReady) return
     if (!hasRequiredRole('organizer')) {
-      window.location.href = '/holder'
+      window.location.href = '/holder?role=organizer'
     }
   }, [sessionReady])
 
@@ -173,7 +173,7 @@ export default function IssuerApp() {
     void disconnectWallet()
     clearActiveSession()
     requireManualConnect()
-    window.location.href = '/holder'
+    window.location.href = '/holder?role=organizer'
   }
 
   return (

@@ -51,7 +51,7 @@ function SponsorConsole() {
 
   useEffect(() => {
     if (!hasRequiredRole('sponsor')) {
-      window.location.href = '/holder'
+      window.location.href = '/holder?role=sponsor'
     }
   }, [])
 
@@ -62,7 +62,7 @@ function SponsorConsole() {
     void disconnectWallet()
     clearActiveSession()
     requireManualConnect()
-    window.location.href = '/holder'
+    window.location.href = '/holder?role=sponsor'
   }
 
   const [hackathons, setHackathons] = useState([])
