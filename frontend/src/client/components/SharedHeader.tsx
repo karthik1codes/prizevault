@@ -72,7 +72,10 @@ export default function SharedHeader({
 }: SharedHeaderProps) {
   const [navOpen, setNavOpen] = useState(false)
   const session = showSession ? getActiveSession() : null
-  const tabs = visibleTabs(activeTab, session)
+  const subtitleLabel = subtitle?.trim().toLowerCase()
+  const tabs = visibleTabs(activeTab, session).filter(
+    (tab) => !subtitleLabel || tab.label.toLowerCase() !== subtitleLabel,
+  )
 
   const handleDisconnect = () => {
     void disconnectWallet()

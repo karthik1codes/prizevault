@@ -26,8 +26,8 @@ declare module 'qrcode' {
  * TypeScript, so that is all that is declared.
  */
 declare module '*/context/HolderContext' {
-  import type { ReactNode } from 'react'
+  import type { ReactElement, ReactNode } from 'react'
 
-  export function HolderProvider(props: { children?: ReactNode }): JSX.Element
+  export function HolderProvider(props: { children?: ReactNode }): ReactElement
   export function useHolder(): Record<string, unknown>
 }

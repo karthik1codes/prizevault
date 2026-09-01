@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback, useState } from "react"
 import createGlobe from "cobe"
 import Icon from "@frontend/components/Icon"
 import type { GlobeLocationGroup } from "@/client/utils/hackathonGlobe"
+import { withEarthGlobeShader } from "@/lib/cobeEarthShader"
 
 interface GlobeCdnProps {
   locations?: GlobeLocationGroup[]
@@ -85,27 +86,30 @@ export function GlobeCdn({
       const width = canvas.offsetWidth
       if (width === 0 || globe) return
 
-      globe = createGlobe(canvas, {
-        devicePixelRatio: Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2),
-        width,
-        height: width,
-        phi: 0,
-        theta: 0.2,
-        dark: 0,
-        diffuse: 1.5,
-        mapSamples: isMobile ? 8000 : 16000,
-        mapBrightness: 10,
-        baseColor: [1, 1, 1],
-        markerColor: [0.1, 0.35, 0.85],
-        glowColor: [0.94, 0.93, 0.91],
-        markerElevation: 0.04,
-        markers: locations.map((loc) => ({
-          location: loc.location,
-          size: 0.035,
-          id: loc.id,
-        })),
-        opacity: 0.85,
-      })
+      globe = withEarthGlobeShader(() =>
+        createGlobe(canvas, {
+          devicePixelRatio: Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2),
+          width,
+          height: width,
+          phi: 0,
+          theta: 0.2,
+          dark: 1,
+          diffuse: 1.4,
+          mapSamples: isMobile ? 8000 : 16000,
+          mapBrightness: 3.2,
+          mapBaseBrightness: 0.22,
+          baseColor: [0.22, 0.56, 0.28],
+          markerColor: [0.1, 0.35, 0.85],
+          glowColor: [0.4, 0.68, 0.98],
+          markerElevation: 0.04,
+          markers: locations.map((loc) => ({
+            location: loc.location,
+            size: 0.035,
+            id: loc.id,
+          })),
+          opacity: 0.85,
+        }),
+      )
 
       function animate() {
         if (!isPausedRef.current) phi += speed
