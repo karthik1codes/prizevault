@@ -21,6 +21,12 @@ export function createSupabaseServerClient(): SupabaseClient {
   const serviceKey = getSupabaseServiceRoleKey()
   const key = serviceKey || getSupabasePublishableKey()
 
+  if (!serviceKey && process.env.NODE_ENV !== 'test') {
+    console.warn(
+      'SUPABASE_SERVICE_ROLE_KEY is not set. With locked RLS, API writes will fail; set the service role key on the server.',
+    )
+  }
+
   serverClient = createClient(getSupabaseUrl(), key, {
     auth: {
       persistSession: false,

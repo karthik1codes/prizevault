@@ -8,6 +8,7 @@ Project: **https://mjlbcskcsrxkjycjpdyh.supabase.co**
 2. Paste and run: `supabase/migrations/001_prizevault_schema.sql`
 3. Then run: `supabase/migrations/002_participants_rls.sql` (enables `participants` RLS + `hackathon_registrations` table)
 4. Then run: `supabase/migrations/003_payouts_rls.sql` (enables `payouts` RLS + unique index per proposal/winner)
+5. Then run: `supabase/migrations/004_tighten_rls.sql` (required on existing projects that already applied the old open policies)
 
 ## 2. Environment variables
 
@@ -18,9 +19,10 @@ Project: **https://mjlbcskcsrxkjycjpdyh.supabase.co**
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://mjlbcskcsrxkjycjpdyh.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable key from Supabase dashboard>
+SUPABASE_SERVICE_ROLE_KEY=<service_role key — server only, never NEXT_PUBLIC>
 ```
 
-Optional (production): `SUPABASE_SERVICE_ROLE_KEY` for server-only admin access with tighter RLS.
+`SUPABASE_SERVICE_ROLE_KEY` is required for creating events, registrations, and payout writes. The publishable key can only read the public `hackathons` catalog.
 
 Verify after deploy: `GET https://your-app.vercel.app/api/health` should return `"supabaseConfigured": true`.
 
@@ -48,4 +50,4 @@ The UI still caches to `localStorage` as fallback when Supabase is unavailable.
 
 ## 5. Security note
 
-Current RLS policies allow anon read/write for **testnet MVP**. Tighten before mainnet (wallet-based policies or service role only on API).
+RLS is enabled on all core tables. The publishable (`anon`) key may **SELECT** `hackathons` only. It cannot insert, update, or delete, and it cannot read organizers, sponsors, participants, proposals, payouts, or related PII tables. Mutations run exclusively through Next.js `/api/*` routes with `SUPABASE_SERVICE_ROLE_KEY`.

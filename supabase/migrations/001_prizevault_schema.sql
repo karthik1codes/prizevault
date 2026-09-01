@@ -194,34 +194,26 @@ CREATE TRIGGER escrows_updated_at
   BEFORE UPDATE ON escrows
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
--- RLS (testnet MVP — tighten before mainnet)
+-- RLS: the browser publishable key can only read the public event catalog.
+-- Inserts/updates/deletes go through Next.js API routes using SUPABASE_SERVICE_ROLE_KEY
+-- (service_role bypasses RLS). Never grant USING (true) WITH CHECK (true) to anon.
 ALTER TABLE hackathons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE proposals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE escrows ENABLE ROW LEVEL SECURITY;
 ALTER TABLE organizers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sponsors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chain_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE idempotency_keys ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS hackathons_anon_all ON hackathons;
-CREATE POLICY hackathons_anon_all ON hackathons FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS hackathons_public_read ON hackathons;
+CREATE POLICY hackathons_public_read ON hackathons
+  FOR SELECT TO anon, authenticated
+  USING (true);
 
 DROP POLICY IF EXISTS proposals_anon_all ON proposals;
-CREATE POLICY proposals_anon_all ON proposals FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS escrows_anon_all ON escrows;
-CREATE POLICY escrows_anon_all ON escrows FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS organizers_anon_all ON organizers;
-CREATE POLICY organizers_anon_all ON organizers FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS sponsors_anon_all ON sponsors;
-CREATE POLICY sponsors_anon_all ON sponsors FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS audit_logs_anon_all ON audit_logs;
-CREATE POLICY audit_logs_anon_all ON audit_logs FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);

@@ -29,11 +29,11 @@ These are **also baked into `vercel.json` and project defaults** so production w
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://mjlbcskcsrxkjycjpdyh.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Your publishable key from Supabase → Settings → API |
 
-Optional server-only (tighter RLS later):
+Required for creating events, registrations, and payouts (server-only):
 
 | Variable | Notes |
 |----------|--------|
-| `SUPABASE_SERVICE_ROLE_KEY` | Never expose to the client |
+| `SUPABASE_SERVICE_ROLE_KEY` | Never expose to the client. Needed after `004_tighten_rls.sql`. |
 
 Run SQL migrations once on the Supabase project: see `../supabase/README.md`.
 

@@ -1,12 +1,11 @@
--- Fix participants table RLS (blocks wallet profile upserts during registration)
--- Run in Supabase Dashboard → SQL Editor
+-- Participants + registrations: RLS on, no anon write/read of PII.
+-- Profiles are created by /api/session/sync and /api/hackathons/[id]/register
+-- using SUPABASE_SERVICE_ROLE_KEY.
+-- Run in Supabase Dashboard → SQL Editor after 001_prizevault_schema.sql
 
 ALTER TABLE participants ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS participants_anon_all ON participants;
-CREATE POLICY participants_anon_all ON participants
-  FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);
 
 -- One profile row per payout wallet (required for upsert lookups)
 CREATE UNIQUE INDEX IF NOT EXISTS idx_participants_wallet_unique
@@ -33,6 +32,3 @@ CREATE INDEX IF NOT EXISTS idx_hackathon_registrations_wallet
 ALTER TABLE hackathon_registrations ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS hackathon_registrations_anon_all ON hackathon_registrations;
-CREATE POLICY hackathon_registrations_anon_all ON hackathon_registrations
-  FOR ALL TO anon, authenticated
-  USING (true) WITH CHECK (true);
