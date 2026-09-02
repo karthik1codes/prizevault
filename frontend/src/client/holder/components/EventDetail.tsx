@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import Icon from '../../components/Icon'
 import AddressChip from '../../components/AddressChip'
+import EventVerifiedBadge from '../../components/EventVerifiedBadge'
 import { Hackathon } from '../../types/hackathon'
 import { UserRole } from '../../types/holder'
-import { useHackathons } from '../../hooks/useHackathons'
+import { useHackathons, usePayoutProposals } from '../../hooks/useHackathons'
 import { useWinnerCelebration } from '../../hooks/useWinnerCelebration'
 import { isRegistered, registerForHackathon } from '../utils/registration'
 import {
@@ -18,6 +19,7 @@ import {
   prizeTotal,
   stellarAccountUrl,
 } from '../../utils/format'
+import { getPayoutWorkflowStage, WORKFLOW_STAGE_META } from '../../utils/payoutWorkflow'
 
 const TIMELINE_STORAGE_KEY = 'prize_vault_hackathon_timelines'
 
@@ -53,6 +55,7 @@ export default function EventDetail({
   onBack,
 }: EventDetailProps) {
   const { hackathons, reload } = useHackathons()
+  const { proposals } = usePayoutProposals()
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null)
 
@@ -101,6 +104,8 @@ export default function EventDetail({
   const cover = eventCover(hackathon.name)
   const registered = isRegistered(hackathon, userWallet)
   const open = status !== 'completed'
+  const payoutStage = getPayoutWorkflowStage(hackathon, proposals)
+  const payoutMeta = WORKFLOW_STAGE_META[payoutStage]
 
   const handleRegister = async () => {
     setBusy(true)
@@ -137,6 +142,7 @@ export default function EventDetail({
             {status === 'live' ? <span className="pv-badge__dot pv-badge__dot--pulse" /> : null}
             {meta.label}
           </span>
+          <EventVerifiedBadge hackathon={hackathon} />
         </div>
 
         <div className="pv-card__body">
@@ -167,6 +173,15 @@ export default function EventDetail({
             <div className="pv-dl__item">
               <dt className="pv-dl__key">Registered</dt>
               <dd className="pv-dl__val pv-tnum">{participantCount(hackathon)}</dd>
+            </div>
+            <div className="pv-dl__item">
+              <dt className="pv-dl__key">Payout status</dt>
+              <dd className="pv-dl__val">
+                <span className={`pv-badge ${payoutMeta.badge}`.trim()}>{payoutMeta.label}</span>
+                <p className="pv-dim" style={{ marginTop: 'var(--pv-space-2)', maxWidth: '48ch' }}>
+                  {payoutMeta.description}
+                </p>
+              </dd>
             </div>
             <div className="pv-dl__item">
               <dt className="pv-dl__key">Escrow account</dt>

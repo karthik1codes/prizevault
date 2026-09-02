@@ -5,7 +5,8 @@ import { updateHackathon } from '../../services/hackathonApi'
 import { useHackathons } from '../../hooks/useHackathons'
 import { appendIssuerAuditLog } from '../../utils/issuerAuditLog'
 import { celebrateWinnersNow } from '../../hooks/useWinnerCelebration'
-import { formatXlm, prizeCurrency, prizeTotal } from '../../utils/format'
+import { formatXlm, isEscrowFullyFunded, prizeCurrency, prizeTotal } from '../../utils/format'
+import { canSelectWinners, fundingGapXlm } from '../../utils/payoutWorkflow'
 
 const PRIZE_TIERS = [
   { value: '1st', label: '1st place' },
@@ -39,6 +40,9 @@ export default function WinnerSelection({ hackathonId, sessionWallet, onSave }) 
   const participants = hackathon?.participants || []
   const pool = prizeTotal(hackathon || {})
   const currency = prizeCurrency(hackathon || {})
+  const funded = hackathon ? isEscrowFullyFunded(hackathon) : false
+  const maySelectWinners = hackathon ? canSelectWinners(hackathon) : false
+  const fundingGap = hackathon ? fundingGapXlm(hackathon) : 0
 
   const [winners, setWinners] = useState({})
   const [saved, setSaved] = useState(false)
@@ -111,7 +115,7 @@ export default function WinnerSelection({ hackathonId, sessionWallet, onSave }) 
     return list
   }, [selectedIds, winners, participants, overAllocated, allocated, pool, currency])
 
-  const canSave = selectedIds.length > 0 && errors.length === 0
+  const canSave = selectedIds.length > 0 && errors.length === 0 && maySelectWinners
 
   const handleSave = async () => {
     setTouched(true)
@@ -174,6 +178,22 @@ export default function WinnerSelection({ hackathonId, sessionWallet, onSave }) 
 
   return (
     <div className="pv-stack pv-stack--lg">
+      {hackathon && !funded ? (
+        <div className="pv-alert pv-alert--warning" role="status">
+          <span className="pv-alert__icon">
+            <Icon name="lock" size={16} />
+          </span>
+          <div className="pv-alert__content">
+            <p className="pv-alert__title">Prize pool not fully funded yet</p>
+            <p className="pv-alert__text">
+              The sponsor must lock at least {formatXlm(pool)} {currency} in escrow before you can
+              select winners. Currently funded: {formatXlm(pool - fundingGap)} {currency}
+              {fundingGap > 0 ? ` (${formatXlm(fundingGap)} ${currency} short)` : ''}.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       <div className="pv-card">
         <div className="pv-card__header">
           <div>
@@ -242,6 +262,7 @@ export default function WinnerSelection({ hackathonId, sessionWallet, onSave }) 
                           <input
                             type="checkbox"
                             checked={!!win}
+                            disabled={!maySelectWinners}
                             onChange={(e) => toggleWinner(p.id, e.target.checked)}
                             aria-label={`Mark ${p.name} as a winner`}
                           />
@@ -339,7 +360,7 @@ export default function WinnerSelection({ hackathonId, sessionWallet, onSave }) 
               type="button"
               className="pv-btn pv-btn--primary"
               onClick={handleSave}
-              disabled={selectedIds.length === 0}
+              disabled={selectedIds.length === 0 || !maySelectWinners}
             >
               Save winners
             </button>

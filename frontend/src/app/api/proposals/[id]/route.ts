@@ -3,6 +3,8 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isSupabaseConfigured } from '@/lib/supabase/env'
 import { proposalToRow, rowToProposal } from '@/lib/supabase/mappers'
 import { syncExecutedPayouts } from '@/lib/supabase/syncExecutedPayouts'
+import { isUuid } from '@/lib/supabase/ids'
+import { errorMessage, formatSupabaseApiError } from '@/lib/supabase/errors'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -10,9 +12,12 @@ export const dynamic = 'force-dynamic'
 type RouteContext = { params: Promise<{ id: string }> }
 
 async function findProposal(supabase: ReturnType<typeof createSupabaseServerClient>, id: string) {
-  const byLegacy = await supabase.from('proposals').select('*').eq('legacy_id', id).maybeSingle()
+  const key = id.trim()
+  const byLegacy = await supabase.from('proposals').select('*').eq('legacy_id', key).maybeSingle()
   if (byLegacy.data) return byLegacy
-  return supabase.from('proposals').select('*').eq('id', id).maybeSingle()
+  if (byLegacy.error) return byLegacy
+  if (!isUuid(key)) return { data: null, error: null }
+  return supabase.from('proposals').select('*').eq('id', key).maybeSingle()
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
@@ -45,7 +50,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     return NextResponse.json({ success: true, proposal: rowToProposal(data) })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Update failed'
+    const message = formatSupabaseApiError('Update failed', err)
     return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }

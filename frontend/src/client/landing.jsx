@@ -1,9 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import SharedHeader from './components/SharedHeader'
+import YCBadge from './components/YCBadge'
 import Icon from './components/Icon'
 import HackathonGlobe from '@/components/ui/usage'
+import EventVerifiedBadge from './components/EventVerifiedBadge'
 import { getHackathonsFromStorage } from './holder/utils/roleDetection'
 import { subscribeHackathonsDatasetChanged } from './utils/hackathonSync'
+import { enrichHackathonLocation } from './utils/hackathonGlobe'
+import { enrichHackathonFunding } from './utils/format'
 import { fetchHackathons } from './services/hackathonApi'
 import { truncateAddress } from './components/AddressChip'
 import { ESCROW_APP_ID } from './constants/escrow'
@@ -124,17 +128,14 @@ function EventCard({ hackathon }) {
   const total = prizeTotal(hackathon)
 
   return (
-    <a
-      id={`event-${hackathon.id}`}
-      className="pv-event"
-      href={`/holder?event=${encodeURIComponent(hackathon.id)}`}
-    >
+    <article id={`event-${hackathon.id}`} className="pv-event">
       <div className="pv-event__cover" style={{ background: cover.background }}>
         <span className="pv-event__cover-initials">{cover.initials}</span>
         <span className={`pv-badge ${meta.badge} pv-event__cover-badge`.trim()}>
           {status === 'live' ? <span className="pv-badge__dot pv-badge__dot--pulse" /> : null}
           {meta.label}
         </span>
+        <EventVerifiedBadge hackathon={hackathon} />
       </div>
       <div className="pv-event__body">
         <span className="pv-event__date">
@@ -161,12 +162,19 @@ function EventCard({ hackathon }) {
           </span>
         </div>
       </div>
-    </a>
+      <a
+        className="pv-event__stretched-link"
+        href={`/holder?event=${encodeURIComponent(hackathon.id)}`}
+        aria-label={`View ${hackathon.name || 'event'}`}
+      />
+    </article>
   )
 }
 
 function Landing() {
-  const [hackathons, setHackathons] = useState(() => getHackathonsFromStorage())
+  const [hackathons, setHackathons] = useState(() =>
+    getHackathonsFromStorage().map((h) => enrichHackathonFunding(enrichHackathonLocation(h))),
+  )
 
   useEffect(() => {
     if (window.location.hash) {
@@ -180,16 +188,33 @@ function Landing() {
   }, [])
 
   useEffect(
-    () => subscribeHackathonsDatasetChanged(() => setHackathons(getHackathonsFromStorage())),
+    () =>
+      subscribeHackathonsDatasetChanged(() =>
+        setHackathons(
+          getHackathonsFromStorage().map((h) => enrichHackathonFunding(enrichHackathonLocation(h))),
+        ),
+      ),
     [],
   )
 
   useEffect(() => {
-    fetchHackathons()
-      .then((list) => {
-        if (Array.isArray(list) && list.length > 0) setHackathons(list)
-      })
-      .catch(() => {})
+    const refresh = () => {
+      fetchHackathons()
+        .then((list) => {
+          if (Array.isArray(list)) {
+            setHackathons(list.map((h) => enrichHackathonFunding(enrichHackathonLocation(h))))
+          }
+        })
+        .catch(() => {})
+    }
+
+    refresh()
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
 
   const { openEvents, stats } = useMemo(() => {
@@ -219,6 +244,7 @@ function Landing() {
         <section className="pv-container">
           <div className="pv-hero">
             <div className="pv-hero__copy">
+              <YCBadge />
               <h1 className="pv-hero__title">
                 Prize money nobody can move alone.
               </h1>

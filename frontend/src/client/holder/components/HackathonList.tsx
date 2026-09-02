@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import Icon from '../../components/Icon'
+import EventVerifiedBadge from '../../components/EventVerifiedBadge'
 import { Hackathon } from '../../types/hackathon'
 import { UserRole } from '../../types/holder'
 import { useHackathons } from '../../hooks/useHackathons'
@@ -201,6 +202,7 @@ export default function HackathonList({ userWallet, userRole, onNavigate }: Hack
                     ) : null}
                     {meta.label}
                   </span>
+                  <EventVerifiedBadge hackathon={hackathon} />
                 </div>
                 <div className="pv-event__body">
                   <span className="pv-event__date">

@@ -3,9 +3,83 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isSupabaseConfigured } from '@/lib/supabase/env'
 import { proposalToRow, rowToProposal } from '@/lib/supabase/mappers'
 import { syncExecutedPayouts } from '@/lib/supabase/syncExecutedPayouts'
+import { coerceUuid } from '@/lib/supabase/ids'
+import { findHackathonById } from '@/lib/supabase/registerParticipant'
+import { errorMessage, formatSupabaseApiError } from '@/lib/supabase/errors'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+type SupabaseClient = ReturnType<typeof createSupabaseServerClient>
+
+async function resolveHackathonDbId(
+  supabase: SupabaseClient,
+  proposal: Record<string, unknown>,
+  existingHackathonId?: string | null,
+): Promise<string | null> {
+  const existing = coerceUuid(existingHackathonId ?? '')
+  if (existing) return existing
+
+  const fromProposal = coerceUuid(proposal.hackathonDbId)
+  if (fromProposal) return fromProposal
+
+  const hackathonKey = String(proposal.hackathonId || '').trim()
+  if (!hackathonKey) return null
+
+  const { data, error } = await findHackathonById(supabase, hackathonKey)
+  if (error) throw error
+  return data?.id ?? null
+}
+
+async function upsertProposal(
+  supabase: SupabaseClient,
+  proposal: Record<string, unknown>,
+): Promise<string> {
+  const legacyId = String(proposal.id || '').trim()
+  if (!legacyId) {
+    throw new Error('Proposal is missing an id')
+  }
+
+  const { data: existing, error: findError } = await supabase
+    .from('proposals')
+    .select('id, hackathon_id')
+    .eq('legacy_id', legacyId)
+    .maybeSingle()
+
+  if (findError) throw findError
+
+  const hackathonDbId = await resolveHackathonDbId(
+    supabase,
+    proposal,
+    existing?.hackathon_id,
+  )
+  const row = proposalToRow(proposal, hackathonDbId)
+
+  let proposalDbId = existing?.id as string | undefined
+
+  if (existing) {
+    delete (row as { legacy_id?: string }).legacy_id
+    const { error: updateError } = await supabase
+      .from('proposals')
+      .update(row)
+      .eq('id', existing.id)
+    if (updateError) throw updateError
+  } else {
+    const { data: inserted, error: insertError } = await supabase
+      .from('proposals')
+      .insert(row)
+      .select('id')
+      .single()
+    if (insertError) throw insertError
+    proposalDbId = inserted.id
+  }
+
+  if (!proposalDbId) {
+    throw new Error(`Proposal ${legacyId} was not saved`)
+  }
+
+  return proposalDbId
+}
 
 export async function GET() {
   if (!isSupabaseConfigured()) {
@@ -28,7 +102,7 @@ export async function GET() {
       source: 'supabase',
     })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to load proposals'
+    const message = errorMessage(err, 'Failed to load proposals')
     return NextResponse.json({ error: message, proposals: [] }, { status: 500 })
   }
 }
@@ -41,30 +115,20 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as Record<string, unknown>
     const supabase = createSupabaseServerClient()
+    const proposalDbId = await upsertProposal(supabase, body)
+    const { data, error } = await supabase
+      .from('proposals')
+      .select('*')
+      .eq('id', proposalDbId)
+      .single()
 
-    let hackathonDbId: string | null = null
-    const hackathonId = String(body.hackathonId || '')
-    if (hackathonId) {
-      const { data: hack } = await supabase
-        .from('hackathons')
-        .select('id')
-        .or(`legacy_id.eq.${hackathonId},id.eq.${hackathonId}`)
-        .maybeSingle()
-      hackathonDbId = hack?.id ?? null
-    }
+    if (error) throw error
 
-    const row = proposalToRow(body, hackathonDbId)
-    const { data, error } = await supabase.from('proposals').insert(row).select('*').single()
-
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 400 })
-    }
-
-    await syncExecutedPayouts(supabase, data.id, body)
+    await syncExecutedPayouts(supabase, proposalDbId, body)
 
     return NextResponse.json({ success: true, proposal: rowToProposal(data) })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to create proposal'
+    const message = formatSupabaseApiError('Failed to create proposal', err)
     return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }
@@ -84,45 +148,21 @@ export async function PUT(request: Request) {
 
     const supabase = createSupabaseServerClient()
 
-    for (const p of proposals) {
-      const legacyId = String(p.id || '')
+    for (const proposal of proposals) {
+      const legacyId = String(proposal.id || '').trim()
       if (!legacyId) continue
 
-      const { data: existing } = await supabase
-        .from('proposals')
-        .select('id, hackathon_id')
-        .eq('legacy_id', legacyId)
-        .maybeSingle()
-
-      const row = proposalToRow(p, existing?.hackathon_id)
-
-      let proposalDbId = existing?.id as string | undefined
-
-      if (existing) {
-        delete (row as { legacy_id?: string }).legacy_id
-        const { error: updateError } = await supabase
-          .from('proposals')
-          .update(row)
-          .eq('id', existing.id)
-        if (updateError) throw updateError
-      } else {
-        const { data: inserted, error: insertError } = await supabase
-          .from('proposals')
-          .insert(row)
-          .select('id')
-          .single()
-        if (insertError) throw insertError
-        proposalDbId = inserted.id
-      }
-
-      if (proposalDbId) {
-        await syncExecutedPayouts(supabase, proposalDbId, p)
+      try {
+        const proposalDbId = await upsertProposal(supabase, proposal)
+        await syncExecutedPayouts(supabase, proposalDbId, proposal)
+      } catch (err) {
+        throw new Error(formatSupabaseApiError(`Proposal ${legacyId} sync failed`, err))
       }
     }
 
     return NextResponse.json({ success: true })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Bulk save failed'
+    const message = errorMessage(err, 'Bulk save failed')
     return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }

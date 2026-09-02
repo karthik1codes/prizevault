@@ -16,6 +16,14 @@ function eventHash(hackathonId: string): string {
   return `#event-${hackathonId}`
 }
 
+function toMarkers(locations: GlobeLocationGroup[]) {
+  return locations.map((loc) => ({
+    location: loc.location,
+    size: 0.035,
+    id: loc.id,
+  }))
+}
+
 export function GlobeCdn({
   locations = [],
   className = "",
@@ -23,6 +31,7 @@ export function GlobeCdn({
 }: GlobeCdnProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
+  const globeRef = useRef<ReturnType<typeof createGlobe> | null>(null)
   const pointerInteracting = useRef<{ x: number; y: number } | null>(null)
   const dragOffset = useRef({ phi: 0, theta: 0 })
   const phiOffsetRef = useRef(0)
@@ -77,16 +86,15 @@ export function GlobeCdn({
   useEffect(() => {
     if (!canvasRef.current) return undefined
     const canvas = canvasRef.current
-    let globe: ReturnType<typeof createGlobe> | null = null
-    let animationId: number
+    let animationId = 0
     let phi = 0
-    const isMobile = window.matchMedia('(max-width: 768px)').matches
+    const isMobile = window.matchMedia("(max-width: 768px)").matches
 
     function init() {
       const width = canvas.offsetWidth
-      if (width === 0 || globe) return
+      if (width === 0 || globeRef.current) return
 
-      globe = withEarthGlobeShader(() =>
+      globeRef.current = withEarthGlobeShader(() =>
         createGlobe(canvas, {
           devicePixelRatio: Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2),
           width,
@@ -102,27 +110,22 @@ export function GlobeCdn({
           markerColor: [0.1, 0.35, 0.85],
           glowColor: [0.4, 0.68, 0.98],
           markerElevation: 0.04,
-          markers: locations.map((loc) => ({
-            location: loc.location,
-            size: 0.035,
-            id: loc.id,
-          })),
-          opacity: 1,
+          markers: toMarkers(locations),
+          opacity: 0.85,
         }),
       )
 
       function animate() {
+        if (!globeRef.current) return
         if (!isPausedRef.current) phi += speed
-        globe!.update({
+        globeRef.current.update({
           phi: phi + phiOffsetRef.current + dragOffset.current.phi,
           theta: 0.2 + thetaOffsetRef.current + dragOffset.current.theta,
         })
         animationId = requestAnimationFrame(animate)
       }
       animate()
-      setTimeout(() => {
-        if (canvas) canvas.style.opacity = "1"
-      })
+      canvas.style.opacity = "1"
     }
 
     if (canvas.offsetWidth > 0) {
@@ -139,9 +142,16 @@ export function GlobeCdn({
 
     return () => {
       if (animationId) cancelAnimationFrame(animationId)
-      if (globe) globe.destroy()
+      if (globeRef.current) {
+        globeRef.current.destroy()
+        globeRef.current = null
+      }
     }
-  }, [locations, speed])
+  }, [speed])
+
+  useEffect(() => {
+    globeRef.current?.update({ markers: toMarkers(locations) })
+  }, [locations])
 
   const toggleLocation = (locationId: string) => {
     setOpenLocationId((current) => (current === locationId ? null : locationId))

@@ -2,21 +2,27 @@ import React, { useState } from 'react'
 import Icon from '../../components/Icon'
 import { hackathonBelongsToOrganizerPortal } from '../../utils/organizerPortalFilter'
 import { deleteHackathon } from '../../services/hackathonApi'
-import { useHackathons } from '../../hooks/useHackathons'
+import { useHackathons, usePayoutProposals } from '../../hooks/useHackathons'
 import {
   STATUS_META,
   deriveStatus,
   formatDateRange,
   formatXlm,
+  isEscrowFullyFunded,
   participantCount,
   prizeCurrency,
   prizeTotal,
 } from '../../utils/format'
+import {
+  getPayoutWorkflowStage,
+  WORKFLOW_STAGE_META,
+} from '../../utils/payoutWorkflow'
 
-function HackathonRow({ hackathon, sessionWallet, onNavigate, onDeleted }) {
+function HackathonRow({ hackathon, sessionWallet, onNavigate, onDeleted, proposals }) {
   const status = deriveStatus(hackathon)
   const meta = STATUS_META[status]
-  const winners = hackathon.winners?.length || 0
+  const workflowStage = getPayoutWorkflowStage(hackathon, proposals)
+  const workflowMeta = WORKFLOW_STAGE_META[workflowStage]
   const [deleting, setDeleting] = useState(false)
 
   const handleDelete = async () => {
@@ -56,15 +62,7 @@ function HackathonRow({ hackathon, sessionWallet, onNavigate, onDeleted }) {
       </td>
       <td className="pv-table__num" data-label="Registered">{participantCount(hackathon)}</td>
       <td data-label="Payout stage">
-        {hackathon.payoutProposed ? (
-          <span className="pv-badge pv-badge--accent">Payout proposed</span>
-        ) : hackathon.winnersSelected ? (
-          <span className="pv-badge pv-badge--warning">
-            {winners} winner{winners === 1 ? '' : 's'} chosen
-          </span>
-        ) : (
-          <span className="pv-badge">No winners yet</span>
-        )}
+        <span className={`pv-badge ${workflowMeta.badge}`.trim()}>{workflowMeta.label}</span>
       </td>
       <td className="pv-table__actions" data-label="Actions">
         <span className="pv-btn-group">
@@ -107,17 +105,32 @@ function HackathonRow({ hackathon, sessionWallet, onNavigate, onDeleted }) {
 
 export default function OrganizerDashboard({ sessionWallet, onNavigate }) {
   const { hackathons, reload } = useHackathons((h) => hackathonBelongsToOrganizerPortal(h, sessionWallet))
+  const { proposals } = usePayoutProposals()
 
-  // A completed event with no winners chosen is the thing that actually needs
-  // action. The original tested `winnersSelected && !payoutProposed`, which is
-  // the opposite -- it only nudged once winners were already picked.
+  const needFunding = hackathons.filter((h) => !isEscrowFullyFunded(h) && deriveStatus(h) !== 'completed')
   const needWinners = hackathons.filter(
-    (h) => deriveStatus(h) === 'completed' && !h.winnersSelected,
+    (h) => isEscrowFullyFunded(h) && deriveStatus(h) === 'completed' && !h.winnersSelected,
   )
-  const needProposal = hackathons.filter((h) => h.winnersSelected && !h.payoutProposed)
-  const awaitingApproval = hackathons.filter((h) => h.payoutProposed && !h.payoutExecuted)
+  const needProposal = hackathons.filter(
+    (h) => getPayoutWorkflowStage(h, proposals) === 'winners_selected',
+  )
+  const awaitingApproval = hackathons.filter(
+    (h) => getPayoutWorkflowStage(h, proposals) === 'awaiting_sponsor',
+  )
+  const readyToRelease = hackathons.filter(
+    (h) => getPayoutWorkflowStage(h, proposals) === 'ready_to_release',
+  )
 
   const nudges = [
+    needFunding.length > 0 && {
+      icon: 'lock',
+      tone: 'pv-alert--warning',
+      title: `${needFunding.length} ${needFunding.length === 1 ? 'event is' : 'events are'} waiting on sponsor funding`,
+      text: 'The sponsor must lock the full prize pool in escrow before judging or payouts can begin.',
+      cta: 'View events',
+      view: 'hackathons',
+      id: needFunding[0].id,
+    },
     needWinners.length > 0 && {
       icon: 'trophy',
       tone: 'pv-alert--warning',
@@ -130,8 +143,8 @@ export default function OrganizerDashboard({ sessionWallet, onNavigate }) {
     needProposal.length > 0 && {
       icon: 'send',
       tone: 'pv-alert--accent',
-      title: `${needProposal.length} ${needProposal.length === 1 ? 'event has' : 'events have'} winners but no payout proposal`,
-      text: needProposal.map((h) => h.name).join(', '),
+      title: `${needProposal.length} ${needProposal.length === 1 ? 'event has' : 'events have'} winners ready to propose`,
+      text: 'Escrow is funded. Propose the payout so the sponsor can co-approve the winner list.',
       cta: 'Create payout',
       view: 'payouts',
       id: needProposal[0].id,
@@ -140,10 +153,19 @@ export default function OrganizerDashboard({ sessionWallet, onNavigate }) {
       icon: 'clock',
       tone: '',
       title: `${awaitingApproval.length} payout ${awaitingApproval.length === 1 ? 'proposal' : 'proposals'} awaiting sponsor approval`,
-      text: 'The sponsor must co-approve before funds can be released.',
+      text: 'The sponsor must co-approve the winner list before you can release funds.',
       cta: 'View payouts',
       view: 'payouts',
       id: awaitingApproval[0].id,
+    },
+    readyToRelease.length > 0 && {
+      icon: 'checkCircle',
+      tone: 'pv-alert--accent',
+      title: `${readyToRelease.length} payout ${readyToRelease.length === 1 ? 'is' : 'are'} ready to release`,
+      text: 'Both sides approved. Execute the on-chain release from the payout console (agent automation later).',
+      cta: 'Release payout',
+      view: 'payouts',
+      id: readyToRelease[0].id,
     },
   ].filter(Boolean)
 
@@ -268,6 +290,7 @@ export default function OrganizerDashboard({ sessionWallet, onNavigate }) {
                       sessionWallet={sessionWallet}
                       onNavigate={onNavigate}
                       onDeleted={reload}
+                      proposals={proposals}
                     />
                   ))}
                 </tbody>

@@ -41,6 +41,10 @@ export interface Hackathon {
   winners?: Winner[]
   winnersSelected: boolean
   payoutProposed: boolean
+  /** Set after execute_release completes for this event */
+  payoutExecuted?: boolean
+  /** Set when sponsor funding reaches the full prize pool */
+  sponsorFunded?: boolean
   description?: string
   /** City or venue label shown on the landing globe */
   venueCity?: string

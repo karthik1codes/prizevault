@@ -1,5 +1,7 @@
 import type { Hackathon, Participant, Winner } from '@/client/types/hackathon'
+import { enrichHackathonLocation } from '@/client/utils/hackathonGlobe'
 import { ESCROW_APP_ID, SOROBAN_TESTNET_XLM_TOKEN_CONTRACT_ID } from '@/client/constants/escrow'
+import { coerceUuid } from './ids'
 
 export type HackathonRow = {
   id: string
@@ -42,6 +44,15 @@ function num(v: number | string | null | undefined): number {
   return Number.isFinite(n) ? n : 0
 }
 
+function parseCoordField(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+  return undefined
+}
+
 export function rowToHackathon(row: HackathonRow): Hackathon & {
   sponsorFundingXlm?: number
   onChainBalanceXlm?: number
@@ -51,7 +62,7 @@ export function rowToHackathon(row: HackathonRow): Hackathon & {
   const participants = (payload.participants as Participant[]) || []
   const winners = (payload.winners as Winner[]) || undefined
 
-  return {
+  return enrichHackathonLocation({
     id: row.legacy_id || row.id,
     dbId: row.id,
     name: row.name,
@@ -74,13 +85,19 @@ export function rowToHackathon(row: HackathonRow): Hackathon & {
     winners,
     winnersSelected: Boolean(payload.winnersSelected),
     payoutProposed: Boolean(payload.payoutProposed),
+    payoutExecuted: Boolean(payload.payoutExecuted),
+    sponsorFunded:
+      Boolean(payload.sponsorFunded) ||
+      (Boolean(row.sponsor_wallet) &&
+        num(row.sponsor_funding_xlm) > 0 &&
+        num(row.sponsor_funding_xlm) >= num(row.prize_pool_total)),
     description: row.description || undefined,
     venueCity: typeof payload.venueCity === 'string' ? payload.venueCity : undefined,
-    latitude: typeof payload.latitude === 'number' ? payload.latitude : undefined,
-    longitude: typeof payload.longitude === 'number' ? payload.longitude : undefined,
+    latitude: parseCoordField(payload.latitude),
+    longitude: parseCoordField(payload.longitude),
     sponsorFundingXlm: num(row.sponsor_funding_xlm),
     onChainBalanceXlm: row.on_chain_balance_xlm != null ? num(row.on_chain_balance_xlm) : undefined,
-  }
+  })
 }
 
 export function hackathonToRow(
@@ -118,9 +135,21 @@ export function hackathonToRow(
       winners: hackathon.winners || [],
       winnersSelected: hackathon.winnersSelected ?? false,
       payoutProposed: hackathon.payoutProposed ?? false,
+      payoutExecuted: hackathon.payoutExecuted ?? false,
+      sponsorFunded:
+        hackathon.sponsorFunded ??
+        (Number(hackathon.sponsorFundingXlm ?? 0) > 0 &&
+          Boolean(hackathon.sponsorAddress) &&
+          Number(hackathon.sponsorFundingXlm ?? 0) >= Number(hackathon.prizePool?.total ?? 0)),
       venueCity: hackathon.venueCity || null,
-      latitude: hackathon.latitude ?? null,
-      longitude: hackathon.longitude ?? null,
+      latitude:
+        typeof hackathon.latitude === 'number' && Number.isFinite(hackathon.latitude)
+          ? hackathon.latitude
+          : null,
+      longitude:
+        typeof hackathon.longitude === 'number' && Number.isFinite(hackathon.longitude)
+          ? hackathon.longitude
+          : null,
     },
   }
 }
@@ -160,15 +189,15 @@ export function proposalToRow(
 
   return {
     legacy_id: legacyId,
-    hackathon_id: hackathonDbId ?? (proposal.hackathonDbId as string) ?? null,
+    hackathon_id:
+      coerceUuid(hackathonDbId) ??
+      coerceUuid(proposal.hackathonDbId) ??
+      null,
     onchain_proposal_id:
-      typeof proposal.onChainProposalId === 'number'
-        ? proposal.onChainProposalId
-        : typeof proposal.onchain_proposal_id === 'number'
-          ? proposal.onchain_proposal_id
-          : null,
+      coerceOnChainProposalId(proposal.onChainProposalId) ??
+      coerceOnChainProposalId(proposal.onchain_proposal_id),
     status,
-    created_by_wallet: (proposal.createdByWallet as string) || null,
+    created_by_wallet: (proposal.createdByWallet as string) || (proposal.created_by_wallet as string) || null,
     executed_at: executedAt,
     payload: proposal,
   }
@@ -179,7 +208,17 @@ function mapProposalStatus(proposal: Record<string, unknown>): string {
   if (proposal.sponsorApproved) return 'sponsor_approved'
   if (proposal.status === 'cancelled') return 'cancelled'
   if (proposal.status === 'failed') return 'failed'
+  if (proposal.status === 'awaiting_sponsor') return 'proposed'
   return 'proposed'
+}
+
+function coerceOnChainProposalId(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
 }
 
 export async function ensureOrganizer(

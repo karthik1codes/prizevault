@@ -1,11 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import Icon from '../../components/Icon'
 import AddressChip from '../../components/AddressChip'
 import { isValidStellarAddress } from '../../constants/escrow'
 import { ESCROW_APP_ID } from '../../constants/escrow'
 import { appendIssuerAuditLog } from '../../utils/issuerAuditLog'
 import { createHackathon } from '../../services/hackathonApi'
-import { lookupCityCoordinates } from '../../utils/hackathonGlobe'
+import { geocodeCity, lookupCityCoordinates } from '../../utils/hackathonGlobe'
 
 /** Field-level errors so each message renders next to the input it belongs to. */
 function validate({ name, startDate, endDate, prizeTotal, venueCity, latitude, longitude }) {
@@ -51,20 +51,47 @@ export default function CreateHackathonForm({ userWallet, onSave, onCancel }) {
   const [submitted, setSubmitted] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [geocoding, setGeocoding] = useState(false)
+  const geocodeRequest = useRef(0)
+
+  const applyCityCoordinates = async (city, { forceRemote = false } = {}) => {
+    const trimmed = city.trim()
+    if (!trimmed) {
+      setValues((prev) => ({ ...prev, latitude: '', longitude: '' }))
+      return
+    }
+
+    const local = lookupCityCoordinates(trimmed)
+    if (local && !forceRemote) {
+      setValues((prev) => ({
+        ...prev,
+        latitude: String(local[0]),
+        longitude: String(local[1]),
+      }))
+      return
+    }
+
+    const requestId = ++geocodeRequest.current
+    setGeocoding(true)
+    const remote = await geocodeCity(trimmed)
+    if (requestId !== geocodeRequest.current) return
+    setGeocoding(false)
+
+    if (remote) {
+      setValues((prev) => ({
+        ...prev,
+        latitude: String(remote[0]),
+        longitude: String(remote[1]),
+      }))
+    }
+  }
 
   const set = (field) => (e) => {
     const value = e.target.value
-    setValues((prev) => {
-      const next = { ...prev, [field]: value }
-      if (field === 'venueCity') {
-        const coords = lookupCityCoordinates(value)
-        if (coords) {
-          next.latitude = String(coords[0])
-          next.longitude = String(coords[1])
-        }
-      }
-      return next
-    })
+    setValues((prev) => ({ ...prev, [field]: value }))
+    if (field === 'venueCity') {
+      void applyCityCoordinates(value)
+    }
     if (submitted) {
       setErrors(validate({ ...values, [field]: value }))
     }
@@ -86,11 +113,20 @@ export default function CreateHackathonForm({ userWallet, onSave, onCancel }) {
       setSaveError('Connect an organizer wallet before creating a hackathon.')
       return
     }
-    const coords = lookupCityCoordinates(values.venueCity.trim())
+    const coords =
+      lookupCityCoordinates(values.venueCity.trim()) ||
+      (await geocodeCity(values.venueCity.trim()))
     const latInput = values.latitude.trim()
     const lngInput = values.longitude.trim()
     const latitude = latInput !== '' ? Number(latInput) : coords?.[0]
     const longitude = lngInput !== '' ? Number(lngInput) : coords?.[1]
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      setSaveError(
+        'Could not resolve coordinates for this host city. Check the city name or enter latitude and longitude manually.',
+      )
+      return
+    }
 
     const newHackathon = {
       id: `hack_${Date.now()}`,
@@ -286,7 +322,9 @@ export default function CreateHackathonForm({ userWallet, onSave, onCancel }) {
               </span>
             ) : (
               <span className="pv-field__hint" id="hint-venue">
-                Shown on the landing-page globe. Known cities auto-fill coordinates below.
+                {geocoding
+                  ? 'Looking up coordinates for this city…'
+                  : 'Shown on the landing-page globe. Coordinates auto-fill from the host city.'}
               </span>
             )}
           </div>

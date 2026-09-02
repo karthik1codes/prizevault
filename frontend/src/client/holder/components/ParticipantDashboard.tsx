@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import Icon from '../../components/Icon'
+import EventVerifiedBadge from '../../components/EventVerifiedBadge'
 import { Hackathon } from '../../types/hackathon'
 import { useHackathons } from '../../hooks/useHackathons'
 import { celebrateWinnerOnce } from '../../hooks/useWinnerCelebration'
@@ -279,6 +280,7 @@ export default function ParticipantDashboard({
                       ) : null}
                       {meta.label}
                     </span>
+                    <EventVerifiedBadge hackathon={h} />
                   </div>
                   <div className="pv-event__body">
                     <span className="pv-event__date">

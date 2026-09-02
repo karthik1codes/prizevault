@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import Icon from '../../components/Icon'
 import AddressChip from '../../components/AddressChip'
+import EventVerifiedBadge from '../../components/EventVerifiedBadge'
 import { hackathonBelongsToOrganizerPortal } from '../../utils/organizerPortalFilter'
 import { deleteHackathon } from '../../services/hackathonApi'
 import { useHackathons } from '../../hooks/useHackathons'
@@ -49,6 +50,7 @@ function HackathonCard({ hackathon, sessionWallet, onNavigate, onDeleted }) {
           {status === 'live' ? <span className="pv-badge__dot pv-badge__dot--pulse" /> : null}
           {meta.label}
         </span>
+        <EventVerifiedBadge hackathon={hackathon} />
       </div>
 
       <div className="pv-card__body pv-card__body--tight">
