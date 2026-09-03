@@ -122,27 +122,6 @@
   font-weight: var(--pv-weight-semibold);
 }
 
-.pv-theme-toggle {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--pv-border);
-  border-radius: var(--pv-radius-md);
-  background: var(--pv-surface);
-  color: var(--pv-text-secondary);
-  flex: none;
-  transition: background var(--pv-duration-fast) var(--pv-ease),
-    color var(--pv-duration-fast) var(--pv-ease),
-    border-color var(--pv-duration-fast) var(--pv-ease);
-}
-
-.pv-theme-toggle:hover {
-  background: var(--pv-surface-2);
-  color: var(--pv-text);
-  border-color: var(--pv-border-strong);
-}
-
 .pv-session {
   display: inline-flex;
   align-items: center;

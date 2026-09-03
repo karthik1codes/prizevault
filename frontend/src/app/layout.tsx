@@ -27,10 +27,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0d1117" },
-  ],
+  themeColor: "#f7f8fa",
 };
 
 export default function RootLayout({
@@ -41,22 +38,14 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      data-theme="light"
+      style={{ colorScheme: "light" }}
       className={`${plusJakarta.variable} ${jetbrains.variable}`}
-      suppressHydrationWarning
     >
       <head>
-        <Script id="pv-theme-boot" strategy="beforeInteractive">{`
-          (function () {
-            try {
-              var t = localStorage.getItem('prize_vault_theme');
-              if (t !== 'light' && t !== 'dark') {
-                t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-              }
-              document.documentElement.setAttribute('data-theme', t);
-              document.documentElement.style.colorScheme = t;
-            } catch (e) {}
-            if (typeof global === 'undefined') window.global = window;
-          })();
+        <Script id="pv-global-polyfill" strategy="beforeInteractive">{`
+          if (typeof global === 'undefined') window.global = window;
+          try { localStorage.removeItem('prize_vault_theme'); } catch (e) {}
         `}</Script>
       </head>
       <body>{children}</body>

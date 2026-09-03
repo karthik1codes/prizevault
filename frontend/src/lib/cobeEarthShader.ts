@@ -5,9 +5,9 @@
 const COBE_ALBEDO =
   "m+=vec4(F*(mix((1.-q)*pow(i,.4),q,n.z)+.1)+pow(1.-i,4.)*w,1)"
 
-/** Ocean blue, then land green, sampled from Cobe's land-mask texture. */
+/** Dark blue ocean, then land green, sampled from Cobe's land-mask texture. */
 const EARTH_ALBEDO =
-  "vec3 E=mix(vec3(.10,.38,.78),vec3(.22,.56,.28),texture2D(z,vec2(e*.5/3.141593,-(j/3.141593+.5))).x);m+=vec4(E*(mix((1.-q)*pow(i,.4),q,n.z)+.1)+pow(1.-i,4.)*w,1)"
+  "vec3 E=mix(vec3(.12,.32,.72),vec3(.22,.56,.28),texture2D(z,vec2(e*.5/3.141593,-(j/3.141593+.5))).x);m+=vec4(E*(mix((1.-q)*pow(i,.4),q,n.z)+.1)+pow(1.-i,4.)*w,1)"
 
 function patchShaderSource(
   proto: { shaderSource: (shader: WebGLShader, source: string) => void },

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import SharedHeader from './components/SharedHeader'
-import YCBadge from './components/YCBadge'
 import Icon from './components/Icon'
 import HackathonGlobe from '@/components/ui/usage'
 import EventVerifiedBadge from './components/EventVerifiedBadge'
@@ -244,7 +243,6 @@ function Landing() {
         <section className="pv-container">
           <div className="pv-hero">
             <div className="pv-hero__copy">
-              <YCBadge />
               <h1 className="pv-hero__title">
                 Prize money nobody can move alone.
               </h1>

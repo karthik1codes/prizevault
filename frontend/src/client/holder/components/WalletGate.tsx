@@ -36,6 +36,24 @@ const ROLES: {
   },
 ]
 
+function VaultKey({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 48 120" fill="none" aria-hidden="true">
+      <g
+        stroke="currentColor"
+        strokeWidth="5.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="24" cy="22" r="13" />
+        <circle cx="24" cy="22" r="5.5" />
+        <path d="M24 35.5V108" />
+        <path d="M24 76h16M24 88h12M24 100h18" />
+      </g>
+    </svg>
+  )
+}
+
 export interface WalletGateProps {
   role: AppRole
   onRoleChange: (role: AppRole) => void
@@ -59,8 +77,59 @@ export default function WalletGate({
 
   return (
     <div className="pv-gate">
-      <div className="pv-gate__circuit" aria-hidden="true" />
-      <div className="pv-gate__glow" aria-hidden="true" />
+      <div className="pv-gate__vault" aria-hidden="true">
+        <div className="pv-gate__vault-floor" />
+        <svg className="pv-gate__vault-door" viewBox="0 0 400 400">
+          <circle cx="200" cy="200" r="188" fill="none" stroke="#06101f" strokeWidth="16" />
+          <path
+            d="M200 14 A186 186 0 0 0 200 386"
+            fill="none"
+            stroke="#2f9e4f"
+            strokeWidth="11"
+            strokeLinecap="round"
+          />
+          <path
+            d="M200 14 A186 186 0 0 1 200 386"
+            fill="none"
+            stroke="#1f6feb"
+            strokeWidth="11"
+            strokeLinecap="round"
+          />
+          <circle cx="200" cy="200" r="164" fill="none" stroke="#06101f" strokeWidth="3" />
+          <circle
+            className="pv-gate__vault-ticks"
+            cx="200"
+            cy="200"
+            r="148"
+            fill="none"
+            stroke="#06101f"
+            strokeWidth="7"
+            strokeDasharray="5 19"
+          />
+          <circle cx="200" cy="200" r="126" fill="none" stroke="#2f9e4f" strokeWidth="3.5" />
+          <circle cx="200" cy="200" r="108" fill="none" stroke="#1f6feb" strokeWidth="3.5" />
+          {Array.from({ length: 12 }, (_, i) => {
+            const a = (i / 12) * Math.PI * 2 - Math.PI / 2
+            return (
+              <circle
+                key={i}
+                cx={200 + Math.cos(a) * 188}
+                cy={200 + Math.sin(a) * 188}
+                r="6"
+                fill={i % 2 === 0 ? '#2f9e4f' : '#1f6feb'}
+                stroke="#06101f"
+                strokeWidth="1.5"
+              />
+            )
+          })}
+        </svg>
+        <div className="pv-gate__seal pv-gate__seal--sponsor">
+          <VaultKey />
+        </div>
+        <div className="pv-gate__seal pv-gate__seal--organizer">
+          <VaultKey />
+        </div>
+      </div>
 
       <a className="pv-skip-link" href="#gate-form">
         Skip to sign in

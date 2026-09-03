@@ -105,13 +105,13 @@ export function GlobeCdn({
           diffuse: 1.4,
           mapSamples: isMobile ? 8000 : 16000,
           mapBrightness: 3.2,
-          mapBaseBrightness: 0.22,
+          mapBaseBrightness: 0.32,
           baseColor: [0.22, 0.56, 0.28],
           markerColor: [0.1, 0.35, 0.85],
-          glowColor: [0.4, 0.68, 0.98],
+          glowColor: [0.18, 0.40, 0.78],
           markerElevation: 0.04,
           markers: toMarkers(locations),
-          opacity: 0.85,
+          opacity: 1,
         }),
       )
 

@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import Icon from './Icon'
-import ThemeToggle from './ThemeToggle'
 import LandingNavigationMenu, { itemClass, NavGlyph } from './LandingNavigationMenu'
 import { truncateAddress } from './AddressChip'
 import {
@@ -100,44 +99,35 @@ export default function SharedHeader({
           aria-label="Primary"
           onClick={(event) => {
             const target = event.target as HTMLElement
-            if (target.closest('.pv-theme-toggle')) return
             if (target.closest('a, button')) setNavOpen(false)
           }}
         >
           {activeTab === 'landing' ? (
             <LandingNavigationMenu
-              renderTools={({ active, setActive }) => (
-                <>
-                  <ThemeToggle
-                    caption="Theme"
+              renderTools={({ active, setActive }) =>
+                session ? (
+                  <a
+                    href={
+                      ALL_TABS.find((tab) => tab.id === ROLE_TAB[session.role])?.href ?? '/holder'
+                    }
+                    className={itemClass(active === 4)}
+                    title={session.wallet}
+                    onMouseEnter={() => setActive(4)}
+                    onFocus={() => setActive(4)}
+                  >
+                    <NavGlyph icon="wallet" label={ROLE_LABEL[session.role] || 'Wallet'} />
+                  </a>
+                ) : (
+                  <a
+                    href="/holder"
                     className={itemClass(active === 4)}
                     onMouseEnter={() => setActive(4)}
                     onFocus={() => setActive(4)}
-                  />
-                  {session ? (
-                    <a
-                      href={
-                        ALL_TABS.find((tab) => tab.id === ROLE_TAB[session.role])?.href ?? '/holder'
-                      }
-                      className={itemClass(active === 5)}
-                      title={session.wallet}
-                      onMouseEnter={() => setActive(5)}
-                      onFocus={() => setActive(5)}
-                    >
-                      <NavGlyph icon="wallet" label={ROLE_LABEL[session.role] || 'Wallet'} />
-                    </a>
-                  ) : (
-                    <a
-                      href="/holder"
-                      className={itemClass(active === 5)}
-                      onMouseEnter={() => setActive(5)}
-                      onFocus={() => setActive(5)}
-                    >
-                      <NavGlyph icon="wallet" label="Connect wallet" />
-                    </a>
-                  )}
-                </>
-              )}
+                  >
+                    <NavGlyph icon="wallet" label="Connect wallet" />
+                  </a>
+                )
+              }
             />
           ) : (
             <>
@@ -163,8 +153,6 @@ export default function SharedHeader({
         <div className="pv-topbar__actions">
           {activeTab !== 'landing' ? (
             <>
-              <ThemeToggle />
-
               {session ? (
                 <>
                   <span className="pv-session" title={session.wallet}>

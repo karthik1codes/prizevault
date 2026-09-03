@@ -116,8 +116,7 @@
 
 .pv-lamp-nav .pv-lamp-nav__item.pv-nav-menu__trigger,
 .pv-lamp-nav a.pv-lamp-nav__item,
-.pv-lamp-nav button.pv-lamp-nav__item,
-.pv-lamp-nav .pv-theme-toggle.pv-lamp-nav__item {
+.pv-lamp-nav button.pv-lamp-nav__item {
   display: flex;
   flex: none;
   flex-direction: column;
@@ -131,7 +130,7 @@
   border: 0;
   border-radius: var(--pv-radius-md);
   background: transparent;
-  color: var(--lamp-muted);
+  color: #fff;
   font-family: var(--pv-font-sans);
   font-size: var(--pv-text-sm);
   font-weight: var(--pv-weight-medium);
@@ -165,7 +164,7 @@
 .pv-lamp-nav button.pv-lamp-nav__item .pv-nav-menu__chevron {
   grid-column: 2;
   align-self: center;
-  color: inherit;
+  color: var(--lamp-green-hot);
 }
 
 .pv-lamp-nav button.pv-lamp-nav__item .pv-nav-menu__chevron svg {
@@ -175,22 +174,19 @@
 }
 
 .pv-lamp-nav .pv-lamp-nav__item:hover,
-.pv-lamp-nav .pv-lamp-nav__item[data-popup-open],
-.pv-lamp-nav .pv-theme-toggle.pv-lamp-nav__item:hover {
+.pv-lamp-nav .pv-lamp-nav__item[data-popup-open] {
   background: rgba(232, 241, 255, 0.08);
-  color: var(--lamp-ink);
+  color: #fff;
   text-decoration: none;
 }
 
-.pv-lamp-nav .pv-lamp-nav__item.is-active,
-.pv-lamp-nav .pv-theme-toggle.pv-lamp-nav__item.is-active {
+.pv-lamp-nav .pv-lamp-nav__item.is-active {
   background: transparent;
-  color: var(--lamp-green-hot);
+  color: #fff;
   text-decoration: none;
 }
 
-.pv-lamp-nav .pv-lamp-nav__item:focus-visible,
-.pv-lamp-nav .pv-theme-toggle.pv-lamp-nav__item:focus-visible {
+.pv-lamp-nav .pv-lamp-nav__item:focus-visible {
   outline: 2px solid var(--lamp-green-hot);
   outline-offset: -4px;
   border-radius: var(--pv-radius-md);
@@ -200,7 +196,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: inherit;
+  color: var(--lamp-green-hot);
 }
 
 .pv-lamp-nav__glyph svg {
@@ -211,6 +207,7 @@
 
 .pv-lamp-nav__caption {
   min-width: 0;
+  color: #fff;
   font-family: var(--pv-font-sans);
   white-space: nowrap;
 }
@@ -245,8 +242,7 @@
 
 @media (max-width: 1100px) {
   .pv-lamp-nav .pv-lamp-nav__item.pv-nav-menu__trigger,
-  .pv-lamp-nav a.pv-lamp-nav__item,
-  .pv-lamp-nav .pv-theme-toggle.pv-lamp-nav__item {
+  .pv-lamp-nav a.pv-lamp-nav__item {
     padding-inline: var(--pv-space-4);
   }
 }
@@ -292,8 +288,7 @@
 
   .pv-topbar--lamp .pv-topbar__nav.is-open .pv-lamp-nav__item.pv-nav-menu__trigger,
   .pv-topbar--lamp .pv-topbar__nav.is-open a.pv-lamp-nav__item,
-  .pv-topbar--lamp .pv-topbar__nav.is-open button.pv-lamp-nav__item.pv-nav-menu__trigger,
-  .pv-topbar--lamp .pv-topbar__nav.is-open .pv-theme-toggle.pv-lamp-nav__item {
+  .pv-topbar--lamp .pv-topbar__nav.is-open button.pv-lamp-nav__item.pv-nav-menu__trigger {
     display: flex;
     flex-direction: row;
     grid-template-columns: none;

@@ -123,7 +123,7 @@ export default function LandingNavigationMenu({
                 <NavGlyph icon="shield" label="Product" />
               </NavigationMenuTrigger>
               <NavigationMenuContent>
-                <ul className="pv-nav-menu__grid">
+                <ul className="pv-nav-menu__stack">
                   {PRODUCT_LINKS.map((item) => (
                     <li key={item.href}>
                       <NavCardLink item={item} />
