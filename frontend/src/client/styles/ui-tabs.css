@@ -1,0 +1,96 @@
+/* Shared Tabs primitives (@/components/ui/tabs) */
+
+.ui-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ui-tabs[data-orientation='vertical'] {
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.ui-tabs__list {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+}
+
+.ui-tabs__list--default {
+  gap: 0;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ui-tabs__list--line {
+  gap: 0.25rem;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.ui-tabs__trigger {
+  position: relative;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  color: inherit;
+  opacity: 0.72;
+  transition: color 0.15s ease, background 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ui-tabs__trigger:hover {
+  opacity: 1;
+}
+
+.ui-tabs__trigger[data-active] {
+  opacity: 1;
+}
+
+.ui-tabs__list--default .ui-tabs__trigger {
+  border-radius: 999px;
+  padding: 0.45rem 0.85rem;
+}
+
+.ui-tabs__list--default .ui-tabs__trigger[data-active] {
+  background: #2f9e4f;
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(47, 158, 79, 0.35);
+}
+
+.ui-tabs__list--line .ui-tabs__trigger {
+  border-radius: 0;
+  padding: 0.5rem 0.75rem;
+}
+
+.ui-tabs__list--line .ui-tabs__trigger[data-active]::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: currentColor;
+}
+
+.ui-tabs__trigger:focus-visible {
+  outline: 2px solid #2f9e4f;
+  outline-offset: 2px;
+}
+
+.ui-tabs__content {
+  outline: none;
+}
+
+.pv-gate__role-tabs {
+  width: 100%;
+  gap: 0;
+}

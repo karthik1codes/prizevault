@@ -238,9 +238,12 @@
 }
 
 .pv-gate__tabs {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  justify-content: stretch;
   gap: 6px;
+  width: 100%;
   margin-bottom: 22px;
   padding: 4px;
   border-radius: 999px;
@@ -248,28 +251,53 @@
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.pv-gate__tab {
+/* Prefer gate styles over shared ui-tabs defaults on this surface. */
+.pv-gate__tabs.ui-tabs__list,
+.pv-gate__tabs.ui-tabs__list--default {
+  display: grid !important;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.pv-gate__tab,
+.pv-gate__tab.ui-tabs__trigger {
   appearance: none;
   border: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 9px 4px;
+  border-radius: 999px;
   background: transparent;
+  box-shadow: none;
+  opacity: 1;
   color: var(--gate-muted);
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.86rem;
   font-weight: 600;
-  padding: 8px 6px;
-  border-radius: 999px;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
   cursor: pointer;
   transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
-.pv-gate__tab:hover {
+.pv-gate__tab:hover,
+.pv-gate__tab.ui-tabs__trigger:hover {
   color: var(--gate-ink);
 }
 
-.pv-gate__tab.is-active {
-  color: #fff;
+.pv-gate__tab.is-active,
+.pv-gate__tab[data-active],
+.pv-gate__tab.ui-tabs__trigger[data-active] {
+  color: #111111;
   background: var(--gate-red);
   box-shadow: 0 8px 20px rgba(47, 158, 79, 0.38);
+  font-size: 0.95rem;
+  font-weight: 700;
 }
 
 .pv-gate__tab:focus-visible {
@@ -477,11 +505,17 @@
 
 .pv-gate__disclaimer {
   margin: 22px 16px 0;
-  max-width: 42ch;
+  max-width: 48ch;
+  padding: 10px 16px;
   text-align: center;
-  font-size: 0.8rem;
-  line-height: 1.5;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
   color: #000;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(6, 16, 31, 0.08);
   animation: pv-gate-enter 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
 }
 
@@ -576,8 +610,14 @@
   }
 
   .pv-gate__tab {
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     padding: 8px 4px;
+  }
+
+  .pv-gate__tab.is-active,
+  .pv-gate__tab[data-active],
+  .pv-gate__tab.ui-tabs__trigger[data-active] {
+    font-size: 0.88rem;
   }
 
   .pv-gate .pv-form-grid {

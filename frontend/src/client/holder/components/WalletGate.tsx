@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react'
 import Icon from '../../components/Icon'
 import ProfileForm from './ProfileForm'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { UserProfile } from '../../types/holder'
 import type { AppRole } from '../../utils/authSession'
 
@@ -164,20 +165,23 @@ export default function WalletGate({
                 : 'Step 2 of 2 — confirm the Stellar account you control.'}
             </p>
 
-            <div className="pv-gate__tabs" role="tablist" aria-label="Sign in as">
-              {ROLES.map((r) => (
-                <button
-                  key={r.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={role === r.id}
-                  className={`pv-gate__tab ${role === r.id ? 'is-active' : ''}`.trim()}
-                  onClick={() => onRoleChange(r.id)}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
+            <Tabs
+              value={role}
+              onValueChange={(next) => {
+                if (next === 'participant' || next === 'organizer' || next === 'sponsor') {
+                  onRoleChange(next)
+                }
+              }}
+              className="pv-gate__role-tabs"
+            >
+              <TabsList variant="default" className="pv-gate__tabs" aria-label="Sign in as">
+                {ROLES.map((r) => (
+                  <TabsTrigger key={r.id} value={r.id} className="pv-gate__tab">
+                    {r.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
 
             <div key={loginStep} className="pv-gate__step">
               {loginStep === 'profile' ? (
