@@ -99,7 +99,9 @@ export async function runAgentTick(): Promise<AgentTickResult> {
       inbox: [...(hackathon.agent?.inbox || [])],
     }
     const proposal = findProposal(hackathon, proposals)
-    const matchedProposal = proposal ? { ...proposal, hackathonId: hackathon.id } : undefined
+    const matchedProposal: Record<string, unknown> | undefined = proposal
+      ? { ...proposal, hackathonId: hackathon.id }
+      : undefined
     const workflow = getPayoutWorkflowStage(hackathon, matchedProposal ? [matchedProposal] : [])
     const ended = deriveStatus(hackathon) === 'completed'
     let dirty = false
