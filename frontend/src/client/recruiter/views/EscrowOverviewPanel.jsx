@@ -30,7 +30,8 @@ export default function EscrowOverviewPanel({ escrows, selectedEscrowId, onSelec
           <div className="pv-stack pv-stack--sm" role="listbox" aria-label="Prize escrows">
             {escrows.map((escrow) => {
               const active = selectedEscrowId === escrow.id
-              const funded = escrow.balanceAlgo > 0
+              const funded = Boolean(escrow.fullyFunded)
+              const partial = !funded && Number(escrow.balanceAlgo) > 0
               return (
                 <button
                   key={escrow.id}
@@ -64,7 +65,9 @@ export default function EscrowOverviewPanel({ escrows, selectedEscrowId, onSelec
                     </span>
                     <span style={{ textAlign: 'right', flex: 'none' }}>
                       <span
-                        className={`pv-badge ${funded ? 'pv-badge--success' : 'pv-badge--warning'}`}
+                        className={`pv-badge ${
+                          funded ? 'pv-badge--success' : partial ? 'pv-badge--warning' : 'pv-badge--warning'
+                        }`}
                       >
                         {escrow.status}
                       </span>
@@ -77,7 +80,7 @@ export default function EscrowOverviewPanel({ escrows, selectedEscrowId, onSelec
                           fontWeight: 'var(--pv-weight-semibold)',
                         }}
                       >
-                        {formatXlm(escrow.balanceAlgo)} XLM
+                        {formatXlm(escrow.balanceAlgo)} / {formatXlm(escrow.prizePool)} XLM
                       </span>
                     </span>
                   </span>

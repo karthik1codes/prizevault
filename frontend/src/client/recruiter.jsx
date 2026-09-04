@@ -14,7 +14,7 @@ import {
   broadcastHackathonsDatasetChanged,
   subscribeHackathonsDatasetChanged,
 } from './utils/hackathonSync'
-import { fetchHackathons, fetchProposals, saveAllHackathons, updateHackathon } from './services/hackathonApi'
+import { fetchHackathons, fetchProposals, updateHackathon } from './services/hackathonApi'
 import { syncWalletSession } from './services/sessionApi'
 import { useEscrow } from './hooks/useEscrow'
 import {
@@ -22,8 +22,15 @@ import {
   getContractXlmBalanceXlm,
   getEscrowContractId,
 } from './utils/sorobanFund'
-import { isEscrowFullyFunded, prizeTotal } from './utils/format'
+import {
+  escrowBalanceXlm,
+  formatXlm,
+  isEscrowFullyFunded,
+  prizeTotal,
+} from './utils/format'
 import { canSponsorApproveProposal } from './utils/payoutWorkflow'
+import { useAgentInbox } from './hooks/useAgentInbox'
+import AgentInbox from './components/AgentInbox'
 import EscrowOverviewPanel from './recruiter/views/EscrowOverviewPanel'
 import FundingPanel from './recruiter/views/FundingPanel'
 import ReleaseApprovalsPanel from './recruiter/views/ReleaseApprovalsPanel'
@@ -76,6 +83,7 @@ function SponsorConsole() {
   const [isApproving, setIsApproving] = useState(false)
   const [approveError, setApproveError] = useState('')
   const { approvePayout } = useEscrow()
+  const { unread, dismiss } = useAgentInbox(senderAddress)
 
   const sponsorName = 'Hackathon Sponsor Inc.'
   const defaultWallet = senderAddress
@@ -97,19 +105,27 @@ function SponsorConsole() {
   const escrows = useMemo(
     () =>
       hackathons.map((h) => {
-        const balance = Number(h.onChainBalanceXlm ?? h.sponsorFundingXlm ?? 0)
+        const attributed = escrowBalanceXlm(h)
         const contractId = getEscrowContractId()
         const pool = prizeTotal(h)
         const fullyFunded = isEscrowFullyFunded(h)
+        const sharedOnChain = Number(h.onChainBalanceXlm ?? 0)
         return {
           id: h.id,
           name: h.name,
           /** Prize XLM for execute_release is held on the Soroban escrow contract. */
           escrowAddress: contractId,
-          status: fullyFunded ? 'Fully funded' : balance > 0 ? 'Partially funded' : 'Awaiting top-up',
-          balanceAlgo: balance,
+          status: fullyFunded
+            ? 'Fully funded'
+            : attributed > 0
+              ? 'Partially funded'
+              : 'Awaiting top-up',
+          /** Per-event attributed funding (not shared contract total). */
+          balanceAlgo: attributed,
+          sharedOnChainBalance: Number.isFinite(sharedOnChain) ? sharedOnChain : 0,
           prizePool: pool,
           fullyFunded,
+          remainingXlm: Math.max(0, pool - attributed),
           hackathon: h,
         }
       }),
@@ -181,19 +197,29 @@ function SponsorConsole() {
   const actionableCount = pendingReleases.filter((r) => r.canApprove).length
 
   const syncEscrowOnChainState = async (escrowId) => {
-    const hack = hackathons.find((h) => h.id === escrowId)
-    if (!hack) return
     const simulator = senderAddress
-    if (!simulator) return
+    if (!simulator || !escrowId) return
     try {
       const onChainBalanceXlm = await getContractXlmBalanceXlm(simulator)
-      const updatedHackathons = hackathons.map((h) =>
-        h.id === escrowId
-          ? { ...h, onChainBalanceXlm, escrowAddress: getEscrowContractId() }
-          : h,
-      )
-      const synced = await saveAllHackathons(updatedHackathons)
-      setHackathons(synced)
+      // Only patch the shared-contract readout. Never rewrite the whole row —
+      // that used to wipe sponsorFundingXlm with a stale in-memory copy.
+      const result = await updateHackathon(escrowId, {
+        onChainBalanceXlm,
+        escrowAddress: getEscrowContractId(),
+      })
+      if (result.success && result.hackathon) {
+        setHackathons((prev) =>
+          prev.map((h) => (h.id === escrowId ? { ...h, ...result.hackathon } : h)),
+        )
+      } else {
+        setHackathons((prev) =>
+          prev.map((h) =>
+            h.id === escrowId
+              ? { ...h, onChainBalanceXlm, escrowAddress: getEscrowContractId() }
+              : h,
+          ),
+        )
+      }
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Failed to sync Soroban escrow balance', error)
@@ -202,7 +228,7 @@ function SponsorConsole() {
 
   useEffect(() => {
     if (selectedEscrowId) {
-      syncEscrowOnChainState(selectedEscrowId)
+      void syncEscrowOnChainState(selectedEscrowId)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedEscrowId, senderAddress])
@@ -214,6 +240,11 @@ function SponsorConsole() {
     }
     const hackRow = hackathons.find((h) => h.id === escrowId)
     if (!hackRow) return
+
+    if (isEscrowFullyFunded(hackRow)) {
+      setFundingError('This event is already fully funded. No more XLM is needed.')
+      return
+    }
 
     const contractId = getEscrowContractId()
     setFundingError('')
@@ -228,11 +259,12 @@ function SponsorConsole() {
       })
 
       const nextFunding = Number(hackRow.sponsorFundingXlm || 0) + numericAmount
-      const sponsorFunded = isEscrowFullyFunded({
+      const nextRow = {
         ...hackRow,
         sponsorFundingXlm: nextFunding,
         sponsorAddress: senderAddress,
-      })
+      }
+      const sponsorFunded = isEscrowFullyFunded(nextRow)
 
       const patch = {
         sponsorFundingXlm: nextFunding,
@@ -247,11 +279,20 @@ function SponsorConsole() {
         throw new Error(result.error || 'Funding succeeded on-chain but could not save to the database.')
       }
 
-      const syncedHackathons = hackathons.map((h) =>
-        h.id === escrowId ? { ...h, ...result.hackathon } : h,
+      setHackathons((prev) =>
+        prev.map((h) => (h.id === escrowId ? { ...h, ...result.hackathon } : h)),
       )
-      setHackathons(syncedHackathons)
-      await syncEscrowOnChainState(escrowId)
+
+      // Refresh shared-contract balance for display only (does not change attributed funding).
+      try {
+        const onChainBalanceXlm = await getContractXlmBalanceXlm(senderAddress)
+        await updateHackathon(escrowId, { onChainBalanceXlm })
+        setHackathons((prev) =>
+          prev.map((h) => (h.id === escrowId ? { ...h, onChainBalanceXlm } : h)),
+        )
+      } catch {
+        // attributed funding already saved; chain readout is optional
+      }
 
       setActivities((prev) => [
         {
@@ -259,8 +300,8 @@ function SponsorConsole() {
           timestamp: 'Just now',
           icon: 'send',
           tone: 'success',
-          title: 'Soroban escrow funded',
-          description: `Transferred ${numericAmount} XLM (SAC) into contract for ${hackRow.name}.`,
+          title: sponsorFunded ? 'Prize pool fully funded' : 'Soroban escrow funded',
+          description: `Attributed ${formatXlm(numericAmount)} XLM to ${hackRow.name} (${formatXlm(nextFunding)} / ${formatXlm(prizeTotal(hackRow))} XLM).`,
           txHash,
         },
         ...prev,
@@ -270,6 +311,59 @@ function SponsorConsole() {
       console.error('Funding transaction failed', error)
       setFundingError(
         error instanceof Error ? error.message : 'Funding failed on Stellar testnet.',
+      )
+    } finally {
+      setIsFunding(false)
+    }
+  }
+
+  /** Repair path: attribute existing shared-contract funds to this event without another transfer. */
+  const handleConfirmAttributedFunding = async (escrowId) => {
+    const hackRow = hackathons.find((h) => h.id === escrowId)
+    if (!hackRow || !senderAddress) return
+    const pool = prizeTotal(hackRow)
+    if (pool <= 0) return
+    if (isEscrowFullyFunded(hackRow)) return
+
+    setFundingError('')
+    setIsFunding(true)
+    try {
+      const shared = await getContractXlmBalanceXlm(senderAddress)
+      if (shared < pool) {
+        throw new Error(
+          `Shared escrow only holds ${formatXlm(shared)} XLM, but this event needs ${formatXlm(pool)} XLM. Send the remaining amount first.`,
+        )
+      }
+
+      const patch = {
+        sponsorFundingXlm: pool,
+        sponsorAddress: senderAddress,
+        organizerAddress: hackRow.organizerAddress?.trim() || '',
+        escrowAddress: getEscrowContractId(),
+        onChainBalanceXlm: shared,
+        sponsorFunded: true,
+      }
+      const result = await updateHackathon(escrowId, patch)
+      if (!result.success || !result.hackathon) {
+        throw new Error(result.error || 'Could not record funding for this event.')
+      }
+      setHackathons((prev) =>
+        prev.map((h) => (h.id === escrowId ? { ...h, ...result.hackathon } : h)),
+      )
+      setActivities((prev) => [
+        {
+          id: `act_confirm_${Date.now()}`,
+          timestamp: 'Just now',
+          icon: 'checkCircle',
+          tone: 'success',
+          title: 'Funding attributed to event',
+          description: `Marked ${hackRow.name} fully funded (${formatXlm(pool)} XLM) from the shared escrow balance.`,
+        },
+        ...prev,
+      ])
+    } catch (error) {
+      setFundingError(
+        error instanceof Error ? error.message : 'Could not confirm funding for this event.',
       )
     } finally {
       setIsFunding(false)
@@ -348,8 +442,8 @@ function SponsorConsole() {
             <h1 className="pv-page-header__title">Sponsor console</h1>
             <p className="pv-page-header__desc">
               Fund prize pools first, then co-approve winner payouts after the organizer proposes
-              them. Nothing is released until both sides approve; the organizer executes the
-              on-chain release (agent automation later).
+              them. Nothing is released until both sides approve. After that the escrow agent
+              executes the on-chain release and posts the transaction link.
             </p>
           </div>
           <div className="pv-page-header__actions">
@@ -377,6 +471,15 @@ function SponsorConsole() {
         style={{ paddingBottom: 'var(--pv-space-13)' }}
       >
         <div className="pv-stack pv-stack--lg">
+          <AgentInbox
+            notifications={unread}
+            onOpen={(notice) => {
+              if (notice.txUrl) window.open(notice.txUrl, '_blank', 'noreferrer')
+              else document.getElementById('approvals')?.scrollIntoView({ behavior: 'smooth' })
+            }}
+            onDismiss={dismiss}
+          />
+
           <BudgetSummaryPanel stats={budgetStats} />
 
           <section className="pv-section" id="approvals">
@@ -397,9 +500,10 @@ function SponsorConsole() {
             <FundingPanel
               selectedEscrow={selectedEscrow}
               onFund={handleFund}
+              onConfirmAttributed={handleConfirmAttributedFunding}
               fundingDestinationAddress={getEscrowContractId()}
               displaySenderAddress={senderAddress}
-              onSyncOnChain={() => selectedEscrowId && syncEscrowOnChainState(selectedEscrowId)}
+              onSyncOnChain={() => selectedEscrowId && void syncEscrowOnChainState(selectedEscrowId)}
               isFunding={isFunding}
               fundingError={fundingError}
             />

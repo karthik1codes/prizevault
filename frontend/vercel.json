@@ -3,6 +3,12 @@
   "framework": "nextjs",
   "buildCommand": "npm run build:verify",
   "installCommand": "npm install",
+  "crons": [
+    {
+      "path": "/api/agent/tick",
+      "schedule": "*/5 * * * *"
+    }
+  ],
   "env": {
     "NEXT_PUBLIC_SUPABASE_URL": "https://mjlbcskcsrxkjycjpdyh.supabase.co",
     "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_jM9a3lNktIjheG6joFKvYw_G8PcKjPx"

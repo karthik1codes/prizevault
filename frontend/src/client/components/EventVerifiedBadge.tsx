@@ -1,6 +1,7 @@
 import { AwardBadge } from '@/components/ui/award-badge'
 import { ESCROW_APP_ID } from '../constants/escrow'
 import { isEscrowFullyFunded } from '../utils/format'
+import Icon from './Icon'
 
 type FundedHackathon = {
   escrowAddress?: string
@@ -21,6 +22,17 @@ export default function EventVerifiedBadge({ hackathon }: { hackathon: FundedHac
 
   return (
     <div className="pv-event__verified-badge">
+      <a
+        className="pv-event__funded-chip"
+        href={escrowExplorerUrl(hackathon)}
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Prize pool funded and verified on Stellar"
+        title="Funded & verified on-chain"
+      >
+        <Icon name="shield" size={12} />
+        Funded & verified
+      </a>
       <AwardBadge link={escrowExplorerUrl(hackathon)} />
     </div>
   )

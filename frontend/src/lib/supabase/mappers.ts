@@ -1,4 +1,4 @@
-import type { Hackathon, Participant, Winner } from '@/client/types/hackathon'
+import type { Hackathon, HackathonAgentState, Participant, Winner } from '@/client/types/hackathon'
 import { enrichHackathonLocation } from '@/client/utils/hackathonGlobe'
 import { ESCROW_APP_ID, SOROBAN_TESTNET_XLM_TOKEN_CONTRACT_ID } from '@/client/constants/escrow'
 import { coerceUuid } from './ids'
@@ -53,6 +53,10 @@ function parseCoordField(value: unknown): number | undefined {
   return undefined
 }
 
+function isAgentState(value: unknown): value is HackathonAgentState {
+  return Boolean(value) && typeof value === 'object'
+}
+
 export function rowToHackathon(row: HackathonRow): Hackathon & {
   sponsorFundingXlm?: number
   onChainBalanceXlm?: number
@@ -97,6 +101,7 @@ export function rowToHackathon(row: HackathonRow): Hackathon & {
     longitude: parseCoordField(payload.longitude),
     sponsorFundingXlm: num(row.sponsor_funding_xlm),
     onChainBalanceXlm: row.on_chain_balance_xlm != null ? num(row.on_chain_balance_xlm) : undefined,
+    agent: isAgentState(payload.agent) ? payload.agent : undefined,
   })
 }
 
@@ -150,6 +155,7 @@ export function hackathonToRow(
         typeof hackathon.longitude === 'number' && Number.isFinite(hackathon.longitude)
           ? hackathon.longitude
           : null,
+      agent: hackathon.agent ?? null,
     },
   }
 }

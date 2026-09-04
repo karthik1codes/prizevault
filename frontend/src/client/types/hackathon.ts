@@ -26,6 +26,30 @@ export interface Winner {
   prizeAmount: number
 }
 
+export type AgentStage = 'event_ended' | 'propose' | 'released'
+
+export type AgentNotification = {
+  id: string
+  wallet: string
+  role: 'organizer' | 'sponsor'
+  hackathonId: string
+  hackathonName: string
+  stage: AgentStage
+  title: string
+  body: string
+  href: string
+  view?: string
+  txHash?: string
+  txUrl?: string
+  createdAt: string
+  readAt?: string | null
+}
+
+export type HackathonAgentState = {
+  notified?: Partial<Record<AgentStage, string>>
+  inbox?: AgentNotification[]
+}
+
 export interface Hackathon {
   id: string
   name: string
@@ -45,6 +69,8 @@ export interface Hackathon {
   payoutExecuted?: boolean
   /** Set when sponsor funding reaches the full prize pool */
   sponsorFunded?: boolean
+  /** Escrow agent notify-once state and inbox (payload.agent) */
+  agent?: HackathonAgentState
   description?: string
   /** City or venue label shown on the landing globe */
   venueCity?: string

@@ -136,7 +136,7 @@ export default function CreateHackathonForm({ userWallet, onSave, onCancel }) {
       prizePool: {
         total: parseFloat(values.prizeTotal),
         currency: values.prizeCurrency || 'XLM',
-        locked: true,
+        locked: false,
       },
       organizerAddress: organizerEscrow,
       sponsorAddress: '',

@@ -53,7 +53,7 @@ export const WORKFLOW_STAGE_META: Record<
   ready_to_release: {
     label: 'Ready to release',
     badge: 'pv-badge--accent',
-    description: 'Both sides approved. The organizer can execute the on-chain release (agent later).',
+    description: 'Both sides approved. The escrow agent executes the on-chain release and posts the transaction link.',
   },
   released: {
     label: 'Released',

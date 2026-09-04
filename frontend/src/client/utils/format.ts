@@ -155,27 +155,21 @@ export function prizeCurrency(hackathon: { prizePool?: unknown }): string {
   return currency ? String(currency) : 'XLM'
 }
 
-/** On-chain balance when synced; otherwise sponsor-reported funding. */
+/**
+ * XLM attributed to THIS hackathon's prize pool.
+ * Never use the shared Soroban contract balance here — that contract holds
+ * funds for every event, so its total would falsely inflate a single escrow.
+ */
 export function escrowBalanceXlm(hackathon: {
   onChainBalanceXlm?: unknown
   sponsorFundingXlm?: unknown
   sponsorAddress?: unknown
 }): number {
   const sponsorFunding = Number(hackathon.sponsorFundingXlm ?? 0)
-  const hasSponsor = Boolean(String(hackathon.sponsorAddress || '').trim())
-
-  // Per-hackathon sponsor funding is authoritative in production (Supabase column).
-  if (hasSponsor && Number.isFinite(sponsorFunding) && sponsorFunding > 0) {
-    return sponsorFunding
-  }
-
-  const onChain = Number(hackathon.onChainBalanceXlm ?? 0)
-  if (Number.isFinite(onChain) && onChain > 0) return onChain
-
-  return Number.isFinite(sponsorFunding) ? sponsorFunding : 0
+  return Number.isFinite(sponsorFunding) && sponsorFunding > 0 ? sponsorFunding : 0
 }
 
-/** True when a sponsor has funded at least the full declared prize pool. */
+/** True when a sponsor has funded at least the full declared prize pool for this event. */
 export function isEscrowFullyFunded(hackathon: {
   prizePool?: unknown
   onChainBalanceXlm?: unknown
@@ -183,16 +177,20 @@ export function isEscrowFullyFunded(hackathon: {
   sponsorAddress?: unknown
   sponsorFunded?: unknown
 }): boolean {
-  if (hackathon.sponsorFunded === true) return true
-
-  const hasSponsor = Boolean(String(hackathon.sponsorAddress || '').trim())
-  if (!hasSponsor) return false
-
   const total = prizeTotal(hackathon)
-  const balance = escrowBalanceXlm(hackathon)
-  if (balance <= 0) return false
-  if (total <= 0) return true
-  return balance >= total
+  const attributed = escrowBalanceXlm(hackathon)
+
+  if (total <= 0) {
+    return attributed > 0 || hackathon.sponsorFunded === true
+  }
+
+  if (attributed >= total) return true
+
+  // Honor an explicit DB flag only when attributed funding is already positive,
+  // so a stale flag alone cannot unlock payouts without a recorded deposit.
+  if (hackathon.sponsorFunded === true && attributed > 0) return true
+
+  return false
 }
 
 /** Normalize funding flags when loading from cache or API. */
@@ -203,9 +201,14 @@ export function enrichHackathonFunding<T extends {
   sponsorAddress?: unknown
   sponsorFunded?: unknown
 }>(hackathon: T): T {
-  if (hackathon.sponsorFunded === true) return hackathon
-  if (isEscrowFullyFunded(hackathon)) {
+  const attributed = escrowBalanceXlm(hackathon)
+  const total = prizeTotal(hackathon)
+  if (total > 0 && attributed >= total) {
     return { ...hackathon, sponsorFunded: true }
+  }
+  if (hackathon.sponsorFunded === true && attributed <= 0) {
+    // Drop a stale unlock flag when no attributed funding exists for this event.
+    return { ...hackathon, sponsorFunded: false }
   }
   return hackathon
 }

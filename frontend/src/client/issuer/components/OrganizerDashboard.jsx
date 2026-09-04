@@ -17,6 +17,8 @@ import {
   getPayoutWorkflowStage,
   WORKFLOW_STAGE_META,
 } from '../../utils/payoutWorkflow'
+import { useAgentInbox } from '../../hooks/useAgentInbox'
+import AgentInbox from '../../components/AgentInbox'
 
 function HackathonRow({ hackathon, sessionWallet, onNavigate, onDeleted, proposals }) {
   const status = deriveStatus(hackathon)
@@ -106,6 +108,7 @@ function HackathonRow({ hackathon, sessionWallet, onNavigate, onDeleted, proposa
 export default function OrganizerDashboard({ sessionWallet, onNavigate }) {
   const { hackathons, reload } = useHackathons((h) => hackathonBelongsToOrganizerPortal(h, sessionWallet))
   const { proposals } = usePayoutProposals()
+  const { unread, dismiss } = useAgentInbox(sessionWallet)
 
   const needFunding = hackathons.filter((h) => !isEscrowFullyFunded(h) && deriveStatus(h) !== 'completed')
   const needWinners = hackathons.filter(
@@ -162,7 +165,7 @@ export default function OrganizerDashboard({ sessionWallet, onNavigate }) {
       icon: 'checkCircle',
       tone: 'pv-alert--accent',
       title: `${readyToRelease.length} payout ${readyToRelease.length === 1 ? 'is' : 'are'} ready to release`,
-      text: 'Both sides approved. Execute the on-chain release from the payout console (agent automation later).',
+      text: 'Both sides approved. The escrow agent will execute the on-chain release and post the transaction link.',
       cta: 'Release payout',
       view: 'payouts',
       id: readyToRelease[0].id,
@@ -187,6 +190,12 @@ export default function OrganizerDashboard({ sessionWallet, onNavigate }) {
           </a>
         </div>
       </div>
+
+      <AgentInbox
+        notifications={unread}
+        onOpen={(notice) => onNavigate?.(notice.view || 'dashboard', notice.hackathonId)}
+        onDismiss={dismiss}
+      />
 
       {nudges.length > 0 ? (
         <div className="pv-stack pv-stack--sm">
