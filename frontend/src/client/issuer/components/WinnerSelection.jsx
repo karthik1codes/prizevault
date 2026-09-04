@@ -142,6 +142,7 @@ export default function WinnerSelection({ hackathonId, sessionWallet, onSave }) 
       const result = await updateHackathon(hackathon.id, {
         winners: winnerList,
         winnersSelected: winnerList.length > 0,
+        status: winnerList.length > 0 ? 'completed' : hackathon.status,
         participants: nextParticipants,
       })
 

@@ -23,12 +23,17 @@ const PRODUCT_LINKS: NavCard[] = [
   {
     title: 'How it works',
     description: 'Dual-approval escrow from funding through winner payout.',
-    href: '#how',
+    href: '/#how',
   },
   {
     title: 'Browse events',
     description: 'Open hackathons accepting registrations right now.',
-    href: '#events',
+    href: '/#events',
+  },
+  {
+    title: 'Past events',
+    description: 'Completed events with winners and transaction certificates.',
+    href: '/past-events',
   },
 ]
 
@@ -55,6 +60,11 @@ function indexFromHash(hash: string): number {
   if (hash === '#how') return 1
   if (hash === '#events') return 0
   return 0
+}
+
+function pathIsPastEvents(): boolean {
+  if (typeof window === 'undefined') return false
+  return window.location.pathname.replace(/\/$/, '') === '/past-events'
 }
 
 function NavCardLink({ item }: { item: NavCard }) {
@@ -91,7 +101,7 @@ export default function LandingNavigationMenu({
   const [active, setActive] = useState(0)
 
   useEffect(() => {
-    setActive(indexFromHash(window.location.hash))
+    setActive(pathIsPastEvents() ? 5 : indexFromHash(window.location.hash))
     const onHash = () => setActive(indexFromHash(window.location.hash))
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
@@ -104,13 +114,25 @@ export default function LandingNavigationMenu({
           <NavigationMenuList>
             <NavigationMenuItem>
               <NavigationMenuLink
-                href="#events"
+                href="/#events"
                 className={itemClass(active === 0)}
                 closeOnClick
                 onMouseEnter={() => setActive(0)}
                 onFocus={() => setActive(0)}
               >
                 <NavGlyph icon="calendar" label="Events" />
+              </NavigationMenuLink>
+            </NavigationMenuItem>
+
+            <NavigationMenuItem>
+              <NavigationMenuLink
+                href="/past-events"
+                className={itemClass(active === 5)}
+                closeOnClick
+                onMouseEnter={() => setActive(5)}
+                onFocus={() => setActive(5)}
+              >
+                <NavGlyph icon="trophy" label="Past" />
               </NavigationMenuLink>
             </NavigationMenuItem>
 
@@ -154,7 +176,7 @@ export default function LandingNavigationMenu({
 
             <NavigationMenuItem>
               <NavigationMenuLink
-                href="#roles"
+                href="/#roles"
                 className={itemClass(active === 3)}
                 closeOnClick
                 onMouseEnter={() => setActive(3)}

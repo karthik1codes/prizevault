@@ -12,6 +12,9 @@ type HackathonExtras = Hackathon & {
   sponsorFundingXlm?: number
   onChainBalanceXlm?: number
   sponsorFunded?: boolean
+  payoutTxHash?: string
+  organizerName?: string
+  sponsorName?: string
   dbId?: string
 }
 

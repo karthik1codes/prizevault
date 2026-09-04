@@ -157,7 +157,15 @@ export default function PayoutProposal({ hackathonId, sessionWallet, onExecute }
       await savePayoutProposals(updated)
 
       const updatedHackathons = hackathons.map((x) =>
-        x.id === proposal.hackathonId ? { ...x, payoutExecuted: true } : x,
+        x.id === proposal.hackathonId
+          ? {
+              ...x,
+              payoutExecuted: true,
+              payoutTxHash: chainResult.txHash,
+              status: 'completed',
+              winnersSelected: true,
+            }
+          : x,
       )
       await saveAllHackathons(updatedHackathons)
 

@@ -290,13 +290,19 @@ function Landing() {
               <div>
                 <h2 className="pv-section-head__title">Open events</h2>
                 <p className="pv-section__desc">
-                  Hackathons currently accepting registrations or in progress.
+                  Hackathons currently accepting registrations or in progress. Events move to Past
+                  once winners are selected.
                 </p>
               </div>
-              <a href="/holder" className="pv-btn pv-btn--secondary pv-btn--sm">
-                View all in wallet
-                <Icon name="arrowRight" size={14} />
-              </a>
+              <div className="pv-btn-group">
+                <a href="/past-events" className="pv-btn pv-btn--ghost pv-btn--sm">
+                  Past events
+                </a>
+                <a href="/holder" className="pv-btn pv-btn--secondary pv-btn--sm">
+                  View all in wallet
+                  <Icon name="arrowRight" size={14} />
+                </a>
+              </div>
             </div>
 
             {openEvents.length > 0 ? (
@@ -457,6 +463,9 @@ function Landing() {
           <ul className="pv-footer__links">
             <li>
               <a href="/holder">Escrow Wallet</a>
+            </li>
+            <li>
+              <a href="/past-events">Past events</a>
             </li>
             <li>
               <a href="/organizer">Organizer</a>

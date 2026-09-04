@@ -90,6 +90,9 @@ export function rowToHackathon(row: HackathonRow): Hackathon & {
     winnersSelected: Boolean(payload.winnersSelected),
     payoutProposed: Boolean(payload.payoutProposed),
     payoutExecuted: Boolean(payload.payoutExecuted),
+    payoutTxHash: typeof payload.payoutTxHash === 'string' ? payload.payoutTxHash : undefined,
+    organizerName: typeof payload.organizerName === 'string' ? payload.organizerName : undefined,
+    sponsorName: typeof payload.sponsorName === 'string' ? payload.sponsorName : undefined,
     sponsorFunded:
       Boolean(payload.sponsorFunded) ||
       (Boolean(row.sponsor_wallet) &&
@@ -141,6 +144,9 @@ export function hackathonToRow(
       winnersSelected: hackathon.winnersSelected ?? false,
       payoutProposed: hackathon.payoutProposed ?? false,
       payoutExecuted: hackathon.payoutExecuted ?? false,
+      payoutTxHash: hackathon.payoutTxHash ?? null,
+      organizerName: hackathon.organizerName ?? null,
+      sponsorName: hackathon.sponsorName ?? null,
       sponsorFunded:
         hackathon.sponsorFunded ??
         (Number(hackathon.sponsorFundingXlm ?? 0) > 0 &&

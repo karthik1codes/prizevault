@@ -89,7 +89,18 @@ export function deriveStatus(hackathon: {
   startDate?: unknown
   endDate?: unknown
   status?: unknown
+  winnersSelected?: unknown
+  winners?: unknown[]
 }): EventStatus {
+  // Winner selection ends the event for open listings (dates alone must not keep it live).
+  if (
+    hackathon?.status === 'completed' ||
+    hackathon?.winnersSelected === true ||
+    (Array.isArray(hackathon?.winners) && hackathon.winners.length > 0)
+  ) {
+    return 'completed'
+  }
+
   const start = toDate(hackathon?.startDate)
   const end = toDate(hackathon?.endDate)
   const now = Date.now()

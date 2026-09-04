@@ -67,8 +67,13 @@ export interface Hackathon {
   payoutProposed: boolean
   /** Set after execute_release completes for this event */
   payoutExecuted?: boolean
+  /** execute_release transaction hash (Stellar Expert certificate) */
+  payoutTxHash?: string
   /** Set when sponsor funding reaches the full prize pool */
   sponsorFunded?: boolean
+  /** Optional display names when known */
+  organizerName?: string
+  sponsorName?: string
   /** Escrow agent notify-once state and inbox (payload.agent) */
   agent?: HackathonAgentState
   description?: string
