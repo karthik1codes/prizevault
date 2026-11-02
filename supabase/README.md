@@ -1,10 +1,10 @@
 # Supabase setup (PrizeVault)
 
-Project: **https://mjlbcskcsrxkjycjpdyh.supabase.co**
+Project: **https://oyfdzkxztssombcupeon.supabase.co**
 
 ## 1. Run the schema (one time)
 
-1. Open [Supabase SQL Editor](https://supabase.com/dashboard/project/mjlbcskcsrxkjycjpdyh/sql/new)
+1. Open [Supabase SQL Editor](https://supabase.com/dashboard/project/oyfdzkxztssombcupeon/sql/new)
 2. Paste and run: `supabase/migrations/001_prizevault_schema.sql`
 3. Then run: `supabase/migrations/002_participants_rls.sql` (enables `participants` RLS + `hackathon_registrations` table)
 4. Then run: `supabase/migrations/003_payouts_rls.sql` (enables `payouts` RLS + unique index per proposal/winner)
@@ -17,7 +17,7 @@ Project: **https://mjlbcskcsrxkjycjpdyh.supabase.co**
 **Production (Vercel):** Root Directory = `frontend`. Supabase public vars are in `frontend/vercel.json` and resolved at build time via `src/lib/supabase/constants.ts`. You can still override in Vercel → Environment Variables.
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://mjlbcskcsrxkjycjpdyh.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://oyfdzkxztssombcupeon.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable key from Supabase dashboard>
 SUPABASE_SERVICE_ROLE_KEY=<service_role key — server only, never NEXT_PUBLIC>
 ```

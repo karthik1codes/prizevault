@@ -26,7 +26,7 @@ These are **also baked into `vercel.json` and project defaults** so production w
 
 | Variable | Value |
 |----------|--------|
-| `NEXT_PUBLIC_SUPABASE_URL` | `https://mjlbcskcsrxkjycjpdyh.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://oyfdzkxztssombcupeon.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Your publishable key from Supabase → Settings → API |
 
 Required for creating events, registrations, and payouts (server-only):

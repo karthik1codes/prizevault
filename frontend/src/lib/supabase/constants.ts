@@ -3,10 +3,10 @@
  * The publishable key is public (embedded in the client bundle) — same as Supabase anon key.
  * Override via NEXT_PUBLIC_SUPABASE_* env vars for other projects / environments.
  */
-export const PRIZEVAULT_SUPABASE_URL = 'https://mjlbcskcsrxkjycjpdyh.supabase.co'
+export const PRIZEVAULT_SUPABASE_URL = 'https://oyfdzkxztssombcupeon.supabase.co'
 
 export const PRIZEVAULT_SUPABASE_PUBLISHABLE_KEY =
-  'sb_publishable_jM9a3lNktIjheG6joFKvYw_G8PcKjPx'
+  'sb_publishable_I55_8Vz1J8mB-8GzoCOp1Q_FCmJHHG5'
 
 /** Resolve Supabase URL from env with project default. */
 export function resolveSupabaseUrl(): string {
