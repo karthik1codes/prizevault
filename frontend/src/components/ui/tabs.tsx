@@ -3,10 +3,23 @@
 import * as React from 'react'
 import { Tabs as TabsPrimitive } from '@base-ui/react/tabs'
 
-type ClassNameProp = string | undefined
+type ClassNameValue<TState> =
+  | string
+  | undefined
+  | ((state: TState) => string | undefined)
 
-function cx(...parts: ClassNameProp[]): string {
+function cx(...parts: Array<string | undefined>): string {
   return parts.filter(Boolean).join(' ')
+}
+
+function mergeClassName<TState>(
+  base: string,
+  className?: ClassNameValue<TState>,
+): string | ((state: TState) => string) {
+  if (typeof className === 'function') {
+    return (state) => cx(base, className(state))
+  }
+  return cx(base, className)
 }
 
 export function Tabs({
@@ -18,7 +31,7 @@ export function Tabs({
     <TabsPrimitive.Root
       data-slot="tabs"
       data-orientation={orientation}
-      className={cx('ui-tabs', className)}
+      className={mergeClassName('ui-tabs', className)}
       orientation={orientation}
       {...props}
     />
@@ -32,15 +45,16 @@ export function TabsList({
 }: React.ComponentPropsWithoutRef<typeof TabsPrimitive.List> & {
   variant?: 'default' | 'line'
 }) {
+  const base =
+    variant === 'line'
+      ? 'ui-tabs__list ui-tabs__list--line'
+      : 'ui-tabs__list ui-tabs__list--default'
+
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
       data-variant={variant}
-      className={cx(
-        'ui-tabs__list',
-        variant === 'line' ? 'ui-tabs__list--line' : 'ui-tabs__list--default',
-        className,
-      )}
+      className={mergeClassName(base, className)}
       {...props}
     />
   )
@@ -53,7 +67,7 @@ export function TabsTrigger({
   return (
     <TabsPrimitive.Tab
       data-slot="tabs-trigger"
-      className={cx('ui-tabs__trigger', className)}
+      className={mergeClassName('ui-tabs__trigger', className)}
       {...props}
     />
   )
@@ -66,7 +80,7 @@ export function TabsContent({
   return (
     <TabsPrimitive.Panel
       data-slot="tabs-content"
-      className={cx('ui-tabs__content', className)}
+      className={mergeClassName('ui-tabs__content', className)}
       {...props}
     />
   )
